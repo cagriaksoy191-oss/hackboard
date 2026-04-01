@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hackboard
+    runtime: node
+    buildCommand: npm install && cd client && npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://hackboard.onrender.com
+    plan: free
