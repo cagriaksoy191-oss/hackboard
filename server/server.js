@@ -15,6 +15,7 @@ import activityRoutes from './routes/activities.js';
 import analyticsRoutes from './routes/analytics.js';
 import milestoneRoutes from './routes/milestones.js';
 import notificationRoutes from './routes/notifications.js';
+import backupRoutes from './routes/backup.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -38,7 +39,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const io = new Server(server, {
   cors: {
@@ -66,6 +67,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/milestones', milestoneRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/backup', backupRoutes);
 
 const distPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(distPath)) {

@@ -41,4 +41,10 @@ export const milestonesAPI = {
   update: (id, data) => api.put(`/milestones/${id}`, data),
 };
 
+export const backupAPI = {
+  exportData: () => api.get('/backup/export'),
+  getHealth: () => api.get('/backup/health'),
+  importData: (data) => api.post('/backup/import', data),
+};
+
 export default api;

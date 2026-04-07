@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import CountdownTimer from './CountdownTimer';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import BackupMenu from './BackupMenu';
 
 function Header({ toggleSidebar }) {
   const { user, logoutUser } = useUser();
@@ -31,6 +32,7 @@ function Header({ toggleSidebar }) {
           <span className="text-xs text-success font-medium">Canli</span>
         </div>
         <ThemeToggle />
+        <BackupMenu />
         <NotificationBell />
         {user && (
           <div className="flex items-center gap-2 pl-3 border-l border-white/10">
