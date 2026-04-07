@@ -40,66 +40,71 @@ HackBoard is a real-time collaborative team management panel designed for hackat
 
 ```
 Hackathon/
-├── AGENT.md                          # This file - AI reference document
-├── README.md                         # Project documentation and setup guide
-├── package.json                      # Root package: server deps + scripts
-├── render.yaml                       # Render.com deployment config
-├── .gitignore                        # Git ignore rules
-├── .env.example                      # Environment variable template
-├── server/
-│   ├── server.js                     # Express + Socket.IO server entry point
-│   ├── db.js                         # sql.js database init, save, prepare wrapper
-│   ├── seed.js                       # Initial sample data (runs once on empty DB)
-│   └── routes/
-│       ├── tasks.js                  # Task CRUD, subtasks, comments APIs
-│       ├── users.js                  # User list and online status API
-│       ├── messages.js               # Chat message GET/POST API
-│       ├── activities.js             # Activity feed API
-│       ├── analytics.js              # Dashboard analytics aggregation API
-│       ├── milestones.js             # Milestone CRUD API
-│       └── notifications.js          # Notification list API (derived from activities)
-└── client/
-    ├── package.json                  # Client package: React deps + build scripts
-    ├── vite.config.js                # Vite config with proxy for dev
-    ├── tailwind.config.js            # Tailwind theme with custom colors
-    ├── index.html                    # HTML entry point
-    └── src/
-        ├── main.jsx                  # React entry point
-        ├── App.jsx                   # Router + provider wrapper (ErrorBoundary > Theme > User > Toast)
-        ├── index.css                 # Global styles, CSS variables for dark/light themes
-        ├── lib/
-        │   ├── api.js                # Axios API client with /api base URL
-        │   └── socket.js             # Socket.IO client singleton (connects to '/')
-        ├── context/
-        │   ├── ThemeContext.jsx      # Dark/light theme with localStorage persistence
-        │   └── UserContext.jsx       # Current user state with localStorage persistence
-        ├── components/
-        │   ├── Layout.jsx            # Main layout: checks login, renders Sidebar + Header + children
-        │   ├── Sidebar.jsx           # Navigation sidebar with route links + user info + theme toggle
-        │   ├── Header.jsx            # Top bar: countdown timer, live status, notification bell, user avatar, logout
-        │   ├── LoginScreen.jsx       # User selection screen shown when not logged in
-        │   ├── KanbanBoard.jsx       # Drag-and-drop Kanban board with search/filter
-        │   ├── TaskCard.jsx          # Individual task card with delete/edit modals
-        │   ├── TaskTimer.jsx         # Per-task stopwatch with start/stop and budget comparison
-        │   ├── CreateTaskModal.jsx   # New task creation form
-        │   ├── EditTaskModal.jsx     # Task editing form
-        │   ├── ConfirmModal.jsx      # Generic confirmation dialog (used for delete)
-        │   ├── NotificationBell.jsx  # Real-time notification dropdown with unread badge
-        │   ├── ActivityFeed.jsx      # Live activity stream component
-        │   ├── StatCard.jsx          # Dashboard stat card component
-        │   ├── CountdownTimer.jsx    # Hackathon countdown timer in header
-        │   ├── ThemeToggle.jsx       # Sun/moon theme switch button
-        │   ├── EmptyState.jsx        # Empty state placeholder with animated icon
-        │   ├── Toast.jsx             # Toast notification provider + context + hook
-        │   └── ErrorBoundary.jsx     # React error boundary with refresh button
-        └── pages/
-            ├── Dashboard.jsx         # Main dashboard: stats, Kanban, activity feed
-            ├── Tasks.jsx             # Task list with filters, search, create/edit/delete
-            ├── TaskDetail.jsx        # Single task view: subtasks, comments, timer
-            ├── Team.jsx              # Team member cards with productivity stats
-            ├── Timeline.jsx          # Interactive timeline with milestones
-            ├── Chat.jsx              # Real-time team chat with emoji picker
-            └── Analytics.jsx         # Charts (pie, bar, line) + JSON/CSV export
+|-- AGENT.md                          # This file - AI reference document
+|-- README.md                         # Project documentation and setup guide
+|-- package.json                      # Root package: server deps + scripts
+|-- render.yaml                       # Render.com deployment config
+|-- .gitignore                        # Git ignore rules
+|-- .env.example                      # Environment variable template
+|-- server/
+|   |-- server.js                     # Express + Socket.IO server entry point
+|   |-- db.js                         # sql.js database init, save, prepare wrapper, export/restore helpers
+|   |-- seed.js                       # Initial sample data (runs once on empty DB)
+|   `-- routes/
+|       |-- tasks.js                  # Task CRUD, subtasks, comments APIs
+|       |-- users.js                  # User list and online status API
+|       |-- messages.js               # Chat message GET/POST API
+|       |-- activities.js             # Activity feed API
+|       |-- analytics.js              # Dashboard analytics aggregation API
+|       |-- milestones.js             # Milestone CRUD API
+|       |-- notifications.js          # Notification list API (derived from activities)
+|       `-- backup.js                 # Export/import/health backup APIs with atomic restore
+`-- client/
+    |-- package.json                  # Client package: React deps + build scripts
+    |-- vite.config.js                # Vite config with proxy, manualChunks, and build optimization
+    |-- tailwind.config.js            # Tailwind theme with custom colors
+    |-- index.html                    # HTML entry point
+    `-- src/
+        |-- main.jsx                  # React entry point
+        |-- App.jsx                   # Router + provider wrapper with React.lazy code splitting
+        |-- index.css                 # Global styles, CSS variables for dark/light themes
+        |-- lib/
+        |   |-- api.js                # Axios API client with /api base URL (includes backupAPI)
+        |   `-- socket.js             # Socket.IO client singleton (connects to '/')
+        |-- context/
+        |   |-- ThemeContext.jsx      # Dark/light theme with localStorage persistence
+        |   `-- UserContext.jsx       # Current user state with localStorage persistence + post-restore validation
+        |-- hooks/
+        |   `-- useBackupSnapshot.js  # Local snapshot management, auto-refresh, recovery evaluation
+        |-- components/
+        |   |-- Layout.jsx            # Main layout: checks login, renders Sidebar + Header + RecoveryBanner + children
+        |   |-- Sidebar.jsx           # Navigation sidebar with route links, user info, and theme toggle
+        |   |-- Header.jsx            # Top bar: countdown timer, live status, notification bell, backup menu, user avatar, logout
+        |   |-- BackupMenu.jsx        # Dropdown: export JSON, import JSON, manual snapshot with confirm modals
+        |   |-- RecoveryBanner.jsx    # Conditional banner shown when snapshot/server fingerprint mismatch detected
+        |   |-- LoginScreen.jsx       # User selection screen shown when not logged in
+        |   |-- KanbanBoard.jsx       # Drag-and-drop Kanban board with search/filter
+        |   |-- TaskCard.jsx          # Individual task card with delete/edit modals
+        |   |-- TaskTimer.jsx         # Per-task stopwatch with start/stop and budget comparison
+        |   |-- CreateTaskModal.jsx   # New task creation form
+        |   |-- EditTaskModal.jsx     # Task editing form
+        |   |-- ConfirmModal.jsx      # Generic confirmation dialog (used for delete)
+        |   |-- NotificationBell.jsx  # Real-time notification dropdown with unread badge
+        |   |-- ActivityFeed.jsx      # Live activity stream component
+        |   |-- StatCard.jsx          # Dashboard stat card component
+        |   |-- CountdownTimer.jsx    # Hackathon countdown timer in header
+        |   |-- ThemeToggle.jsx       # Sun/moon theme switch button
+        |   |-- EmptyState.jsx        # Empty state placeholder with animated icon
+        |   |-- Toast.jsx             # Toast notification provider + context + hook
+        |   `-- ErrorBoundary.jsx     # React error boundary with refresh button
+        `-- pages/
+            |-- Dashboard.jsx         # Main dashboard: stats, Kanban, activity feed
+            |-- Tasks.jsx             # Task list with filters, search, create/edit/delete
+            |-- TaskDetail.jsx        # Single task view: subtasks, comments, timer
+            |-- Team.jsx              # Team member cards with productivity stats
+            |-- Timeline.jsx          # Interactive timeline with milestones
+            |-- Chat.jsx              # Real-time team chat with emoji picker
+            `-- Analytics.jsx         # Charts (pie, bar, line) + JSON/CSV export
 ```
 
 ## Database Schema
@@ -196,10 +201,13 @@ Hackathon/
 | PUT | /api/milestones/:id | Update milestone |
 | GET | /api/notifications | List recent notifications (derived from activities) |
 | PATCH | /api/notifications/:id/read | Mark notification as read |
+| GET | /api/backup/export | Full database export as versioned JSON (all tables + metadata + fingerprint) |
+| GET | /api/backup/health | Lightweight health summary: table counts, latest data timestamp, fingerprint, seed heuristic |
+| POST | /api/backup/import | Atomic restore from JSON payload with validation, FK checks, and concurrent lock (409) |
 
 ## Socket.IO Events
 
-### Server → Client
+### Server to Client
 | Event | Description |
 |-------|-------------|
 | task:created | New task was created (includes full task object) |
@@ -215,8 +223,9 @@ Hackathon/
 | comment:added | New comment added to a task |
 | timer:start | Timer started on a task (broadcast) |
 | timer:stop | Timer stopped on a task (broadcast) |
+| backup:restored | Broadcast after successful import restore. All clients reload via window.location.reload(). |
 
-### Client → Server
+### Client to Server
 | Event | Description |
 |-------|-------------|
 | task:move | Move task to new status ({ id, status, user_id }) |
@@ -233,9 +242,9 @@ Hackathon/
 
 1. **User Login Screen** - Select from 4 team members, persisted to localStorage
 2. **Dashboard** - Stat cards, Kanban board, activity feed
-3. **Kanban Board** - Drag & drop between 4 columns (todo, in-progress, testing, done)
+3. **Kanban Board** - Drag and drop between 4 columns (todo, in-progress, testing, done)
 4. **Task Management** - Full CRUD with modals, subtasks, comments
-5. **Task Search & Filter** - By text, priority, user, status
+5. **Task Search and Filter** - By text, priority, user, status
 6. **Task Timer** - Per-task stopwatch with estimated vs actual comparison
 7. **Real-time Chat** - Socket.IO messaging with emoji picker and typing indicators
 8. **Team Page** - Member cards with productivity stats and task lists
@@ -245,10 +254,11 @@ Hackathon/
 12. **Dark/Light Mode** - Theme toggle with localStorage persistence
 13. **Error Boundary** - Graceful error handling with refresh option
 14. **Toast Notifications** - Success/error/info toasts
-15. **Loading Skeletons** - Animated placeholders during data load
+15. **Loading Fallbacks** - Spinner with "Yukleniyor..." text for lazy-loaded route chunks
 16. **Empty States** - Friendly messages when no data exists
 17. **Race Condition Protection** - 409 Conflict on stale task updates
 18. **Real-time Sync** - All CRUD operations broadcast via Socket.IO
+19. **Fail-safe Persistence and Restore** - Manual JSON export/import, auto local snapshot, recovery banner, multi-client sync
 
 ## Key Decisions
 
@@ -259,6 +269,10 @@ Hackathon/
 5. **localStorage for user/theme** - Simple persistence without auth complexity. Suitable for hackathon context.
 6. **Broadcast vs targeted notifications** - Messages use `socket.broadcast.emit` (excludes sender). Task creation uses `io.emit` (all clients see it).
 7. **409 Conflict for race conditions** - `updated_at` comparison prevents silent overwrites when two users edit the same task simultaneously.
+8. **Atomic restore via temp DB** - Import creates a temporary SQL.js database, writes all records, verifies counts, then swaps the global `db` reference. Failed imports leave the live DB untouched.
+9. **Fingerprint excludes transient fields** - `users.is_online` is normalized to `0` before fingerprint computation. This prevents presence changes from triggering false-positive recovery banners. Export payload retains real `is_online` values.
+10. **Recovery is user-initiated, never automatic** - RecoveryBanner suggests restore but never applies it without explicit user confirmation through a two-step modal flow.
+11. **Multi-client sync via reload** - After restore, `backup:restored` socket event triggers `window.location.reload()` on all connected clients, ensuring no stale React state remains.
 
 ## Known Limitations
 
@@ -316,3 +330,33 @@ Alternatively, Render.com auto-detects `render.yaml` for configuration.
 
 ### Production Architecture
 In production, Express serves the Vite-built static files. Both API and WebSocket share the same origin, so no CORS issues. The SPA fallback routes all non-API requests to `index.html`.
+
+## Changelog
+
+### 2026-04-08 - Fail-safe Persistence and Restore
+
+**Backend:**
+- `server/routes/backup.js` - New route: `GET /api/backup/export`, `GET /api/backup/health`, `POST /api/backup/import` with concurrent restore lock (409)
+- `server/db.js` - Added `buildExportPayload()`, `buildFingerprintData()`, `buildExportData()`, `restoreBackupData()`, `getHealthSummary()`, `stableStringify()`, `computeFingerprint()`. Atomic restore via temp DB swap.
+- `server/server.js` - Registered backup routes, `express.json({ limit: '10mb' })`
+
+**Frontend:**
+- `client/src/hooks/useBackupSnapshot.js` - localStorage snapshot, debounce auto-refresh on socket events, fingerprint-based recovery evaluation
+- `client/src/components/BackupMenu.jsx` - Header dropdown: export JSON, import JSON (two-step confirm), manual snapshot
+- `client/src/components/RecoveryBanner.jsx` - Conditional mismatch banner with dismiss-by-fingerprint-pair
+- `client/src/lib/api.js` - Added `backupAPI` (exportData, getHealth, importData)
+- `client/src/components/Layout.jsx` - Mounted `useBackupSnapshot`, `RecoveryBanner`, `backup:restored` socket listener with reload
+- `client/src/components/Header.jsx` - Integrated `BackupMenu`
+- `client/src/context/UserContext.jsx` - Post-restore user validation (logout if user no longer exists on server)
+
+### 2026-04-08 - Production Build Optimization and Security Hardening
+
+**Bundle Optimization:**
+- Route-level code splitting via `React.lazy` + `Suspense` for Team, Timeline, Chat, Analytics, TaskDetail
+- `manualChunks` in vite.config.js: vendor (react, react-dom, react-router-dom), charts (recharts), motion (framer-motion), socket (socket.io-client)
+- Initial load bundle reduced from 893 kB to ~140 kB (gzip), Analytics chunk loaded on demand only
+
+**Security and Audit:**
+- `npm audit` fixed: vite 6.0.5 to 6.4.2 (path traversal, WS file read vulnerabilities)
+- lodash override 4.17.21 to 4.18.1 (prototype pollution, code injection via recharts transitive dep)
+- Build script: removed redundant `npm install` for deterministic builds
