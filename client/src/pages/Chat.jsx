@@ -78,11 +78,11 @@ function Chat() {
   const getUserById = (id) => users.find((u) => u.id === id);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-[calc(100vh-10rem)] flex flex-col">
-      <h2 className="text-2xl font-bold text-primary mb-4">Takim Sohbeti</h2>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100dvh-110px)] md:h-[calc(100dvh-120px)] flex flex-col">
+      <h2 className="text-2xl font-bold text-primary mb-4 shrink-0">Takim Sohbeti</h2>
 
-      <div className="glass rounded-2xl flex-1 flex flex-col overflow-hidden min-h-0">
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="glass rounded-2xl flex-1 flex flex-col overflow-hidden min-h-0 relative">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 relative">
           <AnimatePresence>
             {messages.map((msg, i) => {
               const isMe = msg.user_id === (currentUser?.id || 1);
@@ -142,12 +142,12 @@ function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t border-theme p-4">
+        <div className="border-t border-theme p-3 sm:p-4 shrink-0 bg-surface/80 backdrop-blur-md z-10 relative">
           {showEmoji && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-wrap gap-2 mb-3 p-3 surface-bg border border-theme-subtle rounded-xl"
+              className="flex flex-wrap gap-2 mb-3 p-3 surface-bg border border-theme-subtle rounded-xl max-h-40 overflow-y-auto"
             >
               {emojis.map((emoji) => (
                 <button
