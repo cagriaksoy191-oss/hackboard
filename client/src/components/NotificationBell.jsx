@@ -12,14 +12,16 @@ function NotificationBell() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
-    socket.on('notification:new', (notification) => {
+    const handleNotificationNew = (notification) => {
       if (notification.senderId === user?.id) return;
       if (notification.assignedTo && notification.assignedTo !== user?.id) return;
       setNotifications((prev) => [notification, ...prev].slice(0, 10));
-    });
+    };
+
+    socket.on('notification:new', handleNotificationNew);
 
     return () => {
-      socket.off('notification:new');
+      socket.off('notification:new', handleNotificationNew);
     };
   }, [user]);
 
@@ -79,7 +81,7 @@ function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95"
+        className="relative p-2 rounded-xl hover-surface-bg text-secondary hover:text-primary transition-all duration-200 hover:scale-110 active:scale-95"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -113,10 +115,10 @@ function NotificationBell() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 w-80 glass-strong rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-2 w-80 glass-strong rounded-2xl border border-theme shadow-2xl z-50 overflow-hidden"
             >
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <h3 className="text-sm font-bold text-white">Bildirimler</h3>
+              <div className="flex items-center justify-between p-4 border-b border-theme">
+                <h3 className="text-sm font-bold text-primary">Bildirimler</h3>
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllRead}
@@ -129,7 +131,7 @@ function NotificationBell() {
 
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500 text-sm">
+                  <div className="p-8 text-center text-muted text-sm">
                     <svg className="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
@@ -139,21 +141,21 @@ function NotificationBell() {
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`flex gap-3 p-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                      className={`flex gap-3 p-3 border-b border-theme-subtle hover-surface-bg transition-colors ${
                         !n.read ? 'bg-accent/5' : ''
                       }`}
                     >
                       <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                        !n.read ? 'bg-accent/20 text-accent' : 'bg-white/10 text-gray-400'
+                        !n.read ? 'bg-accent/20 text-accent' : 'surface-bg text-secondary'
                       }`}>
                         {typeIcons[n.type] || typeIcons.activity}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs ${!n.read ? 'font-bold text-white' : 'text-gray-300'}`}>
+                        <p className={`text-xs ${!n.read ? 'font-bold text-primary' : 'text-secondary'}`}>
                           {n.title}
                         </p>
-                        <p className="text-xs text-gray-400 truncate">{n.message}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">{formatTime(n.created_at)}</p>
+                        <p className="text-xs text-muted truncate">{n.message}</p>
+                        <p className="text-[10px] text-muted mt-0.5">{formatTime(n.created_at)}</p>
                       </div>
                       {!n.read && (
                         <span className="w-2 h-2 rounded-full bg-accent flex-shrink-0 mt-1" />

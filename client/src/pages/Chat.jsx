@@ -21,25 +21,27 @@ function Chat() {
       setUsers(userRes.data);
     });
 
-    socket.on('message:new', (msg) => {
+    const handleMessageNew = (msg) => {
       setMessages((prev) => [...prev, msg]);
-    });
-
-    socket.on('typing:start', (data) => {
+    };
+    const handleTypingStart = (data) => {
       setTypingUsers((prev) => {
         if (prev.includes(data.user_id)) return prev;
         return [...prev, data.user_id];
       });
-    });
-
-    socket.on('typing:stop', (data) => {
+    };
+    const handleTypingStop = (data) => {
       setTypingUsers((prev) => prev.filter((id) => id !== data.user_id));
-    });
+    };
+
+    socket.on('message:new', handleMessageNew);
+    socket.on('typing:start', handleTypingStart);
+    socket.on('typing:stop', handleTypingStop);
 
     return () => {
-      socket.off('message:new');
-      socket.off('typing:start');
-      socket.off('typing:stop');
+      socket.off('message:new', handleMessageNew);
+      socket.off('typing:start', handleTypingStart);
+      socket.off('typing:stop', handleTypingStop);
     };
   }, []);
 
@@ -76,10 +78,10 @@ function Chat() {
   const getUserById = (id) => users.find((u) => u.id === id);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[calc(100vh-8rem)] flex flex-col">
-      <h2 className="text-2xl font-bold text-white mb-4">Takim Sohbeti</h2>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-[calc(100vh-10rem)] flex flex-col">
+      <h2 className="text-2xl font-bold text-primary mb-4">Takim Sohbeti</h2>
 
-      <div className="glass rounded-2xl flex-1 flex flex-col overflow-hidden">
+      <div className="glass rounded-2xl flex-1 flex flex-col overflow-hidden min-h-0">
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <AnimatePresence>
             {messages.map((msg, i) => {
@@ -101,16 +103,16 @@ function Chat() {
                         {user?.name?.[0] || '?'}
                       </div>
                     )}
-                    <div className={`px-4 py-2.5 rounded-2xl ${
+                    <div className={`px-4 py-2.5 rounded-2xl border ${
                       isMe
-                        ? 'bg-gradient-to-r from-accent to-accentAlt text-white rounded-br-md'
-                        : 'bg-white/10 text-gray-200 rounded-bl-md'
+                        ? 'bg-gradient-to-r from-accent to-accentAlt text-white border-transparent rounded-br-md'
+                        : 'surface-bg border-theme-subtle text-primary rounded-bl-md'
                     }`}>
                       {!isMe && (
                         <p className="text-xs font-semibold mb-1 opacity-70">{user?.name || 'Bilinmeyen'}</p>
                       )}
                       <p className="text-sm">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${isMe ? 'text-white/60' : 'text-gray-500'}`}>
+                      <p className={`text-xs mt-1 ${isMe ? 'text-white/60' : 'text-muted'}`}>
                         {formatTime(msg.created_at)}
                       </p>
                     </div>
@@ -124,12 +126,12 @@ function Chat() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-2 text-gray-400 text-sm"
+              className="flex items-center gap-2 text-muted text-sm"
             >
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
               <span>
                 {typingUsers.map((id) => getUserById(id)?.name).filter(Boolean).join(', ')} yaziyor...
@@ -140,12 +142,12 @@ function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t border-white/10 p-4">
+        <div className="border-t border-theme p-4">
           {showEmoji && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-wrap gap-2 mb-3 p-3 bg-white/5 rounded-xl"
+              className="flex flex-wrap gap-2 mb-3 p-3 surface-bg border border-theme-subtle rounded-xl"
             >
               {emojis.map((emoji) => (
                 <button
@@ -163,7 +165,7 @@ function Chat() {
             <button
               type="button"
               onClick={() => setShowEmoji(!showEmoji)}
-              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+              className="p-2.5 rounded-xl surface-bg border border-theme-subtle hover-surface-bg-hover text-secondary hover:text-primary transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -174,7 +176,7 @@ function Chat() {
               value={newMessage}
               onChange={handleTyping}
               placeholder="Mesaj yaz..."
-              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent transition-colors"
+              className="flex-1 px-4 py-2.5 input-surface border rounded-xl text-sm focus:outline-none focus:border-accent transition-colors"
             />
             <button
               type="submit"

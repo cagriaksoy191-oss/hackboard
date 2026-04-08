@@ -17,7 +17,7 @@ const actionColors = {
   started: 'text-accent',
   created: 'text-accentAlt',
   moved: 'text-warning',
-  commented: 'text-gray-300',
+  commented: 'text-secondary',
   updated: 'text-accent',
 };
 
@@ -27,11 +27,13 @@ function ActivityFeed() {
   useEffect(() => {
     activitiesAPI.getAll().then((res) => setActivities(res.data));
 
-    socket.on('activity:new', (activity) => {
+    const handleActivityNew = (activity) => {
       setActivities((prev) => [activity, ...prev]);
-    });
+    };
 
-    return () => socket.off('activity:new');
+    socket.on('activity:new', handleActivityNew);
+
+    return () => socket.off('activity:new', handleActivityNew);
   }, []);
 
   const formatTime = (dateStr) => {
@@ -45,7 +47,7 @@ function ActivityFeed() {
 
   return (
     <div className="glass rounded-2xl p-5 h-full overflow-hidden flex flex-col">
-      <h3 className="text-lg font-bold text-white mb-4">Canli Aktivite</h3>
+      <h3 className="text-lg font-bold text-primary mb-4">Canli Aktivite</h3>
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         <AnimatePresence>
           {activities.slice(0, 20).map((activity, i) => (
@@ -59,17 +61,17 @@ function ActivityFeed() {
               <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
                 activity.avatar_color ? 'bg-opacity-20' : 'bg-accent/20'
               }`} style={{ backgroundColor: activity.avatar_color ? activity.avatar_color + '33' : '#00d4ff33' }}>
-                <svg className={`w-4 h-4 ${actionColors[activity.action] || 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <svg className={`w-4 h-4 ${actionColors[activity.action] || 'text-muted'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={actionIcons[activity.action] || actionIcons.updated} />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white">
+                <p className="text-sm text-primary">
                   <span className="font-semibold">{activity.name || 'Sistem'}</span>
-                  <span className="text-gray-400"> {activity.action}</span>
+                  <span className="text-secondary"> {activity.action}</span>
                 </p>
-                <p className="text-xs text-gray-500 truncate">{activity.details}</p>
-                <p className="text-xs text-gray-600 mt-1">{formatTime(activity.created_at)}</p>
+                <p className="text-xs text-muted truncate">{activity.details}</p>
+                <p className="text-xs text-muted mt-1">{formatTime(activity.created_at)}</p>
               </div>
             </motion.div>
           ))}

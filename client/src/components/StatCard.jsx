@@ -10,7 +10,7 @@ function StatCard({ title, value, icon, color, delay }) {
       className="glass rounded-2xl p-5 card-hover"
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-400">{title}</span>
+        <span className="text-sm text-secondary">{title}</span>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
           {icon}
         </div>
@@ -19,7 +19,7 @@ function StatCard({ title, value, icon, color, delay }) {
         initial={{ scale: 0.5 }}
         animate={{ scale: 1 }}
         transition={{ delay: delay + 0.2, type: 'spring' }}
-        className="text-3xl font-bold text-white"
+        className="text-3xl font-bold text-primary"
       >
         {value}
       </motion.div>

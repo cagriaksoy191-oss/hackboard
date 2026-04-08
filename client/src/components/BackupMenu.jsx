@@ -89,10 +89,13 @@ function BackupMenu() {
 
       const res = await backupAPI.importData(pendingImportData);
       addToast('Yedek basariyla geri yuklendi (' + res.data.totalRecords + ' kayit)', 'success');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       const msg = error.response?.data?.error || 'Geri yukleme sirasinda hata olustu';
       addToast(msg, 'error');
-    } finally {
       setLoading(false);
       setPendingImportData(null);
     }
@@ -128,7 +131,7 @@ function BackupMenu() {
       <div className="relative">
         <button
           onClick={() => setOpen(!open)}
-          className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95"
+          className="p-2 rounded-lg hover-surface-bg text-secondary hover:text-primary transition-all duration-200 hover:scale-110 active:scale-95"
           title="Yedekleme"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,12 +153,12 @@ function BackupMenu() {
                 initial={{ opacity: 0, y: 8, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                className="absolute right-0 top-full mt-2 w-56 glass-strong rounded-xl border border-white/10 shadow-xl z-[110] overflow-hidden"
+                className="absolute right-0 top-full mt-2 w-56 glass-strong rounded-xl border border-theme shadow-xl z-[110] overflow-hidden"
               >
                 <button
                   onClick={handleExport}
                   disabled={loading}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 disabled:opacity-50"
+                  className="w-full px-4 py-3 text-left text-sm text-secondary hover-surface-bg hover:text-primary transition-colors flex items-center gap-3 disabled:opacity-50"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -165,7 +168,7 @@ function BackupMenu() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 disabled:opacity-50"
+                  className="w-full px-4 py-3 text-left text-sm text-secondary hover-surface-bg hover:text-primary transition-colors flex items-center gap-3 disabled:opacity-50"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -175,7 +178,7 @@ function BackupMenu() {
                 <button
                   onClick={handleManualSnapshot}
                   disabled={loading}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-3 disabled:opacity-50"
+                  className="w-full px-4 py-3 text-left text-sm text-secondary hover-surface-bg hover:text-primary transition-colors flex items-center gap-3 disabled:opacity-50"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />

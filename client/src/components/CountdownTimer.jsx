@@ -19,7 +19,7 @@ function CountdownTimer() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="text-xs text-gray-400 uppercase tracking-wider">Hackathon Bitis:</div>
+      <div className="text-xs text-secondary uppercase tracking-wider">Hackathon Bitis:</div>
       <div className="flex gap-1">
         {[format(hours), format(minutes), format(seconds)].map((val, i) => (
           <div key={i} className="flex items-center">

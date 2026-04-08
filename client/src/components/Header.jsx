@@ -18,7 +18,7 @@ function Header({ toggleSidebar }) {
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
-          className="lg:hidden p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95"
+          className="lg:hidden p-2 rounded-lg hover:bg-white/10 text-secondary hover:text-primary transition-all duration-200 hover:scale-110 active:scale-95"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -42,10 +42,10 @@ function Header({ toggleSidebar }) {
             >
               {initials}
             </div>
-            <span className="text-sm font-medium text-white hidden sm:inline">{user.name}</span>
+            <span className="text-sm font-medium text-primary hidden sm:inline">{user.name}</span>
             <button
               onClick={logoutUser}
-              className="ml-1 p-1.5 rounded-lg hover:bg-error/20 text-gray-500 hover:text-error transition-all duration-200 hover:scale-110 active:scale-95"
+              className="ml-1 p-1.5 rounded-lg hover:bg-error/20 text-secondary hover:text-error transition-all duration-200 hover:scale-110 active:scale-95"
               title="Cikis Yap"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

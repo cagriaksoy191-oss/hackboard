@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { tasksAPI } from '../lib/api';
+import { tasksAPI, usersAPI } from '../lib/api';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
 import TaskCard from './TaskCard';
@@ -25,22 +25,31 @@ function KanbanBoard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterUser, setFilterUser] = useState('all');
+  const [kanbanUsers, setKanbanUsers] = useState([]);
 
   useEffect(() => {
     loadTasks();
-    socket.on('task:moved', () => loadTasks());
-    socket.on('task:deleted', (data) => {
+    usersAPI.getAll().then((res) => setKanbanUsers(res.data)).catch(() => {});
+
+    const handleTaskMoved = () => loadTasks();
+    const handleTaskDeleted = (data) => {
       setTasks((prev) => prev.filter((t) => t.id !== data.id));
-    });
-    socket.on('task:updated', () => loadTasks());
-    socket.on('task:created', (newTask) => {
+    };
+    const handleTaskUpdated = () => loadTasks();
+    const handleTaskCreated = (newTask) => {
       setTasks((prev) => [newTask, ...prev]);
-    });
+    };
+
+    socket.on('task:moved', handleTaskMoved);
+    socket.on('task:deleted', handleTaskDeleted);
+    socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:created', handleTaskCreated);
+
     return () => {
-      socket.off('task:moved');
-      socket.off('task:deleted');
-      socket.off('task:updated');
-      socket.off('task:created');
+      socket.off('task:moved', handleTaskMoved);
+      socket.off('task:deleted', handleTaskDeleted);
+      socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:created', handleTaskCreated);
     };
   }, []);
 
@@ -101,7 +110,7 @@ function KanbanBoard() {
   return (
     <div className="relative">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-        <h3 className="text-lg font-bold text-white">Kanban Board</h3>
+        <h3 className="text-lg font-bold text-primary">Kanban Board</h3>
         <button
           onClick={() => setShowCreateModal(true)}
           className="px-4 py-2 bg-gradient-to-r from-accent to-accentAlt text-white text-sm font-medium rounded-xl hover:opacity-90 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
@@ -113,7 +122,7 @@ function KanbanBoard() {
       <div className="glass rounded-2xl p-4 mb-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -121,34 +130,33 @@ function KanbanBoard() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Gorev ara..."
-              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent transition-all duration-200"
+              className="w-full pl-10 pr-4 py-2 input-surface border rounded-xl text-sm focus:outline-none focus:border-accent transition-all duration-200"
             />
           </div>
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className={`px-3 py-2 bg-white/5 border rounded-xl text-white text-sm focus:outline-none transition-all duration-200 ${
-              filterPriority !== 'all' ? 'border-accent bg-accent/10' : 'border-white/10'
+            className={`px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+              filterPriority !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
-            <option value="all" className="bg-card">Tum Oncelikler</option>
-            <option value="critical" className="bg-card">Kritik</option>
-            <option value="high" className="bg-card">Yuksek</option>
-            <option value="medium" className="bg-card">Orta</option>
-            <option value="low" className="bg-card">Dusuk</option>
+            <option value="all" className="option-surface">Tum Oncelikler</option>
+            <option value="critical" className="option-surface">Kritik</option>
+            <option value="high" className="option-surface">Yuksek</option>
+            <option value="medium" className="option-surface">Orta</option>
+            <option value="low" className="option-surface">Dusuk</option>
           </select>
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            className={`px-3 py-2 bg-white/5 border rounded-xl text-white text-sm focus:outline-none transition-all duration-200 ${
-              filterUser !== 'all' ? 'border-accent bg-accent/10' : 'border-white/10'
+            className={`px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+              filterUser !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
-            <option value="all" className="bg-card">Tum Kisiler</option>
-            <option value="1" className="bg-card">Çağrı</option>
-            <option value="2" className="bg-card">Talha</option>
-            <option value="3" className="bg-card">Ahmet</option>
-            <option value="4" className="bg-card">Alaettin</option>
+            <option value="all" className="option-surface">Tum Kisiler</option>
+            {kanbanUsers.map((u) => (
+              <option key={u.id} value={u.id} className="option-surface">{u.name}</option>
+            ))}
           </select>
           {hasActiveFilters && (
             <button
@@ -170,17 +178,17 @@ function KanbanBoard() {
           {columns.map((col) => (
             <div key={col.id} className={`bg-gradient-to-b ${col.color} border ${col.borderColor} rounded-2xl p-3 min-h-[300px]`}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-white/20 animate-pulse" />
-                <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
+                <div className="w-2.5 h-2.5 rounded-full surface-bg-strong animate-pulse" />
+                <div className="h-4 w-20 skeleton-shimmer rounded animate-pulse" />
               </div>
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-4 animate-pulse">
-                    <div className="h-4 bg-white/10 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-white/5 rounded w-1/2 mb-3" />
+                  <div key={i} className="surface-bg border border-theme-subtle rounded-xl p-4 animate-pulse">
+                    <div className="h-4 skeleton-shimmer rounded w-3/4 mb-2" />
+                    <div className="h-3 skeleton-base rounded w-1/2 mb-3" />
                     <div className="flex justify-between">
-                      <div className="h-7 w-7 bg-white/10 rounded-full" />
-                      <div className="h-3 bg-white/5 rounded w-8" />
+                      <div className="h-7 w-7 skeleton-shimmer rounded-full" />
+                      <div className="h-3 skeleton-base rounded w-8" />
                     </div>
                   </div>
                 ))}
@@ -212,8 +220,8 @@ function KanbanBoard() {
               >
                 <div className="flex items-center gap-2 mb-3">
                   <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
-                  <h4 className="text-sm font-semibold text-white">{col.title}</h4>
-                  <span className="ml-auto text-xs text-gray-400 bg-white/10 px-2 py-0.5 rounded-full">
+                  <h4 className="text-sm font-semibold text-primary">{col.title}</h4>
+                  <span className="ml-auto text-xs text-secondary surface-bg border border-theme-subtle px-2 py-0.5 rounded-full">
                     {colTasks.length}
                   </span>
                 </div>

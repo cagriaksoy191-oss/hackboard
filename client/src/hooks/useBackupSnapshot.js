@@ -6,29 +6,6 @@ const SNAPSHOT_KEY = 'hackboard-snapshot:v1';
 const DISMISS_KEY_PREFIX = 'hackboard-dismiss:';
 const MAX_SNAPSHOT_SIZE = 4 * 1024 * 1024;
 
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return '[' + value.map(stableStringify).join(',') + ']';
-  }
-  const keys = Object.keys(value).sort();
-  const pairs = keys.map((key) => JSON.stringify(key) + ':' + stableStringify(value[key]));
-  return '{' + pairs.join(',') + '}';
-}
-
-function computeFingerprint(obj) {
-  const str = stableStringify(obj);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-}
-
 function evaluateRecovery(snap, health) {
   if (!snap || !health) return false;
 

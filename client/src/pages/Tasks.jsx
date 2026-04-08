@@ -53,19 +53,25 @@ function Tasks() {
       setUsers(userRes.data);
       setLoading(false);
     });
-    socket.on('task:deleted', (data) => {
+
+    const handleTaskDeleted = (data) => {
       setTasks((prev) => prev.filter((t) => t.id !== data.id));
-    });
-    socket.on('task:created', (newTask) => {
+    };
+    const handleTaskCreated = (newTask) => {
       setTasks((prev) => [newTask, ...prev]);
-    });
-    socket.on('task:updated', () => {
+    };
+    const handleTaskUpdated = () => {
       tasksAPI.getAll().then((res) => setTasks(res.data));
-    });
+    };
+
+    socket.on('task:deleted', handleTaskDeleted);
+    socket.on('task:created', handleTaskCreated);
+    socket.on('task:updated', handleTaskUpdated);
+
     return () => {
-      socket.off('task:deleted');
-      socket.off('task:created');
-      socket.off('task:updated');
+      socket.off('task:deleted', handleTaskDeleted);
+      socket.off('task:created', handleTaskCreated);
+      socket.off('task:updated', handleTaskUpdated);
     };
   }, []);
 
@@ -101,7 +107,7 @@ function Tasks() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-white">Gorev Yonetimi</h2>
+        <h2 className="text-2xl font-bold text-primary">Gorev Yonetimi</h2>
         <button
           onClick={() => setShowCreateModal(true)}
           className="px-5 py-2.5 bg-gradient-to-r from-accent to-accentAlt text-white font-medium rounded-xl hover:opacity-90 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
@@ -113,7 +119,7 @@ function Tasks() {
       <div className="glass rounded-2xl p-4">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-3">
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -121,53 +127,53 @@ function Tasks() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Gorev ara..."
-              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-accent transition-all duration-200"
+              className="w-full pl-10 pr-4 py-2 input-surface border rounded-xl text-sm focus:outline-none focus:border-accent transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Durum</label>
+            <label className="block text-xs text-secondary mb-1">Durum</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className={`w-full px-3 py-2 bg-white/5 border rounded-xl text-white text-sm focus:outline-none transition-all duration-200 ${
-                filterStatus !== 'all' ? 'border-accent bg-accent/10' : 'border-white/10'
+              className={`w-full px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+                filterStatus !== 'all' ? 'border-accent bg-accent/10' : ''
               }`}
             >
-              <option value="all" className="bg-card">Tumu</option>
-              <option value="todo" className="bg-card">Yapilacak</option>
-              <option value="in-progress" className="bg-card">Devam Ediyor</option>
-              <option value="testing" className="bg-card">Test</option>
-              <option value="done" className="bg-card">Tamamlandi</option>
+              <option value="all" className="option-surface">Tumu</option>
+              <option value="todo" className="option-surface">Yapilacak</option>
+              <option value="in-progress" className="option-surface">Devam Ediyor</option>
+              <option value="testing" className="option-surface">Test</option>
+              <option value="done" className="option-surface">Tamamlandi</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Oncelik</label>
+            <label className="block text-xs text-secondary mb-1">Oncelik</label>
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className={`w-full px-3 py-2 bg-white/5 border rounded-xl text-white text-sm focus:outline-none transition-all duration-200 ${
-                filterPriority !== 'all' ? 'border-accent bg-accent/10' : 'border-white/10'
+              className={`w-full px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+                filterPriority !== 'all' ? 'border-accent bg-accent/10' : ''
               }`}
             >
-              <option value="all" className="bg-card">Tumu</option>
-              <option value="critical" className="bg-card">Kritik</option>
-              <option value="high" className="bg-card">Yuksek</option>
-              <option value="medium" className="bg-card">Orta</option>
-              <option value="low" className="bg-card">Dusuk</option>
+              <option value="all" className="option-surface">Tumu</option>
+              <option value="critical" className="option-surface">Kritik</option>
+              <option value="high" className="option-surface">Yuksek</option>
+              <option value="medium" className="option-surface">Orta</option>
+              <option value="low" className="option-surface">Dusuk</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Kisi</label>
+            <label className="block text-xs text-secondary mb-1">Kisi</label>
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
-              className={`w-full px-3 py-2 bg-white/5 border rounded-xl text-white text-sm focus:outline-none transition-all duration-200 ${
-                filterUser !== 'all' ? 'border-accent bg-accent/10' : 'border-white/10'
+              className={`w-full px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+                filterUser !== 'all' ? 'border-accent bg-accent/10' : ''
               }`}
             >
-              <option value="all" className="bg-card">Tumu</option>
+              <option value="all" className="option-surface">Tumu</option>
               {users.map((u) => (
-                <option key={u.id} value={u.id} className="bg-card">{u.name}</option>
+                <option key={u.id} value={u.id} className="option-surface">{u.name}</option>
               ))}
             </select>
           </div>
@@ -190,11 +196,11 @@ function Tasks() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="glass rounded-xl p-4 animate-pulse">
-              <div className="h-4 bg-white/10 rounded w-1/3 mb-2" />
-              <div className="h-3 bg-white/5 rounded w-1/2" />
-            </div>
-          ))}
+              <div key={i} className="glass rounded-xl p-4 animate-pulse">
+              <div className="h-4 skeleton-shimmer rounded w-1/3 mb-2" />
+              <div className="h-3 skeleton-base rounded w-1/2" />
+              </div>
+            ))}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -223,7 +229,7 @@ function Tasks() {
                     onClick={() => navigate(`/tasks/${task.id}`)}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-sm font-semibold text-white truncate">{task.title}</h4>
+                      <h4 className="text-sm font-semibold text-primary truncate">{task.title}</h4>
                       <span className={`text-xs px-2 py-0.5 rounded-full border ${priorityColors[task.priority]}`}>
                         {task.priority}
                       </span>
@@ -232,7 +238,7 @@ function Tasks() {
                       </span>
                     </div>
                     {task.description && (
-                      <p className="text-xs text-gray-400 truncate">{task.description}</p>
+                        <p className="text-xs text-secondary truncate">{task.description}</p>
                     )}
                   </div>
 
@@ -244,9 +250,9 @@ function Tasks() {
                       >
                         {initials}
                       </div>
-                      <span className="text-xs text-gray-400 hidden sm:inline">{task.assigned_name || '-'}</span>
+                      <span className="text-xs text-secondary hidden sm:inline">{task.assigned_name || '-'}</span>
                     </div>
-                    <span className="text-xs text-gray-500">{task.estimated_hours}h</span>
+                    <span className="text-xs text-muted">{task.estimated_hours}h</span>
                     <button
                       onClick={() => setEditingTask(task)}
                       className="text-xs text-accent hover:underline transition-all duration-200 hover:scale-110"

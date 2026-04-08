@@ -10,7 +10,24 @@ import { useToast } from './Toast';
 import socket from '../lib/socket';
 
 function Layout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const { loginUser, isLoggedIn } = useUser();
   const { snapshot, serverHealth, showRecovery, dismissRecovery } = useBackupSnapshot();
   const { addToast } = useToast();

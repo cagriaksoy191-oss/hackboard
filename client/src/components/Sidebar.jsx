@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../context/UserContext';
@@ -16,18 +16,32 @@ const navItems = [
 function Sidebar({ isOpen, toggle }) {
   const location = useLocation();
   const { user } = useUser();
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window !== 'undefined') return window.innerWidth >= 1024;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const sidebarVisible = isDesktop || isOpen;
   const initials = user?.name
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : '??';
 
   return (
     <>
-      {isOpen && (
+      {isOpen && !isDesktop && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={toggle} />
       )}
       <motion.aside
         initial={false}
-        animate={{ x: isOpen ? 0 : -280 }}
+        animate={{ x: sidebarVisible ? 0 : -280 }}
         className="fixed left-0 top-0 h-full w-64 glass-strong z-50 flex flex-col"
       >
         <div className="p-6 border-b border-white/10">
@@ -36,8 +50,8 @@ function Sidebar({ isOpen, toggle }) {
               H
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">HackBoard</h1>
-              <p className="text-xs text-gray-400">Hackathon Panel</p>
+              <h1 className="text-xl font-bold text-primary">HackBoard</h1>
+              <p className="text-xs text-secondary">Hackathon Panel</p>
             </div>
           </div>
         </div>
@@ -49,11 +63,11 @@ function Sidebar({ isOpen, toggle }) {
               <NavLink
                 key={item.path}
                 to={item.path}
-                onClick={() => window.innerWidth < 1024 && toggle()}
+                onClick={() => { if (!isDesktop) toggle(); }}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? 'bg-accent/20 text-accent shadow-lg shadow-accent/10'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    : 'text-secondary hover:text-primary hover:bg-white/5'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -68,7 +82,7 @@ function Sidebar({ isOpen, toggle }) {
         <div className="p-4 space-y-2 border-t border-white/10">
           <ThemeToggle />
           {user && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl surface-bg">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
                 style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
@@ -76,7 +90,7 @@ function Sidebar({ isOpen, toggle }) {
                 {initials}
               </div>
               <div>
-                <p className="text-sm font-medium text-white">{user.name}</p>
+                <p className="text-sm font-medium text-primary">{user.name}</p>
                 <p className="text-xs text-success flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
                   Online

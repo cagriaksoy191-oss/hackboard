@@ -17,9 +17,24 @@ body {
 :root {
   --bg-color: #0a0a0f;
   --text-color: #e2e8f0;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --text-muted: #4b5563;
   --card-bg: rgba(26, 26, 46, 0.7);
   --card-bg-strong: rgba(26, 26, 46, 0.85);
   --border-color: rgba(255, 255, 255, 0.08);
+  --border-color-strong: rgba(255, 255, 255, 0.2);
+  --border-color-subtle: rgba(255, 255, 255, 0.05);
+  --surface-bg: rgba(255, 255, 255, 0.05);
+  --surface-bg-hover: rgba(255, 255, 255, 0.1);
+  --surface-bg-strong: rgba(255, 255, 255, 0.2);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-text: #ffffff;
+  --input-placeholder: #6b7280;
+  --skeleton-base: rgba(255, 255, 255, 0.05);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.1);
   --scrollbar-track: #1a1a2e;
   --scrollbar-thumb: #7c3aed;
   --scrollbar-thumb-hover: #00d4ff;
@@ -28,9 +43,24 @@ body {
 .light {
   --bg-color: #f8fafc;
   --text-color: #1e293b;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-muted: #94a3b8;
   --card-bg: rgba(255, 255, 255, 0.8);
   --card-bg-strong: rgba(255, 255, 255, 0.95);
   --border-color: rgba(0, 0, 0, 0.08);
+  --border-color-strong: rgba(0, 0, 0, 0.2);
+  --border-color-subtle: rgba(0, 0, 0, 0.04);
+  --surface-bg: rgba(0, 0, 0, 0.03);
+  --surface-bg-hover: rgba(0, 0, 0, 0.06);
+  --surface-bg-strong: rgba(0, 0, 0, 0.1);
+  --input-bg: rgba(0, 0, 0, 0.03);
+  --input-border: rgba(0, 0, 0, 0.1);
+  --input-text: #0f172a;
+  --input-placeholder: #94a3b8;
+  --skeleton-base: rgba(0, 0, 0, 0.05);
+  --skeleton-shimmer: rgba(0, 0, 0, 0.1);
   --scrollbar-track: #e2e8f0;
   --scrollbar-thumb: #7c3aed;
   --scrollbar-thumb-hover: #00d4ff;
@@ -121,3 +151,41 @@ body {
   background: linear-gradient(90deg, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.05) 75%);
   background-size: 200% 100%;
 }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.text-muted { color: var(--text-muted); }
+.surface-bg { background: var(--surface-bg); }
+.surface-bg-hover { background: var(--surface-bg-hover); }
+.surface-bg-strong { background: var(--surface-bg-strong); }
+.hover-surface-bg:hover { background: var(--surface-bg); }
+.hover-surface-bg-hover:hover { background: var(--surface-bg-hover); }
+.border-theme { border-color: var(--border-color); }
+.border-theme-strong { border-color: var(--border-color-strong); }
+.border-theme-subtle { border-color: var(--border-color-subtle); }
+.divider-theme { background: var(--border-color); }
+.input-surface { background: var(--input-bg); border-color: var(--input-border); color: var(--input-text); }
+.input-surface::placeholder { color: var(--input-placeholder); }
+.option-surface { background: var(--card-bg-strong); color: var(--text-primary); }
+.skeleton-base { background: var(--skeleton-base); }
+.skeleton-shimmer { background: var(--skeleton-shimmer); }
+
+.light .text-primary { color: var(--text-primary); }
+.light .text-secondary { color: var(--text-secondary); }
+.light .text-tertiary { color: var(--text-tertiary); }
+.light .text-muted { color: var(--text-muted); }
+.light .surface-bg { background: var(--surface-bg); }
+.light .surface-bg-hover { background: var(--surface-bg-hover); }
+.light .surface-bg-strong { background: var(--surface-bg-strong); }
+.light .hover-surface-bg:hover { background: var(--surface-bg); }
+.light .hover-surface-bg-hover:hover { background: var(--surface-bg-hover); }
+.light .border-theme { border-color: var(--border-color); }
+.light .border-theme-strong { border-color: var(--border-color-strong); }
+.light .border-theme-subtle { border-color: var(--border-color-subtle); }
+.light .divider-theme { background: var(--border-color); }
+.light .input-surface { background: var(--input-bg); border-color: var(--input-border); color: var(--input-text); }
+.light .input-surface::placeholder { color: var(--input-placeholder); }
+.light .option-surface { background: var(--card-bg-strong); color: var(--text-primary); }
+.light .skeleton-base { background: var(--skeleton-base); }
+.light .skeleton-shimmer { background: var(--skeleton-shimmer); }

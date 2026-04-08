@@ -4,11 +4,12 @@ import { tasksAPI } from '../lib/api';
 import StatCard from '../components/StatCard';
 import KanbanBoard from '../components/KanbanBoard';
 import ActivityFeed from '../components/ActivityFeed';
+import socket from '../lib/socket';
 
 function Dashboard() {
   const [stats, setStats] = useState({ total: 0, done: 0, inProgress: 0, todo: 0 });
 
-  useEffect(() => {
+  const loadStats = () => {
     tasksAPI.getAll().then((res) => {
       const tasks = res.data;
       setStats({
@@ -18,6 +19,24 @@ function Dashboard() {
         todo: tasks.filter((t) => t.status === 'todo').length,
       });
     });
+  };
+
+  useEffect(() => {
+    loadStats();
+
+    const handleTaskChange = () => loadStats();
+
+    socket.on('task:created', handleTaskChange);
+    socket.on('task:updated', handleTaskChange);
+    socket.on('task:moved', handleTaskChange);
+    socket.on('task:deleted', handleTaskChange);
+
+    return () => {
+      socket.off('task:created', handleTaskChange);
+      socket.off('task:updated', handleTaskChange);
+      socket.off('task:moved', handleTaskChange);
+      socket.off('task:deleted', handleTaskChange);
+    };
   }, []);
 
   return (
