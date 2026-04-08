@@ -41,6 +41,13 @@ HackBoard is a real-time collaborative team management panel designed for hackat
 **Theme System:**
 - Dark/light mode is driven by CSS custom properties in `client/src/index.css`
 - Shared helper utilities such as `input-surface`, `border-theme`, `divider-theme`, and `hover-surface-bg` keep neutral UI surfaces readable across themes
+- Header serves as the single host for the theme control
+
+**UI & Layout Architecture:**
+- Layout and Header manage the responsive app shell (desktop sidebar, mobile drawer overlay). Header uses flex-shrink instead of overflow hiding to prevent dropdown clipping.
+- Modals (Create, Edit, Confirm) are rendered via React Portals to prevent stacking context or transformed-ancestor clipping bugs.
+- Chat interface is viewport-bounded (dvh) to keep the composer sticky while isolating scroll to the message list.
+- NotificationBell is route-aware: it suppresses 'unread' badges for messages if the user is actively on the /chat route.
 
 ## Directory Structure
 
@@ -84,20 +91,20 @@ Hackathon/
         |   `-- useBackupSnapshot.js  # Local snapshot management, debounced auto-refresh, recovery evaluation
         |-- components/
         |   |-- Layout.jsx            # Responsive app shell: login gate, desktop sidebar state, header, recovery banner
-        |   |-- Sidebar.jsx           # Desktop-persistent / mobile-overlay navigation drawer with route links and theme toggle
-        |   |-- Header.jsx            # Top bar: countdown timer, live status, notification bell, backup menu, user avatar, logout
+        |   |-- Sidebar.jsx           # Desktop-persistent / mobile-overlay navigation drawer with route links
+        |   |-- Header.jsx            # Top bar: countdown timer, live status, theme toggle, backup menu, notification bell, user avatar, logout (compact on mobile, overflow clipping resolved)
         |   |-- BackupMenu.jsx        # Dropdown: export JSON, import JSON, manual snapshot with confirm modals
         |   |-- RecoveryBanner.jsx    # Conditional banner shown when snapshot/server fingerprint mismatch detected
         |   |-- LoginScreen.jsx       # User selection screen shown when not logged in
         |   |-- KanbanBoard.jsx       # Drag-and-drop Kanban board with search/filter and dynamic user filter
-        |   |-- TaskCard.jsx          # Individual task card with delete/edit modals
+        |   |-- TaskCard.jsx          # Individual task card with portal-backed delete/edit modals and theme-adapted surfaces
         |   |-- TaskTimer.jsx         # Per-task stopwatch with start/stop and budget comparison
-        |   |-- CreateTaskModal.jsx   # New task creation form
-        |   |-- EditTaskModal.jsx     # Task editing form
-        |   |-- ConfirmModal.jsx      # Generic confirmation dialog (used for delete)
-        |   |-- NotificationBell.jsx  # Real-time notification dropdown with unread badge
+        |   |-- CreateTaskModal.jsx   # New task creation form (portal-rendered)
+        |   |-- EditTaskModal.jsx     # Task editing form (portal-rendered)
+        |   |-- ConfirmModal.jsx      # Generic confirmation dialog (portal-rendered with exit animations)
+        |   |-- NotificationBell.jsx  # Real-time notification dropdown with unread badge, click-through routing, and route-aware suppression
         |   |-- ActivityFeed.jsx      # Live activity stream component
-        |   |-- StatCard.jsx          # Dashboard stat card component
+        |   |-- StatCard.jsx          # Dashboard stat card component (clickable for kanban scroll navigation)
         |   |-- CountdownTimer.jsx    # Hackathon countdown timer in header
         |   |-- ThemeToggle.jsx       # Sun/moon theme switch button
         |   |-- EmptyState.jsx        # Empty state placeholder with animated icon
@@ -109,7 +116,7 @@ Hackathon/
             |-- TaskDetail.jsx        # Single task view: subtasks, comments, timer
             |-- Team.jsx              # Team member cards with productivity stats
             |-- Timeline.jsx          # Interactive timeline with milestones
-            |-- Chat.jsx              # Real-time team chat with emoji picker
+            |-- Chat.jsx              # Real-time team chat with sticky composer, independent scroll, and emoji picker
             `-- Analytics.jsx         # Charts (pie, bar, line) + JSON/CSV export
 ```
 
@@ -249,14 +256,14 @@ Hackathon/
 1. **User Login Screen** - Select from 4 team members, persisted to localStorage
 2. **Dashboard** - Live stat cards, Kanban board, activity feed
 3. **Kanban Board** - Drag and drop between 4 columns (todo, in-progress, testing, done)
-4. **Task Management** - Full CRUD with modals, subtasks, comments
+4. **Task Management** - Full CRUD with portal-backed modals, subtasks, comments
 5. **Task Search and Filter** - By text, priority, user, status with dynamic user lists
 6. **Task Timer** - Per-task stopwatch with estimated vs actual comparison
-7. **Real-time Chat** - Socket.IO messaging with emoji picker and typing indicators
+7. **Real-time Chat** - Socket.IO messaging with sticky composer, independent message scroll, emoji picker, and typing indicators
 8. **Team Page** - Member cards with productivity stats and task lists
 9. **Timeline** - Interactive timeline with milestone tracking
 10. **Analytics** - Pie, bar, line charts with JSON/CSV export
-11. **Notification System** - Real-time bell with unread badge, filtered by recipient
+11. **Notification System** - Real-time bell with unread badge, filtered by recipient, click-through routing, keyboard-accessible rows, safe mobile placement, and route-aware message suppression
 12. **Dark/Light Mode** - Theme toggle with localStorage persistence and shared CSS variable helpers
 13. **Error Boundary** - Graceful error handling with refresh option
 14. **Toast Notifications** - Success/error/info toasts
@@ -265,10 +272,11 @@ Hackathon/
 17. **Race Condition Protection** - 409 Conflict on stale task updates
 18. **Real-time Sync** - All CRUD operations broadcast via Socket.IO with handler-safe listener cleanup on the client
 19. **Fail-safe Persistence and Restore** - Manual JSON export/import, auto local snapshot, recovery banner, multi-client sync
-20. **Responsive Navigation Shell** - Desktop sidebar stays visible, mobile uses a collapsible overlay menu
-21. **Theme-Aware Core Workflows** - Primary forms, dropdowns, cards, chat composer, and timeline surfaces are normalized for both dark and light mode
+20. **Responsive Navigation Shell** - Desktop sidebar stays visible, mobile uses a collapsible overlay menu. Header actions are compacted, and dropdown clipping is resolved.
+21. **Theme-Aware Core Workflows** - Primary forms, dropdowns, task cards, kanban columns, modals, activity surfaces, chat composer, and timeline surfaces are robustly normalized for both dark and premium light mode.
 22. **Dynamic Kanban Assignee Filter** - Kanban user filtering reads from `/api/users` instead of hardcoded IDs
 23. **Timeline Empty-State Handling** - Loading and empty milestone states are separated to avoid false "loading forever" UX
+24. **Dashboard Interactivity** - Stat cards act as scroll-navigation shortcuts to corresponding Kanban columns
 
 ## Key Decisions
 
@@ -288,6 +296,13 @@ Hackathon/
 14. **Socket cleanup always uses handler references** - Client components should remove listeners with `socket.off(event, sameHandler)` to avoid detaching other screens' subscriptions.
 15. **Dashboard stats favor correctness over local math** - Stat cards simply refetch tasks on task socket events; for this small hackathon app that is simpler and safer than partial client-side bookkeeping.
 16. **Restore initiator has a local reload fallback** - `backup:restored` remains the primary sync mechanism, but the importing client also schedules a local reload in case the socket event is missed.
+17. **Single theme toggle in header** - Centralized theme control in the header; removed secondary toggle from sidebar to avoid redundancy.
+18. **Responsive flex over overflow-hidden** - Header overflow uses flex-shrink and min-width constraints rather than `overflow-hidden` to prevent horizontal scrolling on mobile without clipping dropdowns.
+19. **Route-aware notification implicit read** - NotificationBell automatically marks new message notifications as read (suppressing the badge) if the user is currently on the `/chat` route.
+20. **Responsive dropdown positioning** - Mobile notification dropdowns use viewport-relative `fixed` positioning, while desktop retains element-anchored `absolute` positioning to prevent mobile screen overflow.
+21. **Portal-rendered modals** - Create, Edit, and Confirm modals use React Portals to break out of complex DOM hierarchies, eliminating stacking context bugs while preserving exit animations.
+22. **Viewport-bounded chat layout** - The Chat page sets explicit height bounds (`dvh`), isolating scroll to the message list and keeping the composer sticky.
+23. **StatCard to Kanban navigation** - Dashboard stat cards double as quick-scroll anchors to Kanban columns, improving mobile UX.
 
 ## Known Limitations
 
@@ -347,6 +362,38 @@ Alternatively, Render.com auto-detects `render.yaml` for configuration.
 In production, Express serves the Vite-built static files. Both API and WebSocket share the same origin, so no CORS issues. The SPA fallback routes all non-API requests to `index.html`.
 
 ## Changelog
+
+### 2026-04-08 - Responsive Layout + Theme Consistency + Navigation/Notification UX Fix
+
+**Responsive Shell and Header Ergonomics:**
+- Consolidated theme toggle solely in the Header.
+- Compacted mobile header actions and resolved desktop/mobile overflow issues via flex-shrink.
+- Fixed dropdown clipping for BackupMenu and NotificationBell.
+- Reorganized sidebar and logout interactions for clarity.
+
+**Theme and Light Mode Refresh:**
+- Strengthened `.light` mode tokens and shared shadow/surface helpers.
+- Normalized kanban column surfaces, task cards, modals, inputs, and shell backgrounds for premium light mode consistency.
+
+**Notification UX:**
+- Upgraded notification rows with proper button semantics and click-through routing.
+- Implemented implicit read and badge suppression for message notifications when actively on the `/chat` route.
+- Fixed mobile dropdown positioning via viewport-relative fixed placement while retaining desktop absolute placement.
+- Preserved read state and mark-all-read behaviors.
+
+**Modal Stability:**
+- Transitioned ConfirmModal, EditTaskModal, and CreateTaskModal to React Portals.
+- Fixed transformed-ancestor and tiny modal clipping bugs on Kanban columns.
+- Retained AnimatePresence exit animations for portals.
+
+**Dashboard and Task Flow UX:**
+- Added Kanban column scroll navigation to Dashboard StatCards.
+- Aligned tasks page desktop filter row.
+
+**Chat Usability:**
+- Implemented a sticky composer and viewport-bounded chat shell (`dvh`).
+- Isolated independent scrolling to the message list.
+- Constrained emoji panel height for mobile friendliness.
 
 ### 2026-04-08 - Fail-safe Persistence and Restore
 
