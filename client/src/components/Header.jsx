@@ -14,7 +14,7 @@ function Header({ toggleSidebar }) {
     : '??';
 
   return (
-    <header className="glass border-b border-theme px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between sticky top-0 z-30 w-full overflow-hidden shrink-0">
+    <header className="glass border-b border-theme px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between sticky top-0 z-30 w-full shrink-0">
       <div className="flex items-center gap-1 sm:gap-4 flex-shrink min-w-0">
         <button
           onClick={toggleSidebar}
