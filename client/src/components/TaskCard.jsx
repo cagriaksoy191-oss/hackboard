@@ -4,10 +4,10 @@ import ConfirmModal from './ConfirmModal';
 import EditTaskModal from './EditTaskModal';
 
 const priorityColors = {
-  low: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  critical: 'bg-red-500/20 text-red-400 border-red-500/30',
+  low: 'bg-blue-500/20 text-blue-500 dark:text-blue-400 border-blue-500/30',
+  medium: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30',
+  high: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30',
+  critical: 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30',
 };
 
 const priorityLabels = {
@@ -57,17 +57,17 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
         whileTap={{ scale: 0.98 }}
         animate={isDeleting ? { scale: 0, opacity: 0, height: 0, marginBottom: 0, padding: 0 } : {}}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
-        className={`bg-card/80 backdrop-blur-sm border border-white/10 rounded-xl p-4 cursor-grab active:cursor-grabbing card-hover group ${isDeleting ? 'overflow-hidden' : ''}`}
+        className={`glass border-theme rounded-xl p-4 cursor-grab active:cursor-grabbing card-hover group ${isDeleting ? 'overflow-hidden' : ''}`}
       >
         <div className="flex items-start justify-between mb-2">
-          <h4 className="text-sm font-semibold text-white flex-1">{task.title}</h4>
+          <h4 className="text-sm font-semibold text-primary flex-1">{task.title}</h4>
           <div className="flex items-center gap-1 ml-2">
-            <span className={`text-xs px-2 py-0.5 rounded-full border ${priorityColors[task.priority]}`}>
+            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full border ${priorityColors[task.priority]}`}>
               {priorityLabels[task.priority]}
             </span>
             <button
               onClick={handleDeleteClick}
-              className="card-action opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/20 text-gray-500 hover:text-error transition-all duration-200"
+              className="card-action opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/20 text-tertiary hover:text-error transition-all duration-200"
               title="Gorevi Sil"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,16 +78,16 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
         </div>
 
         {task.description && (
-          <p className="text-xs text-gray-400 mb-3 line-clamp-2">{task.description}</p>
+          <p className="text-xs text-secondary mb-3 line-clamp-2">{task.description}</p>
         )}
 
         {subtasksTotal > 0 && (
           <div className="mb-3">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
+            <div className="flex justify-between text-xs text-secondary mb-1">
               <span>Alt gorevler</span>
               <span>{subtasksCompleted}/{subtasksTotal}</span>
             </div>
-            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 surface-bg-strong rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
@@ -100,15 +100,15 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
               style={{ backgroundColor: task.avatar_color || '#7c3aed' }}
             >
               {initials}
             </div>
-            <span className="text-xs text-gray-400">{task.assigned_name || 'Atanmamis'}</span>
+            <span className="text-xs text-secondary">{task.assigned_name || 'Atanmamis'}</span>
           </div>
           {task.estimated_hours > 0 && (
-            <span className="text-xs text-gray-500">{task.estimated_hours}h</span>
+            <span className="text-xs text-tertiary">{task.estimated_hours}h</span>
           )}
         </div>
       </motion.div>

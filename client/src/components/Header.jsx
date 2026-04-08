@@ -14,41 +14,46 @@ function Header({ toggleSidebar }) {
     : '??';
 
   return (
-    <header className="glass border-b border-theme px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-30">
-      <div className="flex items-center gap-2 sm:gap-4">
+    <header className="glass border-b border-theme px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between sticky top-0 z-30 w-full overflow-hidden shrink-0">
+      <div className="flex items-center gap-1 sm:gap-4 flex-shrink min-w-0">
         <button
           onClick={toggleSidebar}
-          className="lg:hidden p-2 rounded-lg hover-surface-bg text-secondary hover:text-primary transition-all duration-200 hover:scale-110 active:scale-95"
+          className="lg:hidden p-1.5 sm:p-2 rounded-lg hover-surface-bg text-secondary hover:text-primary transition-all duration-200 shrink-0"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <CountdownTimer />
+        <div className="shrink-0 scale-90 sm:scale-100 origin-left">
+          <CountdownTimer />
+        </div>
       </div>
-      <div className="flex items-center gap-2 sm:gap-3">
+      
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20">
           <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
           <span className="text-xs text-success font-medium">Canli</span>
         </div>
+        
         <ThemeToggle />
         <BackupMenu />
         <NotificationBell />
+        
         {user && (
-          <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 border-l border-theme">
+          <div className="flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-3 border-l border-theme shrink-0">
             <div
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white shrink-0"
               style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
             >
               {initials}
             </div>
-            <span className="text-sm font-medium text-primary hidden md:inline">{user.name}</span>
+            <span className="text-sm font-medium text-primary hidden md:block truncate max-w-[100px]">{user.name}</span>
             <button
               onClick={logoutUser}
-              className="ml-0.5 sm:ml-1 p-1 sm:p-1.5 rounded-lg hover:bg-error/20 text-secondary hover:text-error transition-all duration-200 hover:scale-110 active:scale-95"
+              className="ml-0 p-1 sm:p-1.5 rounded-lg hover:bg-error/20 text-secondary hover:text-error transition-all duration-200 shrink-0"
               title="Cikis Yap"
             >
-              <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>

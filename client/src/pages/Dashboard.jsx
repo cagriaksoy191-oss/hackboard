@@ -39,6 +39,14 @@ function Dashboard() {
     };
   }, []);
 
+  const scrollToKanban = (colId) => {
+    const elId = colId === 'top' ? 'kanban-board-container' : `kanban-col-${colId}`;
+    const el = document.getElementById(elId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -51,6 +59,7 @@ function Dashboard() {
           value={stats.total}
           color="bg-accent/20"
           delay={0}
+          onClick={() => scrollToKanban('top')}
           icon={<svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>}
         />
         <StatCard
@@ -58,6 +67,7 @@ function Dashboard() {
           value={stats.done}
           color="bg-success/20"
           delay={0.1}
+          onClick={() => scrollToKanban('done')}
           icon={<svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
         />
         <StatCard
@@ -65,6 +75,7 @@ function Dashboard() {
           value={stats.inProgress}
           color="bg-warning/20"
           delay={0.2}
+          onClick={() => scrollToKanban('in-progress')}
           icon={<svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
         <StatCard
@@ -72,6 +83,7 @@ function Dashboard() {
           value={stats.todo}
           color="bg-accentAlt/20"
           delay={0.3}
+          onClick={() => scrollToKanban('todo')}
           icon={<svg className="w-5 h-5 text-accentAlt" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
       </div>

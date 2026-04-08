@@ -8,10 +8,10 @@ import CreateTaskModal from './CreateTaskModal';
 import EmptyState from './EmptyState';
 
 const columns = [
-  { id: 'todo', title: 'Yapilacak', color: 'from-blue-500/20 to-blue-600/10', borderColor: 'border-blue-500/30', dotColor: 'bg-blue-500' },
-  { id: 'in-progress', title: 'Devam Ediyor', color: 'from-yellow-500/20 to-yellow-600/10', borderColor: 'border-yellow-500/30', dotColor: 'bg-yellow-500' },
-  { id: 'testing', title: 'Test', color: 'from-purple-500/20 to-purple-600/10', borderColor: 'border-purple-500/30', dotColor: 'bg-purple-500' },
-  { id: 'done', title: 'Tamamlandi', color: 'from-green-500/20 to-green-600/10', borderColor: 'border-green-500/30', dotColor: 'bg-green-500' },
+  { id: 'todo', title: 'Yapilacak', darkColor: 'dark:from-blue-500/20 dark:to-blue-600/10', lightColor: 'from-blue-50 to-blue-100/50', darkBorder: 'dark:border-blue-500/30', lightBorder: 'border-blue-200', dotColor: 'bg-blue-500' },
+  { id: 'in-progress', title: 'Devam Ediyor', darkColor: 'dark:from-yellow-500/20 dark:to-yellow-600/10', lightColor: 'from-yellow-50 to-yellow-100/50', darkBorder: 'dark:border-yellow-500/30', lightBorder: 'border-yellow-200', dotColor: 'bg-yellow-500' },
+  { id: 'testing', title: 'Test', darkColor: 'dark:from-purple-500/20 dark:to-purple-600/10', lightColor: 'from-purple-50 to-purple-100/50', darkBorder: 'dark:border-purple-500/30', lightBorder: 'border-purple-200', dotColor: 'bg-purple-500' },
+  { id: 'done', title: 'Tamamlandi', darkColor: 'dark:from-green-500/20 dark:to-green-600/10', lightColor: 'from-green-50 to-green-100/50', darkBorder: 'dark:border-green-500/30', lightBorder: 'border-green-200', dotColor: 'bg-green-500' },
 ];
 
 function KanbanBoard() {
@@ -130,13 +130,13 @@ function KanbanBoard() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Gorev ara..."
-              className="w-full pl-10 pr-4 py-2 input-surface border rounded-xl text-sm focus:outline-none focus:border-accent transition-all duration-200"
+              className="w-full pl-10 pr-4 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none focus:border-accent transition-all duration-200"
             />
           </div>
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className={`px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+            className={`px-3 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none transition-all duration-200 ${
               filterPriority !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
@@ -149,7 +149,7 @@ function KanbanBoard() {
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            className={`px-3 py-2 input-surface border rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+            className={`px-3 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none transition-all duration-200 ${
               filterUser !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
@@ -176,7 +176,7 @@ function KanbanBoard() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {columns.map((col) => (
-            <div key={col.id} className={`bg-gradient-to-b ${col.color} border ${col.borderColor} rounded-2xl p-3 min-h-[300px]`}>
+            <div key={col.id} className={`bg-gradient-to-b ${col.darkColor} ${col.lightColor} border ${col.darkBorder} ${col.lightBorder} rounded-2xl p-3 min-h-[300px]`}>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full surface-bg-strong animate-pulse" />
                 <div className="h-4 w-20 skeleton-shimmer rounded animate-pulse" />
@@ -202,17 +202,18 @@ function KanbanBoard() {
           icon="task"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="kanban-board-container">
           {columns.map((col) => {
             const colTasks = filteredTasks.filter((t) => t.status === col.id);
             const isHighlighted = highlightColumn === col.id;
             return (
               <div
+                id={`kanban-col-${col.id}`}
                 key={col.id}
-                className={`bg-gradient-to-b ${col.color} border rounded-2xl p-3 min-h-[300px] transition-all duration-300 ${
+                className={`bg-gradient-to-b ${col.darkColor} ${col.lightColor} border rounded-2xl p-3 min-h-[300px] transition-all duration-300 scroll-mt-[100px] ${
                   isHighlighted
-                    ? `${col.borderColor} shadow-[0_0_30px_rgba(0,212,255,0.3)] border-accent/50`
-                    : col.borderColor
+                    ? `${col.darkBorder} ${col.lightBorder} shadow-[0_0_30px_rgba(0,212,255,0.3)] border-accent/50`
+                    : `${col.darkBorder} ${col.lightBorder}`
                 }`}
                 onDragOver={(e) => handleDragOver(e, col.id)}
                 onDragLeave={handleDragLeave}

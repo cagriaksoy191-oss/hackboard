@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import ReactDOM from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { tasksAPI, usersAPI } from '../lib/api';
 import socket from '../lib/socket';
 
@@ -43,9 +44,10 @@ function EditTaskModal({ task, onClose, onSuccess }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <motion.div
+        key="overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -53,14 +55,15 @@ function EditTaskModal({ task, onClose, onSuccess }) {
         onClick={onClose}
       />
       <motion.div
+        key="modal"
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="relative glass-strong rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">Gorevi Duzenle</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95">
+          <h2 className="text-xl font-bold text-primary">Gorevi Duzenle</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover-surface-bg-hover text-tertiary hover:text-primary transition-all duration-200 hover:scale-110 active:scale-95">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -69,67 +72,67 @@ function EditTaskModal({ task, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Baslik *</label>
+            <label className="block text-sm font-medium text-secondary mb-1">Baslik *</label>
             <input
               type="text"
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-200"
+              className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-200"
               placeholder="Gorev basligi..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Aciklama</label>
+            <label className="block text-sm font-medium text-secondary mb-1">Aciklama</label>
             <textarea
               rows={3}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-200 resize-none"
+              className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all duration-200 resize-none"
               placeholder="Gorev aciklamasi..."
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Oncelik</label>
+              <label className="block text-sm font-medium text-secondary mb-1">Oncelik</label>
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent transition-all duration-200"
+                className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent transition-all duration-200"
               >
-                <option value="low" className="bg-card">Dusuk</option>
-                <option value="medium" className="bg-card">Orta</option>
-                <option value="high" className="bg-card">Yuksek</option>
-                <option value="critical" className="bg-card">Kritik</option>
+                <option value="low" className="option-surface">Dusuk</option>
+                <option value="medium" className="option-surface">Orta</option>
+                <option value="high" className="option-surface">Yuksek</option>
+                <option value="critical" className="option-surface">Kritik</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Tahmini Sure (saat)</label>
+              <label className="block text-sm font-medium text-secondary mb-1">Tahmini Sure (saat)</label>
               <input
                 type="number"
                 min="0"
                 step="0.5"
                 value={form.estimated_hours}
                 onChange={(e) => setForm({ ...form, estimated_hours: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent transition-all duration-200"
+                className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent transition-all duration-200"
                 placeholder="0"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Atanan Kisi</label>
+            <label className="block text-sm font-medium text-secondary mb-1">Atanan Kisi</label>
             <select
               value={form.assigned_to}
               onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent transition-all duration-200"
+              className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent transition-all duration-200"
             >
-              <option value="" className="bg-card">Seciniz</option>
+              <option value="" className="option-surface">Seciniz</option>
               {users.map((u) => (
-                <option key={u.id} value={u.id} className="bg-card">{u.name} - {u.role}</option>
+                <option key={u.id} value={u.id} className="option-surface">{u.name} - {u.role}</option>
               ))}
             </select>
           </div>
@@ -138,7 +141,7 @@ function EditTaskModal({ task, onClose, onSuccess }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-300 hover:bg-white/10 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-1 px-4 py-2.5 surface-bg border border-theme rounded-xl text-primary hover-surface-bg-hover transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               Iptal
             </button>
@@ -151,7 +154,8 @@ function EditTaskModal({ task, onClose, onSuccess }) {
           </div>
         </form>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
