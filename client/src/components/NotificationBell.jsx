@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
 
@@ -10,6 +10,7 @@ function NotificationBell() {
   const dropdownRef = useRef(null);
   const { user } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -17,7 +18,13 @@ function NotificationBell() {
     const handleNotificationNew = (notification) => {
       if (notification.senderId === user?.id) return;
       if (notification.assignedTo && notification.assignedTo !== user?.id) return;
-      setNotifications((prev) => [notification, ...prev].slice(0, 10));
+      
+      const newNotif = { ...notification };
+      if (newNotif.type === 'message' && location.pathname === '/chat') {
+        newNotif.read = true;
+      }
+      
+      setNotifications((prev) => [newNotif, ...prev].slice(0, 10));
     };
 
     socket.on('notification:new', handleNotificationNew);
@@ -25,7 +32,15 @@ function NotificationBell() {
     return () => {
       socket.off('notification:new', handleNotificationNew);
     };
-  }, [user]);
+  }, [user, location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname === '/chat') {
+      setNotifications((prev) => 
+        prev.map((n) => (n.type === 'message' ? { ...n, read: true } : n))
+      );
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -132,7 +147,7 @@ function NotificationBell() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 w-80 glass-strong rounded-2xl border border-theme shadow-2xl z-50 overflow-hidden"
+              className="fixed left-4 right-4 top-16 sm:absolute sm:right-0 sm:left-auto sm:top-full mt-2 sm:w-80 glass-strong rounded-2xl border border-theme shadow-2xl z-50 overflow-hidden"
             >
               <div className="flex items-center justify-between p-4 border-b border-theme">
                 <h3 className="text-sm font-bold text-primary">Bildirimler</h3>
