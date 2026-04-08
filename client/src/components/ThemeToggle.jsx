@@ -7,7 +7,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-300 hover:scale-110 active:scale-95"
+      className="p-2 rounded-xl hover-surface-bg text-secondary hover:text-primary transition-all duration-300 hover:scale-110 active:scale-95 flex-shrink-0"
       title={theme === 'dark' ? "Light Mode'a gec" : "Dark Mode'a gec"}
     >
       {theme === 'dark' ? (

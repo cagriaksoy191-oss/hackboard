@@ -56,7 +56,7 @@ function ActivityFeed() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="flex items-start gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+              className="flex items-start gap-3 p-3 rounded-xl surface-bg hover-surface-bg transition-colors"
             >
               <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
                 activity.avatar_color ? 'bg-opacity-20' : 'bg-accent/20'

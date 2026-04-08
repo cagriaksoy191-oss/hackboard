@@ -23,18 +23,24 @@ HackBoard is a real-time collaborative team management panel designed for hackat
 - Express server runs on port 3001 (configurable via `PORT` env var)
 - Vite dev server runs on port 5173 with proxy to backend
 - In production, Express serves the Vite-built static files from `client/dist/`
+- Layout owns the responsive application shell: desktop keeps the sidebar visible, mobile uses an overlay drawer
 
 **Socket.IO Communication:**
 - Single persistent WebSocket connection from each client
 - Events handle task CRUD, chat messages, typing indicators, notifications, timer sync, and user status
-- Server broadcasts events to all connected clients (except sender for notifications/messages)
+- Messages are emitted to all connected clients; notifications, typing, and timer events exclude the sender where appropriate
 - Server stores `io` instance via `app.set('io', io)` for access in route handlers
+- Client listeners should always unregister with the same handler reference (`socket.off(event, handler)`)
 
 **Database:**
 - sql.js (SQLite compiled to WebAssembly) runs in-memory
 - Database is exported to `hackboard.db` file on every write operation
 - Auto-seeded with sample data on first run (users, tasks, subtasks, comments, messages, activities, milestones)
 - WARNING: Data is lost on server restart in ephemeral environments (Render.com free tier)
+
+**Theme System:**
+- Dark/light mode is driven by CSS custom properties in `client/src/index.css`
+- Shared helper utilities such as `input-surface`, `border-theme`, `divider-theme`, and `hover-surface-bg` keep neutral UI surfaces readable across themes
 
 ## Directory Structure
 
@@ -67,7 +73,7 @@ Hackathon/
     `-- src/
         |-- main.jsx                  # React entry point
         |-- App.jsx                   # Router + provider wrapper with React.lazy code splitting
-        |-- index.css                 # Global styles, CSS variables for dark/light themes
+        |-- index.css                 # Global styles, CSS variables, and shared theme helper utilities
         |-- lib/
         |   |-- api.js                # Axios API client with /api base URL (includes backupAPI)
         |   `-- socket.js             # Socket.IO client singleton (connects to '/')
@@ -75,15 +81,15 @@ Hackathon/
         |   |-- ThemeContext.jsx      # Dark/light theme with localStorage persistence
         |   `-- UserContext.jsx       # Current user state with localStorage persistence + post-restore validation
         |-- hooks/
-        |   `-- useBackupSnapshot.js  # Local snapshot management, auto-refresh, recovery evaluation
+        |   `-- useBackupSnapshot.js  # Local snapshot management, debounced auto-refresh, recovery evaluation
         |-- components/
-        |   |-- Layout.jsx            # Main layout: checks login, renders Sidebar + Header + RecoveryBanner + children
-        |   |-- Sidebar.jsx           # Navigation sidebar with route links, user info, and theme toggle
+        |   |-- Layout.jsx            # Responsive app shell: login gate, desktop sidebar state, header, recovery banner
+        |   |-- Sidebar.jsx           # Desktop-persistent / mobile-overlay navigation drawer with route links and theme toggle
         |   |-- Header.jsx            # Top bar: countdown timer, live status, notification bell, backup menu, user avatar, logout
         |   |-- BackupMenu.jsx        # Dropdown: export JSON, import JSON, manual snapshot with confirm modals
         |   |-- RecoveryBanner.jsx    # Conditional banner shown when snapshot/server fingerprint mismatch detected
         |   |-- LoginScreen.jsx       # User selection screen shown when not logged in
-        |   |-- KanbanBoard.jsx       # Drag-and-drop Kanban board with search/filter
+        |   |-- KanbanBoard.jsx       # Drag-and-drop Kanban board with search/filter and dynamic user filter
         |   |-- TaskCard.jsx          # Individual task card with delete/edit modals
         |   |-- TaskTimer.jsx         # Per-task stopwatch with start/stop and budget comparison
         |   |-- CreateTaskModal.jsx   # New task creation form
@@ -98,7 +104,7 @@ Hackathon/
         |   |-- Toast.jsx             # Toast notification provider + context + hook
         |   `-- ErrorBoundary.jsx     # React error boundary with refresh button
         `-- pages/
-            |-- Dashboard.jsx         # Main dashboard: stats, Kanban, activity feed
+            |-- Dashboard.jsx         # Main dashboard: live stat cards, Kanban board, activity feed
             |-- Tasks.jsx             # Task list with filters, search, create/edit/delete
             |-- TaskDetail.jsx        # Single task view: subtasks, comments, timer
             |-- Team.jsx              # Team member cards with productivity stats
@@ -241,24 +247,28 @@ Hackathon/
 ## Features Implemented
 
 1. **User Login Screen** - Select from 4 team members, persisted to localStorage
-2. **Dashboard** - Stat cards, Kanban board, activity feed
+2. **Dashboard** - Live stat cards, Kanban board, activity feed
 3. **Kanban Board** - Drag and drop between 4 columns (todo, in-progress, testing, done)
 4. **Task Management** - Full CRUD with modals, subtasks, comments
-5. **Task Search and Filter** - By text, priority, user, status
+5. **Task Search and Filter** - By text, priority, user, status with dynamic user lists
 6. **Task Timer** - Per-task stopwatch with estimated vs actual comparison
 7. **Real-time Chat** - Socket.IO messaging with emoji picker and typing indicators
 8. **Team Page** - Member cards with productivity stats and task lists
 9. **Timeline** - Interactive timeline with milestone tracking
 10. **Analytics** - Pie, bar, line charts with JSON/CSV export
 11. **Notification System** - Real-time bell with unread badge, filtered by recipient
-12. **Dark/Light Mode** - Theme toggle with localStorage persistence
+12. **Dark/Light Mode** - Theme toggle with localStorage persistence and shared CSS variable helpers
 13. **Error Boundary** - Graceful error handling with refresh option
 14. **Toast Notifications** - Success/error/info toasts
 15. **Loading Fallbacks** - Spinner with "Yukleniyor..." text for lazy-loaded route chunks
 16. **Empty States** - Friendly messages when no data exists
 17. **Race Condition Protection** - 409 Conflict on stale task updates
-18. **Real-time Sync** - All CRUD operations broadcast via Socket.IO
+18. **Real-time Sync** - All CRUD operations broadcast via Socket.IO with handler-safe listener cleanup on the client
 19. **Fail-safe Persistence and Restore** - Manual JSON export/import, auto local snapshot, recovery banner, multi-client sync
+20. **Responsive Navigation Shell** - Desktop sidebar stays visible, mobile uses a collapsible overlay menu
+21. **Theme-Aware Core Workflows** - Primary forms, dropdowns, cards, chat composer, and timeline surfaces are normalized for both dark and light mode
+22. **Dynamic Kanban Assignee Filter** - Kanban user filtering reads from `/api/users` instead of hardcoded IDs
+23. **Timeline Empty-State Handling** - Loading and empty milestone states are separated to avoid false "loading forever" UX
 
 ## Key Decisions
 
@@ -267,12 +277,17 @@ Hackathon/
 3. **app.set('io', io)** - Express app carries the Socket.IO instance so route handlers can emit events without importing the server module.
 4. **Relative URLs for API/Socket** - `baseURL: '/api'` and `io('/')` ensure production compatibility when frontend and backend share the same origin.
 5. **localStorage for user/theme** - Simple persistence without auth complexity. Suitable for hackathon context.
-6. **Broadcast vs targeted notifications** - Messages use `socket.broadcast.emit` (excludes sender). Task creation uses `io.emit` (all clients see it).
+6. **Broadcast vs targeted notifications** - Messages use `io.emit` so everyone sees the same chat stream. Notification, typing, and timer events exclude the sender where that UX is appropriate.
 7. **409 Conflict for race conditions** - `updated_at` comparison prevents silent overwrites when two users edit the same task simultaneously.
 8. **Atomic restore via temp DB** - Import creates a temporary SQL.js database, writes all records, verifies counts, then swaps the global `db` reference. Failed imports leave the live DB untouched.
 9. **Fingerprint excludes transient fields** - `users.is_online` is normalized to `0` before fingerprint computation. This prevents presence changes from triggering false-positive recovery banners. Export payload retains real `is_online` values.
 10. **Recovery is user-initiated, never automatic** - RecoveryBanner suggests restore but never applies it without explicit user confirmation through a two-step modal flow.
 11. **Multi-client sync via reload** - After restore, `backup:restored` socket event triggers `window.location.reload()` on all connected clients, ensuring no stale React state remains.
+12. **Responsive shell is breakpoint-owned by Layout** - `Layout.jsx` opens the sidebar on desktop breakpoints and closes it on mobile breakpoints so navigation parity stays predictable.
+13. **Theme consistency uses shared utility classes** - Neutral surfaces and inputs rely on shared helpers in `index.css` instead of repeated hardcoded translucent whites.
+14. **Socket cleanup always uses handler references** - Client components should remove listeners with `socket.off(event, sameHandler)` to avoid detaching other screens' subscriptions.
+15. **Dashboard stats favor correctness over local math** - Stat cards simply refetch tasks on task socket events; for this small hackathon app that is simpler and safer than partial client-side bookkeeping.
+16. **Restore initiator has a local reload fallback** - `backup:restored` remains the primary sync mechanism, but the importing client also schedules a local reload in case the socket event is missed.
 
 ## Known Limitations
 
@@ -283,7 +298,7 @@ Hackathon/
 5. **Notifications from activities table** - Notifications are derived from the activities log, not a dedicated notifications table. Read state is client-side only.
 6. **No pagination** - All tasks, messages, and activities are loaded at once.
 7. **No file attachments** - Tasks and comments are text-only.
-8. **Hardcoded team members in filter dropdowns** - KanbanBoard filter options list team names statically.
+8. **No automated test suite** - Validation currently relies on successful builds plus manual smoke testing instead of automated integration/end-to-end coverage.
 
 ## Environment Variables
 
@@ -360,3 +375,22 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - `npm audit` fixed: vite 6.0.5 to 6.4.2 (path traversal, WS file read vulnerabilities)
 - lodash override 4.17.21 to 4.18.1 (prototype pollution, code injection via recharts transitive dep)
 - Build script: removed redundant `npm install` for deterministic builds
+
+### 2026-04-08 - Manual QA Hardening and UI Stability
+
+**Responsive Shell and Navigation:**
+- `client/src/components/Layout.jsx` - Desktop/mobile breakpoint-driven sidebar open state is enforced on resize
+- `client/src/components/Sidebar.jsx` - Sidebar now behaves as a desktop-persistent navigation rail and a mobile overlay drawer without losing route access
+- `client/src/components/Header.jsx`, `client/src/components/CountdownTimer.jsx`, `client/src/components/StatCard.jsx` - Header/countdown/stat card text tokens aligned with theme-aware text utilities
+
+**Real-time and State Consistency:**
+- `client/src/pages/Dashboard.jsx` - Stat cards now resync on `task:created`, `task:updated`, `task:moved`, and `task:deleted`
+- `client/src/components/ActivityFeed.jsx`, `client/src/components/NotificationBell.jsx`, `client/src/components/KanbanBoard.jsx`, `client/src/pages/Chat.jsx`, `client/src/pages/TaskDetail.jsx`, `client/src/pages/Tasks.jsx` - Socket listeners now clean up with handler references instead of broad `socket.off(event)` calls
+- `client/src/components/BackupMenu.jsx` - Restore flow keeps the socket-based reload and adds a local fallback reload for the importing client
+- `client/src/hooks/useBackupSnapshot.js` - Removed unused client-side fingerprint helpers; recovery decisions rely on server-generated fingerprints
+
+**Theme and UX Consistency:**
+- `client/src/index.css` - Added shared theme helpers such as `input-surface`, `border-theme`, `divider-theme`, `hover-surface-bg`, `option-surface`, and skeleton helpers
+- `client/src/pages/Chat.jsx`, `client/src/pages/Tasks.jsx`, `client/src/pages/TaskDetail.jsx`, `client/src/components/KanbanBoard.jsx`, `client/src/components/NotificationBell.jsx`, `client/src/components/BackupMenu.jsx`, `client/src/pages/Timeline.jsx` - Normalized neutral inputs, dropdowns, bubbles, dividers, empty states, and timeline surfaces for light/dark parity
+- `client/src/components/KanbanBoard.jsx` - Replaced hardcoded assignee filter options with live user data from `/api/users`
+- `client/src/pages/Timeline.jsx` - Separated loading state from empty milestone state to avoid misleading "still loading" UX

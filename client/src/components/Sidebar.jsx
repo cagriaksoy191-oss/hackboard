@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../context/UserContext';
-import ThemeToggle from './ThemeToggle';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -15,7 +14,7 @@ const navItems = [
 
 function Sidebar({ isOpen, toggle }) {
   const location = useLocation();
-  const { user } = useUser();
+  const { user, logoutUser } = useUser();
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window !== 'undefined') return window.innerWidth >= 1024;
     return false;
@@ -44,7 +43,7 @@ function Sidebar({ isOpen, toggle }) {
         animate={{ x: sidebarVisible ? 0 : -280 }}
         className="fixed left-0 top-0 h-full w-64 glass-strong z-50 flex flex-col"
       >
-        <div className="p-6 border-b border-white/10">
+        <div className="p-6 border-b border-theme">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accentAlt flex items-center justify-center text-white font-bold text-lg">
               H
@@ -67,7 +66,7 @@ function Sidebar({ isOpen, toggle }) {
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? 'bg-accent/20 text-accent shadow-lg shadow-accent/10'
-                    : 'text-secondary hover:text-primary hover:bg-white/5'
+                    : 'text-secondary hover:text-primary hover-surface-bg'
                 }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -79,23 +78,31 @@ function Sidebar({ isOpen, toggle }) {
           })}
         </nav>
 
-        <div className="p-4 space-y-2 border-t border-white/10">
-          <ThemeToggle />
+        <div className="p-4 space-y-2 border-t border-theme">
           {user && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl surface-bg">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
               >
                 {initials}
               </div>
-              <div>
-                <p className="text-sm font-medium text-primary">{user.name}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-primary truncate">{user.name}</p>
                 <p className="text-xs text-success flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
                   Online
                 </p>
               </div>
+              <button
+                onClick={logoutUser}
+                className="lg:hidden p-1.5 rounded-lg hover-surface-bg text-secondary hover:text-error transition-all duration-200 hover:scale-110 active:scale-95"
+                title="Cikis Yap"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
             </div>
           )}
         </div>

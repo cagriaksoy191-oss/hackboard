@@ -18,8 +18,8 @@ function CountdownTimer() {
   const format = (n) => n.toString().padStart(2, '0');
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="text-xs text-secondary uppercase tracking-wider">Hackathon Bitis:</div>
+    <div className="flex items-center gap-1 sm:gap-2">
+      <div className="hidden sm:block text-xs text-secondary uppercase tracking-wider">Hackathon Bitis:</div>
       <div className="flex gap-1">
         {[format(hours), format(minutes), format(seconds)].map((val, i) => (
           <div key={i} className="flex items-center">
@@ -27,7 +27,7 @@ function CountdownTimer() {
               key={val}
               initial={{ y: -10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="bg-card border border-white/10 rounded-lg px-2 py-1 text-accent font-mono font-bold text-sm"
+              className="bg-card border border-theme rounded-lg px-1.5 sm:px-2 py-1 text-accent font-mono font-bold text-xs sm:text-sm"
             >
               {val}
             </motion.div>

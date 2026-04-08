@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
 
@@ -8,6 +9,7 @@ function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { user } = useUser();
+  const navigate = useNavigate();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -37,6 +39,21 @@ function NotificationBell() {
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const handleNotificationClick = (n) => {
+    setNotifications((prev) =>
+      prev.map((notif) => (notif.id === n.id ? { ...notif, read: true } : notif))
+    );
+    setIsOpen(false);
+
+    if (n.type === 'message') {
+      navigate('/chat');
+    } else if (n.taskId) {
+      navigate(`/tasks/${n.taskId}`);
+    } else if (n.type && n.type.startsWith('task')) {
+      navigate('/tasks');
+    }
   };
 
   const formatTime = (dateStr) => {
@@ -139,9 +156,10 @@ function NotificationBell() {
                   </div>
                 ) : (
                   notifications.map((n) => (
-                    <div
+                    <button
                       key={n.id}
-                      className={`flex gap-3 p-3 border-b border-theme-subtle hover-surface-bg transition-colors ${
+                      onClick={() => handleNotificationClick(n)}
+                      className={`w-full text-left flex gap-3 p-3 border-b border-theme-subtle hover-surface-bg cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-accent ${
                         !n.read ? 'bg-accent/5' : ''
                       }`}
                     >
@@ -160,7 +178,7 @@ function NotificationBell() {
                       {!n.read && (
                         <span className="w-2 h-2 rounded-full bg-accent flex-shrink-0 mt-1" />
                       )}
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
