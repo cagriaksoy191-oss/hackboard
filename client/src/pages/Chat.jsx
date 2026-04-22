@@ -165,6 +165,8 @@ function Chat() {
             <button
               type="button"
               onClick={() => setShowEmoji(!showEmoji)}
+              aria-label="Emoji Secici"
+              title="Emoji Secici"
               className="p-2.5 rounded-xl surface-bg border border-theme-subtle hover-surface-bg-hover text-secondary hover:text-primary transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,6 +182,8 @@ function Chat() {
             />
             <button
               type="submit"
+              aria-label="Mesaj Gonder"
+              title="Mesaj Gonder"
               className="p-2.5 rounded-xl bg-gradient-to-r from-accent to-accentAlt text-white hover:opacity-90 transition-opacity"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
