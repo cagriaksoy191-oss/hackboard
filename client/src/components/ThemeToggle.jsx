@@ -9,6 +9,7 @@ function ThemeToggle() {
       onClick={toggleTheme}
       className="p-2 rounded-xl hover-surface-bg text-secondary hover:text-primary transition-all duration-300 hover:scale-110 active:scale-95 flex-shrink-0"
       title={theme === 'dark' ? "Light Mode'a gec" : "Dark Mode'a gec"}
+      aria-label={theme === 'dark' ? "Light Mode'a gec" : "Dark Mode'a gec"}
     >
       {theme === 'dark' ? (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
