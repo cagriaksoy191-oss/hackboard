@@ -1,4 +1,4 @@
-import { getDB, prepare, transaction } from './db.js';
+import { prepare, transaction } from './db.js';
 
 function seed() {
   const existing = prepare('SELECT COUNT(*) as count FROM users').get();
