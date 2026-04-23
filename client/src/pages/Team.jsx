@@ -5,9 +5,6 @@ import { usersAPI, tasksAPI } from '../lib/api';
 import {
   BarChart,
   Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
   ResponsiveContainer,
 } from 'recharts';
 
