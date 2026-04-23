@@ -58,13 +58,48 @@ export async function initDB() {
   saveDB();
 }
 
-function saveDB() {
-  if (db) {
+
+let writeTimeout = null;
+let isWriting = false;
+let pendingWrite = false;
+
+export async function flushSave() {
+  if (!db) return;
+  if (isWriting) {
+    pendingWrite = true;
+    return;
+  }
+
+  isWriting = true;
+  pendingWrite = false;
+
+  try {
     const data = db.export();
     const buffer = Buffer.from(data);
-    fs.writeFileSync(DB_PATH, buffer);
+    await fs.promises.writeFile(DB_PATH, buffer);
+  } catch (err) {
+    console.error('Failed to flush database to disk:', err);
+  } finally {
+    isWriting = false;
+    if (pendingWrite) {
+      scheduleSave(0);
+    }
   }
 }
+
+function scheduleSave(delay = 50) {
+  if (writeTimeout) {
+    clearTimeout(writeTimeout);
+  }
+  writeTimeout = setTimeout(() => {
+    flushSave();
+  }, delay);
+}
+
+function saveDB() {
+  scheduleSave();
+}
+
 
 export function getDB() {
   if (!db) throw new Error('Database not initialized');
@@ -468,6 +503,7 @@ export async function restoreBackupData(payload) {
 
     db = tempDB;
     saveDB();
+    await flushSave(); // Force immediate write during backup restore
 
     const tableCounts = {};
     for (const tableName of tablesToResetSequence) {
