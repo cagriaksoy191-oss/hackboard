@@ -35,3 +35,16 @@ test('calculateTaskStats - should handle null or undefined input array gracefull
   assert.deepEqual(calculateTaskStats(null), { total: 0, done: 0, inProgress: 0, todo: 0 });
   assert.deepEqual(calculateTaskStats(undefined), { total: 0, done: 0, inProgress: 0, todo: 0 });
 });
+
+test('calculateTaskStats - should handle non-object items in tasks array gracefully', () => {
+  const tasks = [
+    { status: 'done' },
+    null,
+    undefined,
+    123,
+    "string",
+    { status: 'todo' }
+  ];
+  const result = calculateTaskStats(tasks);
+  assert.deepEqual(result, { total: 6, done: 1, inProgress: 0, todo: 1 });
+});
