@@ -1,13 +1,13 @@
 const allowedOrigins = ['http://localhost:5173', 'http://localhost:3001'];
 
 const corsOriginCheck = (origin) => {
-  return !origin || allowedOrigins.includes(origin);
+  return allowedOrigins.includes(origin);
 };
 
 const testCases = [
   { origin: 'http://localhost:5173', expected: true },
   { origin: 'http://localhost:3001', expected: true },
-  { origin: undefined, expected: true },
+  { origin: undefined, expected: false },
   { origin: 'http://evil.com', expected: false },
   { origin: 'http://localhost:3000', expected: false },
 ];
