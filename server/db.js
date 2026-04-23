@@ -5,6 +5,13 @@ import crypto from 'crypto';
 
 const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
 
+const TURKISH_CHAR_MAP = Object.freeze({
+  "İ": "I",
+  "i": "i",
+  "ı": "i",
+  "I": "I"
+});
+
 const COUNT_QUERY_BY_TABLE = Object.freeze({
   users: "SELECT COUNT(*) FROM users",
   tasks: "SELECT COUNT(*) FROM tasks",
@@ -554,10 +561,7 @@ export function getHealthSummary() {
 
   const users = queryAll(database, "SELECT name FROM users ORDER BY id");
   const seedNames = ["Cagri", "Talha", "Ahmet", "Alaettin"];
-  const userNames = users.map((u) => u.name.replace(/[İiıI]/g, (m) => {
-    const map = { "İ": "I", "i": "i", "ı": "i", "I": "I" };
-    return map[m] || m;
-  }));
+  const userNames = users.map((u) => u.name.replace(/[İiıI]/g, (m) => TURKISH_CHAR_MAP[m] || m));
   const hasOnlySeedUsers = userNames.length === 4 && seedNames.every((sn) => userNames.some((un) => un.toLowerCase().replace(/[^a-z]/g, "") === sn.toLowerCase().replace(/[^a-z]/g, "")));
   const looksLikeSeedData = hasOnlySeedUsers && tableCounts.tasks <= 12 && tableCounts.messages <= 8;
 
