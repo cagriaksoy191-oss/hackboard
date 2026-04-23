@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI, tasksAPI } from '../lib/api';
@@ -39,25 +39,30 @@ function Team() {
     }
   };
 
-  const productivityData = users.map((u) => {
-    const tasks = userTasks[u.id] || [];
-    return {
-      name: u.name.split(' ')[0],
-      completed: tasks.filter((t) => t.status === 'done').length,
-      total: tasks.length,
-    };
-  });
+  const processedUsers = useMemo(() => {
+    return users.map((user) => {
+      const tasks = userTasks[user.id] || [];
+      const completedCount = tasks.filter((t) => t.status === 'done').length;
+      const names = user.name.split(' ');
+      const firstName = names[0];
+      const initials = names.map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+
+      return {
+        ...user,
+        initials,
+        tasksCount: tasks.length,
+        completedCount,
+        chartData: [{ name: firstName, completed: completedCount }],
+      };
+    });
+  }, [users, userTasks]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <h2 className="text-2xl font-bold text-white">Takim Uyeleri</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {users.map((user, i) => {
-          const tasks = userTasks[user.id] || [];
-          const completed = tasks.filter((t) => t.status === 'done').length;
-          const initials = user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-
+        {processedUsers.map((user, i) => {
           return (
             <motion.div
               key={user.id}
@@ -73,7 +78,7 @@ function Team() {
                     className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white"
                     style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
                   >
-                    {initials}
+                    {user.initials}
                   </div>
                   <span
                     className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card ${
@@ -89,18 +94,18 @@ function Team() {
 
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="bg-white/5 rounded-lg p-2 text-center">
-                  <p className="text-lg font-bold text-white">{tasks.length}</p>
+                  <p className="text-lg font-bold text-white">{user.tasksCount}</p>
                   <p className="text-xs text-gray-400">Toplam</p>
                 </div>
                 <div className="bg-white/5 rounded-lg p-2 text-center">
-                  <p className="text-lg font-bold text-success">{completed}</p>
+                  <p className="text-lg font-bold text-success">{user.completedCount}</p>
                   <p className="text-xs text-gray-400">Tamamlanan</p>
                 </div>
               </div>
 
               <div className="h-16">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={productivityData.filter((d) => d.name === user.name.split(' ')[0])}>
+                  <BarChart data={user.chartData}>
                     <Bar dataKey="completed" fill={user.avatar_color || '#7c3aed'} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
