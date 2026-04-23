@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
+<<<<<<< HEAD
 const BACKUP_TABLE_SET = new Set(BACKUP_TABLES);
 
 export { BACKUP_TABLES, assertValidTable, MAX_ID_QUERY_BY_TABLE, COUNT_QUERY_BY_TABLE };
@@ -13,6 +14,8 @@ function assertValidTable(tableName) {
     throw new Error('Security Error: Invalid table name provided for query execution: ' + tableName);
   }
 }
+=======
+>>>>>>> origin/main
 
 const COUNT_QUERY_BY_TABLE = Object.freeze({
   users: "SELECT COUNT(*) FROM users",
@@ -34,6 +37,10 @@ const MAX_ID_QUERY_BY_TABLE = Object.freeze({
   milestones: "SELECT MAX(id) FROM milestones"
 });
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 const DB_PATH = path.join(process.cwd(), 'hackboard.db');
 
 let db = null;
@@ -66,6 +73,10 @@ export async function initDB() {
   saveDB();
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 let writeTimeout = null;
 let isWriting = false;
 let pendingWrite = false;
@@ -107,6 +118,10 @@ function saveDB() {
   scheduleSave();
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 export function getDB() {
   if (!db) throw new Error('Database not initialized');
   return db;
@@ -498,7 +513,10 @@ export async function restoreBackupData(payload) {
 
     const tablesToResetSequence = BACKUP_TABLES;
     for (const tableName of tablesToResetSequence) {
+<<<<<<< HEAD
       assertValidTable(tableName);
+=======
+>>>>>>> origin/main
       if (!MAX_ID_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
       const maxResult = tempDB.exec(MAX_ID_QUERY_BY_TABLE[tableName]);
       const maxId = maxResult.length > 0 && maxResult[0].values.length > 0 && maxResult[0].values[0][0] != null ? maxResult[0].values[0][0] : 0;
@@ -514,7 +532,10 @@ export async function restoreBackupData(payload) {
 
     const tableCounts = {};
     for (const tableName of tablesToResetSequence) {
+<<<<<<< HEAD
       assertValidTable(tableName);
+=======
+>>>>>>> origin/main
       if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
       const countResult = tempDB.exec(COUNT_QUERY_BY_TABLE[tableName]);
       tableCounts[tableName] = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
@@ -543,7 +564,10 @@ export function getHealthSummary() {
   let latestDataAt = null;
 
   for (const tableName of tables) {
+<<<<<<< HEAD
     assertValidTable(tableName);
+=======
+>>>>>>> origin/main
     if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
     const countResult = database.exec(COUNT_QUERY_BY_TABLE[tableName]);
     const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;

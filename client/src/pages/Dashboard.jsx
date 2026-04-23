@@ -5,19 +5,14 @@ import StatCard from '../components/StatCard';
 import KanbanBoard from '../components/KanbanBoard';
 import ActivityFeed from '../components/ActivityFeed';
 import socket from '../lib/socket';
+import { calculateTaskStats } from '../lib/taskStats';
 
 function Dashboard() {
   const [stats, setStats] = useState({ total: 0, done: 0, inProgress: 0, todo: 0 });
 
   const loadStats = () => {
     tasksAPI.getAll().then((res) => {
-      const tasks = res.data;
-      setStats({
-        total: tasks.length,
-        done: tasks.filter((t) => t.status === 'done').length,
-        inProgress: tasks.filter((t) => t.status === 'in-progress').length,
-        todo: tasks.filter((t) => t.status === 'todo').length,
-      });
+      setStats(calculateTaskStats(res.data));
     });
   };
 
