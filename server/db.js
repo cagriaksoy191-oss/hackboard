@@ -3,6 +3,29 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
+
+const COUNT_QUERY_BY_TABLE = Object.freeze({
+  users: "SELECT COUNT(*) FROM users",
+  tasks: "SELECT COUNT(*) FROM tasks",
+  subtasks: "SELECT COUNT(*) FROM subtasks",
+  comments: "SELECT COUNT(*) FROM comments",
+  messages: "SELECT COUNT(*) FROM messages",
+  activities: "SELECT COUNT(*) FROM activities",
+  milestones: "SELECT COUNT(*) FROM milestones"
+});
+
+const MAX_ID_QUERY_BY_TABLE = Object.freeze({
+  users: "SELECT MAX(id) FROM users",
+  tasks: "SELECT MAX(id) FROM tasks",
+  subtasks: "SELECT MAX(id) FROM subtasks",
+  comments: "SELECT MAX(id) FROM comments",
+  messages: "SELECT MAX(id) FROM messages",
+  activities: "SELECT MAX(id) FROM activities",
+  milestones: "SELECT MAX(id) FROM milestones"
+});
+
+
 const DB_PATH = path.join(process.cwd(), 'hackboard.db');
 
 let db = null;
@@ -292,7 +315,7 @@ function validateBackupPayload(payload) {
     return { valid: false, error: 'Missing data section in payload' };
   }
 
-  const requiredTables = ['users', 'tasks', 'subtasks', 'comments', 'messages', 'activities', 'milestones'];
+  const requiredTables = BACKUP_TABLES;
   for (const table of requiredTables) {
     if (!Array.isArray(payload.data[table])) {
       return { valid: false, error: 'Missing or invalid table: ' + table };
@@ -432,9 +455,10 @@ export async function restoreBackupData(payload) {
       throw new Error('Verification failed: record count mismatch after import');
     }
 
-    const tablesToResetSequence = ['users', 'tasks', 'subtasks', 'comments', 'messages', 'activities', 'milestones'];
+    const tablesToResetSequence = BACKUP_TABLES;
     for (const tableName of tablesToResetSequence) {
-      const maxResult = tempDB.exec('SELECT MAX(id) FROM ' + tableName);
+      if (!MAX_ID_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
+      const maxResult = tempDB.exec(MAX_ID_QUERY_BY_TABLE[tableName]);
       const maxId = maxResult.length > 0 && maxResult[0].values.length > 0 && maxResult[0].values[0][0] != null ? maxResult[0].values[0][0] : 0;
       tempDB.run('DELETE FROM sqlite_sequence WHERE name = ?', [tableName]);
       if (maxId > 0) {
@@ -447,7 +471,8 @@ export async function restoreBackupData(payload) {
 
     const tableCounts = {};
     for (const tableName of tablesToResetSequence) {
-      const countResult = tempDB.exec('SELECT COUNT(*) FROM ' + tableName);
+      if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
+      const countResult = tempDB.exec(COUNT_QUERY_BY_TABLE[tableName]);
       tableCounts[tableName] = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
     }
 
@@ -469,12 +494,13 @@ export function getHealthSummary() {
   const database = getDB();
 
   const tableCounts = {};
-  const tables = ["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"];
+  const tables = BACKUP_TABLES;
   let totalRecords = 0;
   let latestDataAt = null;
 
   for (const tableName of tables) {
-    const countResult = database.exec("SELECT COUNT(*) FROM " + tableName);
+    if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
+    const countResult = database.exec(COUNT_QUERY_BY_TABLE[tableName]);
     const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
     tableCounts[tableName] = count;
     totalRecords += count;
