@@ -3,8 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-// Security constants for dynamic table queries
-const BACKUP_TABLES = Object.freeze(['users', 'tasks', 'subtasks', 'comments', 'messages', 'activities', 'milestones']);
+const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
 const BACKUP_TABLE_SET = new Set(BACKUP_TABLES);
 
 export { BACKUP_TABLES, assertValidTable, MAX_ID_QUERY_BY_TABLE, COUNT_QUERY_BY_TABLE };
@@ -15,19 +14,25 @@ function assertValidTable(tableName) {
   }
 }
 
-const MAX_ID_QUERY_BY_TABLE = Object.freeze(
-  BACKUP_TABLES.reduce((acc, table) => {
-    acc[table] = 'SELECT MAX(id) FROM "' + table + '"';
-    return acc;
-  }, {})
-);
+const COUNT_QUERY_BY_TABLE = Object.freeze({
+  users: "SELECT COUNT(*) FROM users",
+  tasks: "SELECT COUNT(*) FROM tasks",
+  subtasks: "SELECT COUNT(*) FROM subtasks",
+  comments: "SELECT COUNT(*) FROM comments",
+  messages: "SELECT COUNT(*) FROM messages",
+  activities: "SELECT COUNT(*) FROM activities",
+  milestones: "SELECT COUNT(*) FROM milestones"
+});
 
-const COUNT_QUERY_BY_TABLE = Object.freeze(
-  BACKUP_TABLES.reduce((acc, table) => {
-    acc[table] = 'SELECT COUNT(*) FROM "' + table + '"';
-    return acc;
-  }, {})
-);
+const MAX_ID_QUERY_BY_TABLE = Object.freeze({
+  users: "SELECT MAX(id) FROM users",
+  tasks: "SELECT MAX(id) FROM tasks",
+  subtasks: "SELECT MAX(id) FROM subtasks",
+  comments: "SELECT MAX(id) FROM comments",
+  messages: "SELECT MAX(id) FROM messages",
+  activities: "SELECT MAX(id) FROM activities",
+  milestones: "SELECT MAX(id) FROM milestones"
+});
 
 const DB_PATH = path.join(process.cwd(), 'hackboard.db');
 
@@ -61,12 +66,45 @@ export async function initDB() {
   saveDB();
 }
 
-function saveDB() {
-  if (db) {
+let writeTimeout = null;
+let isWriting = false;
+let pendingWrite = false;
+
+export async function flushSave() {
+  if (!db) return;
+  if (isWriting) {
+    pendingWrite = true;
+    return;
+  }
+
+  isWriting = true;
+  pendingWrite = false;
+
+  try {
     const data = db.export();
     const buffer = Buffer.from(data);
-    fs.writeFileSync(DB_PATH, buffer);
+    await fs.promises.writeFile(DB_PATH, buffer);
+  } catch (err) {
+    console.error('Failed to flush database to disk:', err);
+  } finally {
+    isWriting = false;
+    if (pendingWrite) {
+      scheduleSave(0);
+    }
   }
+}
+
+function scheduleSave(delay = 50) {
+  if (writeTimeout) {
+    clearTimeout(writeTimeout);
+  }
+  writeTimeout = setTimeout(() => {
+    flushSave();
+  }, delay);
+}
+
+function saveDB() {
+  scheduleSave();
 }
 
 export function getDB() {
@@ -318,7 +356,7 @@ function validateBackupPayload(payload) {
     return { valid: false, error: 'Missing data section in payload' };
   }
 
-  const requiredTables = ['users', 'tasks', 'subtasks', 'comments', 'messages', 'activities', 'milestones'];
+  const requiredTables = BACKUP_TABLES;
   for (const table of requiredTables) {
     if (!Array.isArray(payload.data[table])) {
       return { valid: false, error: 'Missing or invalid table: ' + table };
@@ -401,54 +439,51 @@ export async function restoreBackupData(payload) {
 
     const { data } = payload;
 
+    tempDB.run('BEGIN TRANSACTION;');
+
+    const userStmt = tempDB.prepare('INSERT INTO users (id, name, role, avatar_color, is_online, created_at) VALUES (?, ?, ?, ?, 0, ?)');
     for (const user of data.users) {
-      tempDB.run(
-        'INSERT INTO users (id, name, role, avatar_color, is_online, created_at) VALUES (?, ?, ?, ?, 0, ?)',
-        [user.id, user.name, user.role, user.avatar_color, user.created_at]
-      );
+      userStmt.run([user.id, user.name, user.role, user.avatar_color, user.created_at]);
     }
+    userStmt.free();
 
+    const taskStmt = tempDB.prepare('INSERT INTO tasks (id, title, description, status, priority, assigned_to, estimated_hours, actual_hours, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     for (const task of data.tasks) {
-      tempDB.run(
-        'INSERT INTO tasks (id, title, description, status, priority, assigned_to, estimated_hours, actual_hours, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [task.id, task.title, task.description || '', task.status, task.priority, task.assigned_to, task.estimated_hours, task.actual_hours, task.created_at, task.updated_at]
-      );
+      taskStmt.run([task.id, task.title, task.description || '', task.status, task.priority, task.assigned_to, task.estimated_hours, task.actual_hours, task.created_at, task.updated_at]);
     }
+    taskStmt.free();
 
+    const subtaskStmt = tempDB.prepare('INSERT INTO subtasks (id, task_id, title, is_completed) VALUES (?, ?, ?, ?)');
     for (const sub of data.subtasks) {
-      tempDB.run(
-        'INSERT INTO subtasks (id, task_id, title, is_completed) VALUES (?, ?, ?, ?)',
-        [sub.id, sub.task_id, sub.title, sub.is_completed]
-      );
+      subtaskStmt.run([sub.id, sub.task_id, sub.title, sub.is_completed]);
     }
+    subtaskStmt.free();
 
+    const commentStmt = tempDB.prepare('INSERT INTO comments (id, task_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)');
     for (const comment of data.comments) {
-      tempDB.run(
-        'INSERT INTO comments (id, task_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)',
-        [comment.id, comment.task_id, comment.user_id, comment.content, comment.created_at]
-      );
+      commentStmt.run([comment.id, comment.task_id, comment.user_id, comment.content, comment.created_at]);
     }
+    commentStmt.free();
 
+    const msgStmt = tempDB.prepare('INSERT INTO messages (id, user_id, content, created_at) VALUES (?, ?, ?, ?)');
     for (const msg of data.messages) {
-      tempDB.run(
-        'INSERT INTO messages (id, user_id, content, created_at) VALUES (?, ?, ?, ?)',
-        [msg.id, msg.user_id, msg.content, msg.created_at]
-      );
+      msgStmt.run([msg.id, msg.user_id, msg.content, msg.created_at]);
     }
+    msgStmt.free();
 
+    const actStmt = tempDB.prepare('INSERT INTO activities (id, user_id, action, details, created_at) VALUES (?, ?, ?, ?, ?)');
     for (const act of data.activities) {
-      tempDB.run(
-        'INSERT INTO activities (id, user_id, action, details, created_at) VALUES (?, ?, ?, ?, ?)',
-        [act.id, act.user_id, act.action, act.details, act.created_at]
-      );
+      actStmt.run([act.id, act.user_id, act.action, act.details, act.created_at]);
     }
+    actStmt.free();
 
+    const msStmt = tempDB.prepare('INSERT INTO milestones (id, title, description, target_time, is_completed) VALUES (?, ?, ?, ?, ?)');
     for (const ms of data.milestones) {
-      tempDB.run(
-        'INSERT INTO milestones (id, title, description, target_time, is_completed) VALUES (?, ?, ?, ?, ?)',
-        [ms.id, ms.title, ms.description || '', ms.target_time, ms.is_completed]
-      );
+      msStmt.run([ms.id, ms.title, ms.description || '', ms.target_time, ms.is_completed]);
     }
+    msStmt.free();
+
+    tempDB.run('COMMIT;');
 
     const verifyUsers = tempDB.exec('SELECT COUNT(*) FROM users');
     const verifyTasks = tempDB.exec('SELECT COUNT(*) FROM tasks');
@@ -464,6 +499,7 @@ export async function restoreBackupData(payload) {
     const tablesToResetSequence = BACKUP_TABLES;
     for (const tableName of tablesToResetSequence) {
       assertValidTable(tableName);
+      if (!MAX_ID_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
       const maxResult = tempDB.exec(MAX_ID_QUERY_BY_TABLE[tableName]);
       const maxId = maxResult.length > 0 && maxResult[0].values.length > 0 && maxResult[0].values[0][0] != null ? maxResult[0].values[0][0] : 0;
       tempDB.run('DELETE FROM sqlite_sequence WHERE name = ?', [tableName]);
@@ -474,10 +510,12 @@ export async function restoreBackupData(payload) {
 
     db = tempDB;
     saveDB();
+    await flushSave(); // Force immediate write during backup restore
 
     const tableCounts = {};
     for (const tableName of tablesToResetSequence) {
       assertValidTable(tableName);
+      if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
       const countResult = tempDB.exec(COUNT_QUERY_BY_TABLE[tableName]);
       tableCounts[tableName] = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
     }
@@ -491,6 +529,7 @@ export async function restoreBackupData(payload) {
       totalRecords,
     };
   } catch (error) {
+    try { tempDB.run('ROLLBACK;'); } catch (e) { /* ignore rollback errors */ }
     throw error;
   }
 }
@@ -505,6 +544,7 @@ export function getHealthSummary() {
 
   for (const tableName of tables) {
     assertValidTable(tableName);
+    if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
     const countResult = database.exec(COUNT_QUERY_BY_TABLE[tableName]);
     const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
     tableCounts[tableName] = count;

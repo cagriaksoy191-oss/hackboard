@@ -31,8 +31,8 @@ test('assertValidTable - throws on invalid tables (SQL injection attempts)', () 
 });
 
 test('query maps construct safe SQL', () => {
-  assert.strictEqual(MAX_ID_QUERY_BY_TABLE['users'], 'SELECT MAX(id) FROM "users"');
-  assert.strictEqual(COUNT_QUERY_BY_TABLE['tasks'], 'SELECT COUNT(*) FROM "tasks"');
+  assert.strictEqual(MAX_ID_QUERY_BY_TABLE['users'], 'SELECT MAX(id) FROM users');
+  assert.strictEqual(COUNT_QUERY_BY_TABLE['tasks'], 'SELECT COUNT(*) FROM tasks');
 
   // ensure no undefined keys were created
   for (const table of BACKUP_TABLES) {
