@@ -6,12 +6,14 @@ export function calculateTaskStats(tasks) {
   return tasks.reduce(
     (acc, task) => {
       acc.total += 1;
-      if (task.status === 'done') {
-        acc.done += 1;
-      } else if (task.status === 'in-progress') {
-        acc.inProgress += 1;
-      } else if (task.status === 'todo') {
-        acc.todo += 1;
+      if (task && typeof task === 'object') {
+        if (task.status === 'done') {
+          acc.done += 1;
+        } else if (task.status === 'in-progress') {
+          acc.inProgress += 1;
+        } else if (task.status === 'todo') {
+          acc.todo += 1;
+        }
       }
       return acc;
     },
