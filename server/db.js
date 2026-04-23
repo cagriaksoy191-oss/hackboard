@@ -3,6 +3,32 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+// Security constants for dynamic table queries
+const BACKUP_TABLES = Object.freeze(['users', 'tasks', 'subtasks', 'comments', 'messages', 'activities', 'milestones']);
+const BACKUP_TABLE_SET = new Set(BACKUP_TABLES);
+
+export { BACKUP_TABLES, assertValidTable, MAX_ID_QUERY_BY_TABLE, COUNT_QUERY_BY_TABLE };
+
+function assertValidTable(tableName) {
+  if (!BACKUP_TABLE_SET.has(tableName)) {
+    throw new Error('Security Error: Invalid table name provided for query execution: ' + tableName);
+  }
+}
+
+const MAX_ID_QUERY_BY_TABLE = Object.freeze(
+  BACKUP_TABLES.reduce((acc, table) => {
+    acc[table] = 'SELECT MAX(id) FROM "' + table + '"';
+    return acc;
+  }, {})
+);
+
+const COUNT_QUERY_BY_TABLE = Object.freeze(
+  BACKUP_TABLES.reduce((acc, table) => {
+    acc[table] = 'SELECT COUNT(*) FROM "' + table + '"';
+    return acc;
+  }, {})
+);
+
 const DB_PATH = path.join(process.cwd(), 'hackboard.db');
 
 let db = null;
@@ -435,9 +461,10 @@ export async function restoreBackupData(payload) {
       throw new Error('Verification failed: record count mismatch after import');
     }
 
-    const tablesToResetSequence = ['users', 'tasks', 'subtasks', 'comments', 'messages', 'activities', 'milestones'];
+    const tablesToResetSequence = BACKUP_TABLES;
     for (const tableName of tablesToResetSequence) {
-      const maxResult = tempDB.exec('SELECT MAX(id) FROM ' + tableName);
+      assertValidTable(tableName);
+      const maxResult = tempDB.exec(MAX_ID_QUERY_BY_TABLE[tableName]);
       const maxId = maxResult.length > 0 && maxResult[0].values.length > 0 && maxResult[0].values[0][0] != null ? maxResult[0].values[0][0] : 0;
       tempDB.run('DELETE FROM sqlite_sequence WHERE name = ?', [tableName]);
       if (maxId > 0) {
@@ -450,7 +477,8 @@ export async function restoreBackupData(payload) {
 
     const tableCounts = {};
     for (const tableName of tablesToResetSequence) {
-      const countResult = tempDB.exec('SELECT COUNT(*) FROM ' + tableName);
+      assertValidTable(tableName);
+      const countResult = tempDB.exec(COUNT_QUERY_BY_TABLE[tableName]);
       tableCounts[tableName] = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
     }
 
@@ -471,12 +499,13 @@ export function getHealthSummary() {
   const database = getDB();
 
   const tableCounts = {};
-  const tables = ["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"];
+  const tables = BACKUP_TABLES;
   let totalRecords = 0;
   let latestDataAt = null;
 
   for (const tableName of tables) {
-    const countResult = database.exec("SELECT COUNT(*) FROM " + tableName);
+    assertValidTable(tableName);
+    const countResult = database.exec(COUNT_QUERY_BY_TABLE[tableName]);
     const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
     tableCounts[tableName] = count;
     totalRecords += count;
