@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { initDB, prepare } from './db.js';
+import { initDB, prepare, flushSave } from './db.js';
 import seed from './seed.js';
 
 import taskRoutes from './routes/tasks.js';
@@ -169,6 +169,25 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Graceful shutdown to ensure database is written to disk
+async function gracefulShutdown(signal) {
+  console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  try {
+    console.log('Flushing pending database writes...');
+    await flushSave();
+    console.log('Database flushed successfully.');
+  } catch (error) {
+    console.error('Error during database flush:', error);
+  } finally {
+    process.exit(0);
+  }
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
 server.listen(PORT, () => {
+
   console.log(`HackBoard server running on port ${PORT}`);
 });
