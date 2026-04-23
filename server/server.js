@@ -91,11 +91,16 @@ io.on('connection', (socket) => {
     io.emit('message:new', message);
 
     const user = prepare('SELECT name FROM users WHERE id = ?').get(data.user_id);
+    const userName = user?.name || 'Unknown';
+    const truncatedContent = data.content.length > 50
+      ? `${data.content.substring(0, 50)}...`
+      : data.content;
+
     socket.broadcast.emit('notification:new', {
       id: Date.now(),
       type: 'message',
       title: 'New Message',
-      message: `${user?.name || 'Unknown'}: ${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}`,
+      message: `${userName}: ${truncatedContent}`,
       senderId: data.user_id,
       read: false,
       created_at: new Date().toISOString(),
