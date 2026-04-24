@@ -1,9 +1,0 @@
-🔒 [security fix description]
-🎯 **What:** The vulnerability fixed
-The /export, /health, and /import endpoints in `server/routes/backup.js` did not verify user identity, allowing unauthorized access to sensitive backup data.
-
-⚠️ **Risk:** The potential impact if left unfixed
-Any user or unauthenticated attacker could fetch full database dumps, exposing sensitive tasks, messages, user profiles, and activity logs. Furthermore, they could upload modified database dumps to override the application data entirely.
-
-🛡️ **Solution:** How the fix addresses the vulnerability
-An authentication middleware (`authMiddleware`) was introduced in `server/routes/backup.js`. This middleware checks for the presence of the `x-user-id` header in API requests and verifies that the provided ID corresponds to an existing user in the database. The frontend API client (`client/src/lib/api.js`) was also updated with an Axios interceptor to automatically attach the `X-User-Id` header (retrieved from localStorage) to all outbound API requests.

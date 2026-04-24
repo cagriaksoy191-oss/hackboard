@@ -98,7 +98,7 @@ function Chat() {
                     {!isMe && (
                       <div
                         className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${!user?.avatar_color ? 'bg-accentAlt' : ''}`} style={user?.avatar_color ? { backgroundColor: user.avatar_color } : undefined}
+                        style={{ backgroundColor: user?.avatar_color || '#7c3aed' }}
                       >
                         {user?.name?.[0] || '?'}
                       </div>

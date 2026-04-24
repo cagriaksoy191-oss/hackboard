@@ -42,10 +42,12 @@ export async function initDB() {
   SQL = await initSqlJs();
 
   let data = null;
-  try {
-    data = await fs.promises.readFile(DB_PATH);
-  } catch (e) {
-    data = null;
+  if (fs.existsSync(DB_PATH)) {
+    try {
+      data = fs.readFileSync(DB_PATH);
+    } catch (e) {
+      data = null;
+    }
   }
 
   if (data && data.length > 0) {
@@ -147,6 +149,17 @@ export function prepare(sql) {
   };
 }
 
+export function execRaw(sql) {
+  const database = getDB();
+  const results = database.exec(sql);
+  if (results.length === 0) return [];
+  const { columns, values } = results[0];
+  return values.map((row) => {
+    const obj = {};
+    columns.forEach((col, i) => { obj[col] = row[i]; });
+    return obj;
+  });
+}
 
 export function transaction(fn) {
   return (...args) => {
