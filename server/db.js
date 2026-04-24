@@ -4,18 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 export const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
-<<<<<<< HEAD
-=======
 
-export function assertValidTable(tableName) {
-  if (!BACKUP_TABLES.includes(tableName)) {
-    throw new Error("Security Error: Invalid table name provided for query execution: " + tableName);
-  }
-}
-
-const SEED_NAMES = Object.freeze(["Cagri", "Talha", "Ahmet", "Alaettin"]);
-const NORMALIZED_SEED_NAMES = Object.freeze(SEED_NAMES.map(sn => sn.toLowerCase().replace(/[^a-z]/g, "")));
->>>>>>> main
 
 const TURKISH_CHAR_MAP = Object.freeze({
   "İ": "I",

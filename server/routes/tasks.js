@@ -21,10 +21,7 @@ router.post('/', (req, res) => {
   }
 
   const trimmedTitle = title.trim();
-<<<<<<< HEAD
-=======
 
->>>>>>> main
   const result = prepare(
     'INSERT INTO tasks (title, description, status, priority, assigned_to, estimated_hours) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(trimmedTitle, description || '', status || 'todo', priority || 'medium', assigned_to || null, estimated_hours || 0);
