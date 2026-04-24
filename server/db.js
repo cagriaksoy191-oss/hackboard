@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
+export const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
 
 const TURKISH_CHAR_MAP = Object.freeze({
   "İ": "I",
@@ -12,7 +12,7 @@ const TURKISH_CHAR_MAP = Object.freeze({
   "I": "I"
 });
 
-const COUNT_QUERY_BY_TABLE = Object.freeze({
+export const COUNT_QUERY_BY_TABLE = Object.freeze({
   users: "SELECT COUNT(*) FROM users",
   tasks: "SELECT COUNT(*) FROM tasks",
   subtasks: "SELECT COUNT(*) FROM subtasks",
@@ -22,7 +22,7 @@ const COUNT_QUERY_BY_TABLE = Object.freeze({
   milestones: "SELECT COUNT(*) FROM milestones"
 });
 
-const MAX_ID_QUERY_BY_TABLE = Object.freeze({
+export const MAX_ID_QUERY_BY_TABLE = Object.freeze({
   users: "SELECT MAX(id) FROM users",
   tasks: "SELECT MAX(id) FROM tasks",
   subtasks: "SELECT MAX(id) FROM subtasks",
@@ -573,4 +573,9 @@ export function getHealthSummary() {
     fingerprint,
     looksLikeSeedData,
   };
+}
+export function assertValidTable(tableName) {
+  if (!BACKUP_TABLES.includes(tableName)) {
+    throw new Error('Security Error: Invalid table name provided for query execution: ' + tableName);
+  }
 }
