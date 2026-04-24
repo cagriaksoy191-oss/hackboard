@@ -6,10 +6,15 @@ function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     usersAPI.getAll().then((res) => {
       setUsers(res.data);
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setError("Kullanicilar yuklenemedi: " + err.message);
       setLoading(false);
     });
   }, []);
@@ -47,6 +52,7 @@ function LoginScreen({ onLogin }) {
           <p className="text-gray-500 text-sm mt-2">Devam etmek icin bir kullanici secin</p>
         </div>
 
+        {error && <div className="bg-red-500/20 text-red-200 p-4 rounded-xl mb-4 text-center border border-red-500/30">{error}</div>}
         {loading ? (
           <div className="grid grid-cols-2 gap-4">
             {[1, 2, 3, 4].map((i) => (
