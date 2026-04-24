@@ -4,8 +4,26 @@ const api = axios.create({
   baseURL: '/api',
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('hackboard-user');
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        if (user && user.id) {
+          config.headers['X-User-Id'] = user.id;
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+  }
+  return config;
+});
+
+
 export const tasksAPI = {
-  getAll: () => api.get('/tasks'),
+  getAll: (params = { limit: 1000 }) => api.get('/tasks', { params }),
   create: (data) => api.post('/tasks', data),
   update: (id, data) => api.put(`/tasks/${id}`, data),
   delete: (id) => api.delete(`/tasks/${id}`),

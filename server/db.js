@@ -4,7 +4,6 @@ import path from 'path';
 import crypto from 'crypto';
 
 export const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
-export function assertValidTable(tableName) { if (!BACKUP_TABLES.includes(tableName)) { throw new Error('Security Error: Invalid table name provided for query execution: ' + tableName); } }
 
 const TURKISH_CHAR_MAP = Object.freeze({
   "İ": "I",
@@ -43,12 +42,10 @@ export async function initDB() {
   SQL = await initSqlJs();
 
   let data = null;
-  if (fs.existsSync(DB_PATH)) {
-    try {
-      data = fs.readFileSync(DB_PATH);
-    } catch (e) {
-      data = null;
-    }
+  try {
+    data = await fs.promises.readFile(DB_PATH);
+  } catch (e) {
+    data = null;
   }
 
   if (data && data.length > 0) {
@@ -150,17 +147,6 @@ export function prepare(sql) {
   };
 }
 
-export function execRaw(sql) {
-  const database = getDB();
-  const results = database.exec(sql);
-  if (results.length === 0) return [];
-  const { columns, values } = results[0];
-  return values.map((row) => {
-    const obj = {};
-    columns.forEach((col, i) => { obj[col] = row[i]; });
-    return obj;
-  });
-}
 
 export function transaction(fn) {
   return (...args) => {
@@ -574,4 +560,10 @@ export function getHealthSummary() {
     fingerprint,
     looksLikeSeedData,
   };
+}
+
+export function assertValidTable(tableName) {
+  if (!BACKUP_TABLES.includes(tableName)) {
+    throw new Error('Security Error: Invalid table name provided for query execution: ' + tableName);
+  }
 }
