@@ -73,7 +73,7 @@ function Team() {
                 <div className="relative">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm ${!user.avatar_color ? 'bg-accentAlt' : ''}`} style={user.avatar_color ? { backgroundColor: user.avatar_color } : undefined}
+                    style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
                   >
                     {user.initials}
                   </div>

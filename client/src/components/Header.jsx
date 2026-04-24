@@ -43,7 +43,7 @@ function Header({ toggleSidebar }) {
           <div className="flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-3 border-l border-theme shrink-0">
             <div
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white shrink-0"
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${!user.avatar_color ? 'bg-accentAlt' : ''}`} style={user.avatar_color ? { backgroundColor: user.avatar_color } : undefined}
+              style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
             >
               {initials}
             </div>

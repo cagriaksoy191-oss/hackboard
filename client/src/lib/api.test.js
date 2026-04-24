@@ -29,10 +29,10 @@ describe('API Client', () => {
   });
 
   describe('tasksAPI', () => {
-    test('getAll should call GET /tasks with default limit params', async () => {
+    test('getAll should call GET /tasks', async () => {
       await tasksAPI.getAll();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/tasks', { params: { limit: 1000 } }]);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/tasks']);
     });
 
     test('create should call POST /tasks with data', async () => {

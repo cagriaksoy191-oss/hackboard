@@ -1,32 +1,11 @@
 import { Router } from 'express';
-import { buildExportPayload, restoreBackupData, getHealthSummary, prepare } from '../db.js';
+import { buildExportPayload, restoreBackupData, getHealthSummary } from '../db.js';
 
 const router = Router();
 
 let restoreLock = false;
 
-
-const authMiddleware = (req, res, next) => {
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized: Missing User ID' });
-  }
-
-  try {
-    const user = prepare('SELECT * FROM users WHERE id = ?').get(userId);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid User' });
-    }
-    req.user = user;
-    next();
-  } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
-
-
-router.get('/export', authMiddleware, (req, res) => {
+router.get('/export', (req, res) => {
   try {
     const payload = buildExportPayload();
     res.json(payload);
@@ -36,7 +15,7 @@ router.get('/export', authMiddleware, (req, res) => {
   }
 });
 
-router.get('/health', authMiddleware, (req, res) => {
+router.get('/health', (req, res) => {
   try {
     const summary = getHealthSummary();
     res.json(summary);
@@ -46,7 +25,7 @@ router.get('/health', authMiddleware, (req, res) => {
   }
 });
 
-router.post('/import', authMiddleware, async (req, res) => {
+router.post('/import', async (req, res) => {
   if (restoreLock) {
     return res.status(409).json({ error: 'A restore operation is already in progress' });
   }
