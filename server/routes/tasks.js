@@ -82,6 +82,10 @@ router.put('/:id', (req, res) => {
 router.patch('/:id/status', (req, res) => {
   const { status } = req.body;
 
+  if (!status) {
+    return res.status(400).json({ error: 'Status is required' });
+  }
+
   const existing = prepare('SELECT updated_at FROM tasks WHERE id = ?').get(req.params.id);
   if (existing && req.body.updated_at && existing.updated_at > req.body.updated_at) {
     const current = prepare(`
