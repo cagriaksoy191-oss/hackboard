@@ -147,17 +147,6 @@ export function prepare(sql) {
   };
 }
 
-export function execRaw(sql) {
-  const database = getDB();
-  const results = database.exec(sql);
-  if (results.length === 0) return [];
-  const { columns, values } = results[0];
-  return values.map((row) => {
-    const obj = {};
-    columns.forEach((col, i) => { obj[col] = row[i]; });
-    return obj;
-  });
-}
 
 export function transaction(fn) {
   return (...args) => {
