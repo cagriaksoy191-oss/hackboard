@@ -425,6 +425,63 @@ function validateBackupPayload(payload) {
   return { valid: true, error: null };
 }
 
+
+function restoreUsers(db, users) {
+  const stmt = db.prepare('INSERT INTO users (id, name, role, avatar_color, is_online, created_at) VALUES (?, ?, ?, ?, 0, ?)');
+  for (const user of users) {
+    stmt.run([user.id, user.name, user.role, user.avatar_color, user.created_at]);
+  }
+  stmt.free();
+}
+
+function restoreTasks(db, tasks) {
+  const stmt = db.prepare('INSERT INTO tasks (id, title, description, status, priority, assigned_to, estimated_hours, actual_hours, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  for (const task of tasks) {
+    stmt.run([task.id, task.title, task.description || '', task.status, task.priority, task.assigned_to, task.estimated_hours, task.actual_hours, task.created_at, task.updated_at]);
+  }
+  stmt.free();
+}
+
+function restoreSubtasks(db, subtasks) {
+  const stmt = db.prepare('INSERT INTO subtasks (id, task_id, title, is_completed) VALUES (?, ?, ?, ?)');
+  for (const sub of subtasks) {
+    stmt.run([sub.id, sub.task_id, sub.title, sub.is_completed]);
+  }
+  stmt.free();
+}
+
+function restoreComments(db, comments) {
+  const stmt = db.prepare('INSERT INTO comments (id, task_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)');
+  for (const comment of comments) {
+    stmt.run([comment.id, comment.task_id, comment.user_id, comment.content, comment.created_at]);
+  }
+  stmt.free();
+}
+
+function restoreMessages(db, messages) {
+  const stmt = db.prepare('INSERT INTO messages (id, user_id, content, created_at) VALUES (?, ?, ?, ?)');
+  for (const msg of messages) {
+    stmt.run([msg.id, msg.user_id, msg.content, msg.created_at]);
+  }
+  stmt.free();
+}
+
+function restoreActivities(db, activities) {
+  const stmt = db.prepare('INSERT INTO activities (id, user_id, action, details, created_at) VALUES (?, ?, ?, ?, ?)');
+  for (const act of activities) {
+    stmt.run([act.id, act.user_id, act.action, act.details, act.created_at]);
+  }
+  stmt.free();
+}
+
+function restoreMilestones(db, milestones) {
+  const stmt = db.prepare('INSERT INTO milestones (id, title, description, target_time, is_completed) VALUES (?, ?, ?, ?, ?)');
+  for (const ms of milestones) {
+    stmt.run([ms.id, ms.title, ms.description || '', ms.target_time, ms.is_completed]);
+  }
+  stmt.free();
+}
+
 export async function restoreBackupData(payload) {
   const validation = validateBackupPayload(payload);
   if (!validation.valid) {
@@ -443,47 +500,13 @@ export async function restoreBackupData(payload) {
 
     tempDB.run('BEGIN TRANSACTION;');
 
-    const userStmt = tempDB.prepare('INSERT INTO users (id, name, role, avatar_color, is_online, created_at) VALUES (?, ?, ?, ?, 0, ?)');
-    for (const user of data.users) {
-      userStmt.run([user.id, user.name, user.role, user.avatar_color, user.created_at]);
-    }
-    userStmt.free();
-
-    const taskStmt = tempDB.prepare('INSERT INTO tasks (id, title, description, status, priority, assigned_to, estimated_hours, actual_hours, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    for (const task of data.tasks) {
-      taskStmt.run([task.id, task.title, task.description || '', task.status, task.priority, task.assigned_to, task.estimated_hours, task.actual_hours, task.created_at, task.updated_at]);
-    }
-    taskStmt.free();
-
-    const subtaskStmt = tempDB.prepare('INSERT INTO subtasks (id, task_id, title, is_completed) VALUES (?, ?, ?, ?)');
-    for (const sub of data.subtasks) {
-      subtaskStmt.run([sub.id, sub.task_id, sub.title, sub.is_completed]);
-    }
-    subtaskStmt.free();
-
-    const commentStmt = tempDB.prepare('INSERT INTO comments (id, task_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)');
-    for (const comment of data.comments) {
-      commentStmt.run([comment.id, comment.task_id, comment.user_id, comment.content, comment.created_at]);
-    }
-    commentStmt.free();
-
-    const msgStmt = tempDB.prepare('INSERT INTO messages (id, user_id, content, created_at) VALUES (?, ?, ?, ?)');
-    for (const msg of data.messages) {
-      msgStmt.run([msg.id, msg.user_id, msg.content, msg.created_at]);
-    }
-    msgStmt.free();
-
-    const actStmt = tempDB.prepare('INSERT INTO activities (id, user_id, action, details, created_at) VALUES (?, ?, ?, ?, ?)');
-    for (const act of data.activities) {
-      actStmt.run([act.id, act.user_id, act.action, act.details, act.created_at]);
-    }
-    actStmt.free();
-
-    const msStmt = tempDB.prepare('INSERT INTO milestones (id, title, description, target_time, is_completed) VALUES (?, ?, ?, ?, ?)');
-    for (const ms of data.milestones) {
-      msStmt.run([ms.id, ms.title, ms.description || '', ms.target_time, ms.is_completed]);
-    }
-    msStmt.free();
+    restoreUsers(tempDB, data.users);
+    restoreTasks(tempDB, data.tasks);
+    restoreSubtasks(tempDB, data.subtasks);
+    restoreComments(tempDB, data.comments);
+    restoreMessages(tempDB, data.messages);
+    restoreActivities(tempDB, data.activities);
+    restoreMilestones(tempDB, data.milestones);
 
     tempDB.run('COMMIT;');
 
