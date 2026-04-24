@@ -16,16 +16,17 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { title, description, status, priority, assigned_to, estimated_hours, user_id } = req.body;
 
-  if (!title || title.trim() === '') {
+  if (!title || typeof title !== 'string' || title.trim() === '') {
     return res.status(400).json({ error: 'Title is required' });
   }
 
+  const trimmedTitle = title.trim();
   const result = prepare(
     'INSERT INTO tasks (title, description, status, priority, assigned_to, estimated_hours) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(title || 'New Task', description || '', status || 'todo', priority || 'medium', assigned_to || null, estimated_hours || 0);
+  ).run(trimmedTitle, description || '', status || 'todo', priority || 'medium', assigned_to || null, estimated_hours || 0);
 
   prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-    user_id || assigned_to || 1, 'created', `Task: ${title || 'New Task'}`
+    user_id || assigned_to || 1, 'created', `Task: ${trimmedTitle}`
   );
 
   const task = prepare(`

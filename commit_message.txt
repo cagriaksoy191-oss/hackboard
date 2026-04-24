@@ -1,7 +1,12 @@
-🧪 [testing improvement] Task status güncellemesi için eksik validasyon ve test eklendi
+🧪 [testing improvement] Task status ve title güncellemeleri için eksik validasyon ve testler eklendi
 
-🎯 **What:** `PATCH /api/tasks/:id/status` endpoint'ine gönderilen isteklerde `status` bilgisinin eksik olma durumu için validasyon yoktu. Bu durum, yanlışlıkla boş veya undefined değerlerin işlenmeye çalışılmasına yol açabiliyordu. Artık `status` alanı kontrol ediliyor ve eksikse `400 Bad Request` dönülüyor.
+🎯 **What:**
+- `PATCH /api/tasks/:id/status` endpoint'ine gönderilen isteklerde `status` bilgisinin eksik olma durumu için validasyon eklendi (400 Bad Request).
+- `POST /` rotasına görev oluştururken `title` alanının kontrolü eklendi, sadece boşluk karakterleri barındıran veya eksik title durumunda 400 hatası dönüldü.
+- Önceden tanımlı kullanılmayan ancak testlerde çağrılan `assertValidTable` ve bağlı query objeleri `server/db.js` dosyasından dışa aktarılarak testlerin sağlıklı çalışması sağlandı.
 
-📊 **Coverage:** `server/routes/tasks.test.js` adında yeni bir test dosyası oluşturuldu ve `PATCH` isteğinde eksik `status` durumunun 400 hatası fırlattığı test edildi.
+📊 **Coverage:**
+- `server/routes/tasks.test.js` adında yeni bir test dosyası oluşturuldu ve `PATCH` isteğinde eksik `status` durumunun 400 hatası fırlattığı test edildi.
+- `POST /tasks` uç noktası için eksik başlık, sadece boşluk karakterleri olan başlık ve geçerli başlık durumları `server/routes/tests/tasks.test.js` dosyasında test edildi.
 
-✨ **Result:** Test coverage artırıldı ve API uç noktasının daha güvenli ve hata toleranslı olması sağlandı. Ayrıca `server/db.test.js` dosyasında `assertValidTable` modülü import hatası (çünkü export edilmemişti) fixlendi.
+✨ **Result:** Test coverage artırıldı ve API uç noktalarının daha güvenli ve hata toleranslı olması sağlandı.
