@@ -78,7 +78,7 @@ function LoginScreen({ onLogin }) {
                   <div className="relative inline-block mb-3">
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold text-white mx-auto"
-                      style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg ${!user.avatar_color ? 'bg-accentAlt' : ''}`} style={user.avatar_color ? { backgroundColor: user.avatar_color } : undefined}
                     >
                       {initials}
                     </div>
