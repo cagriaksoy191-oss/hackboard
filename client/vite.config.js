@@ -22,11 +22,13 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        headers: { Origin: 'http://localhost:5173' },
       },
       '/socket.io': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         ws: true,
+        headers: { Origin: 'http://localhost:5173' },
       },
     },
   },
