@@ -103,14 +103,17 @@ router.patch('/:id/status', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const task = prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
+  if (!task) {
+    return res.status(404).json({ error: 'Task not found' });
+  }
+
   prepare('DELETE FROM subtasks WHERE task_id = ?').run(req.params.id);
   prepare('DELETE FROM comments WHERE task_id = ?').run(req.params.id);
   prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
-  if (task) {
-    prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-      req.body.user_id || 1, 'deleted', `Task "${task.title}" deleted`
-    );
-  }
+
+  prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
+    req.body.user_id || 1, 'deleted', `Task "${task.title}" deleted`
+  );
 
   const io = req.app.get('io');
   if (io) {
