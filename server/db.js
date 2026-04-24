@@ -575,8 +575,11 @@ export function getHealthSummary() {
   };
 }
 
-export function assertValidTable(table) {
-  if (!BACKUP_TABLES.includes(table)) {
-    throw new Error('Security Error: Invalid table name provided for query execution: ' + table);
+export function assertValidTable(tableName) {
+  if (!BACKUP_TABLES.includes(tableName)) {
+    throw new Error("Security Error: Invalid table name provided for query execution: " + tableName);
   }
 }
+
+const SEED_NAMES = Object.freeze(["Cagri", "Talha", "Ahmet", "Alaettin"]);
+const NORMALIZED_SEED_NAMES = Object.freeze(SEED_NAMES.map(sn => sn.toLowerCase().replace(/[^a-z]/g, "")));
