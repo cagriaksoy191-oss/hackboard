@@ -575,7 +575,6 @@ export function getHealthSummary() {
   };
 }
 
-
 export function assertValidTable(tableName) {
   if (!BACKUP_TABLES.includes(tableName)) {
     throw new Error('Security Error: Invalid table name provided for query execution: ' + tableName);

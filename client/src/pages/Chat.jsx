@@ -97,8 +97,8 @@ function Chat() {
                   <div className={`flex items-end gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : ''}`}>
                     {!isMe && (
                       <div
-                        className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white bg-accentAlt"
-                        style={user?.avatar_color ? { backgroundColor: user.avatar_color } : undefined}
+                        className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
+                        style={{ backgroundColor: user?.avatar_color || '#7c3aed' }}
                       >
                         {user?.name?.[0] || '?'}
                       </div>
