@@ -82,8 +82,8 @@ function Sidebar({ isOpen, toggle }) {
           {user && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl surface-bg">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${!user.avatar_color ? 'bg-accentAlt' : ''}`}
-                style={user.avatar_color ? { backgroundColor: user.avatar_color } : undefined}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
               >
                 {initials}
               </div>

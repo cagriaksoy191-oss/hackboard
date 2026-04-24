@@ -249,7 +249,7 @@ function Tasks() {
                     <div className="flex items-center gap-2">
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-card ${!task.avatar_color ? 'bg-accentAlt' : ''}`} style={task.avatar_color ? { backgroundColor: task.avatar_color } : undefined}
+                        style={{ backgroundColor: task.avatar_color || '#7c3aed' }}
                       >
                         {initials}
                       </div>
