@@ -101,8 +101,7 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
-              style={{ backgroundColor: task.avatar_color || '#7c3aed' }}
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white ${!task.avatar_color ? 'bg-accentAlt' : ''}`} style={task.avatar_color ? { backgroundColor: task.avatar_color } : undefined}
             >
               {initials}
             </div>
