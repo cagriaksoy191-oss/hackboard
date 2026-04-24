@@ -4,12 +4,16 @@ import { prepare } from '../db.js';
 const router = Router();
 
 router.get('/', (req, res) => {
+  const parsedLimit = parseInt(req.query.limit);
+  const limit = isNaN(parsedLimit) || parsedLimit <= 0 ? 1000 : Math.min(parsedLimit, 1000);
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
   const tasks = prepare(`
     SELECT t.*, u.name as assigned_name, u.avatar_color
     FROM tasks t
     LEFT JOIN users u ON t.assigned_to = u.id
     ORDER BY t.updated_at DESC
-  `).all();
+    LIMIT ? OFFSET ?
+  `).all(limit, offset);
   res.json(tasks);
 });
 
@@ -103,14 +107,17 @@ router.patch('/:id/status', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   const task = prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
+  if (!task) {
+    return res.status(404).json({ error: 'Task not found' });
+  }
+
   prepare('DELETE FROM subtasks WHERE task_id = ?').run(req.params.id);
   prepare('DELETE FROM comments WHERE task_id = ?').run(req.params.id);
   prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
-  if (task) {
-    prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-      req.body.user_id || 1, 'deleted', `Task "${task.title}" deleted`
-    );
-  }
+
+  prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
+    req.body.user_id || 1, 'deleted', `Task "${task.title}" deleted`
+  );
 
   const io = req.app.get('io');
   if (io) {
