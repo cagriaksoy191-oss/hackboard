@@ -80,7 +80,7 @@ if (fs.existsSync(distPath)) {
 }
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.info('Client connected:', socket.id);
 
   socket.on('message:send', (data) => {
     const result = prepare('INSERT INTO messages (user_id, content) VALUES (?, ?)').run(data.user_id, data.content);
@@ -169,7 +169,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.info('Client disconnected:', socket.id);
   });
 });
 
@@ -177,11 +177,11 @@ const PORT = process.env.PORT || 3001;
 
 // Graceful shutdown to ensure database is written to disk
 async function gracefulShutdown(signal) {
-  console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  console.info(`\nReceived ${signal}. Shutting down gracefully...`);
   try {
-    console.log('Flushing pending database writes...');
+    console.info('Flushing pending database writes...');
     await flushSave();
-    console.log('Database flushed successfully.');
+    console.info('Database flushed successfully.');
   } catch (error) {
     console.error('Error during database flush:', error);
   } finally {
@@ -194,5 +194,5 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 server.listen(PORT, () => {
 
-  console.log(`HackBoard server running on port ${PORT}`);
+  console.info(`HackBoard server running on port ${PORT}`);
 });
