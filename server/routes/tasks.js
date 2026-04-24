@@ -4,12 +4,16 @@ import { prepare } from '../db.js';
 const router = Router();
 
 router.get('/', (req, res) => {
+  const parsedLimit = parseInt(req.query.limit);
+  const limit = isNaN(parsedLimit) || parsedLimit <= 0 ? 1000 : Math.min(parsedLimit, 1000);
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0);
   const tasks = prepare(`
     SELECT t.*, u.name as assigned_name, u.avatar_color
     FROM tasks t
     LEFT JOIN users u ON t.assigned_to = u.id
     ORDER BY t.updated_at DESC
-  `).all();
+    LIMIT ? OFFSET ?
+  `).all(limit, offset);
   res.json(tasks);
 });
 
