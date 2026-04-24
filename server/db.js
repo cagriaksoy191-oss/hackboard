@@ -4,6 +4,18 @@ import path from 'path';
 import crypto from 'crypto';
 
 export const BACKUP_TABLES = Object.freeze(["users", "tasks", "subtasks", "comments", "messages", "activities", "milestones"]);
+<<<<<<< HEAD
+=======
+
+export function assertValidTable(tableName) {
+  if (!BACKUP_TABLES.includes(tableName)) {
+    throw new Error("Security Error: Invalid table name provided for query execution: " + tableName);
+  }
+}
+
+const SEED_NAMES = Object.freeze(["Cagri", "Talha", "Ahmet", "Alaettin"]);
+const NORMALIZED_SEED_NAMES = Object.freeze(SEED_NAMES.map(sn => sn.toLowerCase().replace(/[^a-z]/g, "")));
+>>>>>>> main
 
 const TURKISH_CHAR_MAP = Object.freeze({
   "İ": "I",
@@ -560,9 +572,14 @@ export function getHealthSummary() {
   const fingerprint = computeFingerprint(dataObj);
 
   const users = queryAll(database, "SELECT name FROM users ORDER BY id");
-  const seedNames = ["Cagri", "Talha", "Ahmet", "Alaettin"];
   const userNames = users.map((u) => u.name.replace(/[İiıI]/g, (m) => TURKISH_CHAR_MAP[m] || m));
-  const hasOnlySeedUsers = userNames.length === 4 && seedNames.every((sn) => userNames.some((un) => un.toLowerCase().replace(/[^a-z]/g, "") === sn.toLowerCase().replace(/[^a-z]/g, "")));
+
+  let hasOnlySeedUsers = false;
+  if (userNames.length === 4) {
+    const normalizedUserNames = userNames.map(un => un.toLowerCase().replace(/[^a-z]/g, ""));
+    hasOnlySeedUsers = NORMALIZED_SEED_NAMES.every(nsn => normalizedUserNames.includes(nsn));
+  }
+
   const looksLikeSeedData = hasOnlySeedUsers && tableCounts.tasks <= 12 && tableCounts.messages <= 8;
 
   return {
