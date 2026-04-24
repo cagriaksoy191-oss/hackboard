@@ -188,7 +188,7 @@ function TaskDetail() {
           <div className="flex items-center gap-2">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-              style={{ backgroundColor: task.avatar_color || '#7c3aed' }}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${!task.avatar_color ? 'bg-accentAlt' : ''}`} style={task.avatar_color ? { backgroundColor: task.avatar_color } : undefined}
             >
               {task.assigned_name?.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) || '??'}
             </div>
@@ -276,7 +276,7 @@ function TaskDetail() {
             <div key={c.id} className="flex gap-3 p-3 rounded-xl surface-bg border border-theme-subtle">
               <div
                 className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: c.avatar_color || '#7c3aed' }}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${!c.avatar_color ? 'bg-accentAlt' : ''}`} style={c.avatar_color ? { backgroundColor: c.avatar_color } : undefined}
               >
                 {c.name?.[0] || '?'}
               </div>

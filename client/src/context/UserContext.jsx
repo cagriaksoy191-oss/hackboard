@@ -28,7 +28,9 @@ export function UserProvider({ children }) {
         setUser(null);
         localStorage.removeItem('hackboard-user');
       }
-    }).catch(() => {});
+    }).catch((error) => {
+      console.error('Kullanıcı doğrulanırken hata oluştu:', error);
+    });
   }, []);
 
   const loginUser = (userData) => {
