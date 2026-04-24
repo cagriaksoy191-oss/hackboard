@@ -1,16 +1,13 @@
-⚡ Optimize backup restore inserts using prepared statements and single transaction
+🧪 tasks rotasına başlık validasyonu eklendi
 
-💡 What:
-`restoreBackupData` içindeki tekrar eden insert döngüleri prepared statement + tek transaction modeline taşındı.
+🎯 Ne yapıldı:
+- `server/routes/tasks.js` dosyasındaki `POST /` rotasına görev oluştururken `title` alanının kontrolü eklendi.
+- Eksik veya boş başlıklar için `400 Bad Request` dönülmesi sağlandı.
+- Önceden tanımlı kullanılmayan ancak testlerde çağrılan `assertValidTable` ve bağlı query objeleri `server/db.js` dosyasından dışa aktarılarak testlerin sağlıklı çalışması sağlandı.
 
-🎯 Why:
-Döngü içinde sürekli parse/prepare ve commit maliyetlerini azaltarak restore süresini düşürür.
+📊 Kapsam:
+- `POST /tasks` uç noktası eksik başlık, sadece boşluk karakterleri olan başlık ve geçerli başlık ile test edildi.
+- `server/routes/tests/tasks.test.js` adında yeni bir test dosyası eklendi.
 
-📊 Measured Improvement:
-Yerel in-memory testlerde (her tablo için 5000 satır mock veri ile test edildi):
-- Baseline (Öncesi): ~3580 ms
-- Optimize edilmiş (Sonrası): ~195 ms
-- İyileşme Oranı: ~%94.5 daha hızlı
-
-✅ Safety:
-Validation, atomiklik (`ROLLBACK` mekanizması dahil), sequence reset ve dış API davranışı tamamen korunmuştur.
+✨ Sonuç:
+- `server/routes/tasks.js` dosyasındaki create task (görev oluşturma) işlemlerine ait validasyon test eksikliği giderildi.
