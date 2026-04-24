@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { backupAPI } from '../lib/api';
-import socket from '../lib/socket';
-import { evaluateRecovery, DISMISS_KEY_PREFIX } from '../lib/recovery';
+import { backupAPI } from '../lib/api.js';
+import socket from '../lib/socket.js';
+import { evaluateRecovery, DISMISS_KEY_PREFIX } from '../lib/recovery.js';
 
 const SNAPSHOT_KEY = 'hackboard-snapshot:v1';
 const MAX_SNAPSHOT_SIZE = 4 * 1024 * 1024;
