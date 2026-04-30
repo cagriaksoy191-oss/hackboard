@@ -13,6 +13,7 @@ router.get('/', (req, res) => {
       SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as completed
     FROM users u
     LEFT JOIN tasks t ON u.id = t.assigned_to
+    WHERE u.is_deleted = 0
     GROUP BY u.id
   `).all();
 

@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usersAPI } from '../lib/api';
 
+const THEME_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', 
+  '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', 
+  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', 
+  '#ec4899', '#f43f5e', '#64748b', '#737373', '#a1a1aa'
+];
+
 function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -11,10 +18,12 @@ function LoginScreen({ onLogin }) {
   const [editingUser, setEditingUser] = useState(null);
   const [formName, setFormName] = useState('');
   const [formRole, setFormRole] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
 
   const fetchUsers = () => {
     usersAPI.getAll().then((res) => {
-      setUsers(res.data);
+      const sortedUsers = res.data.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+      setUsers(sortedUsers);
       setLoading(false);
     });
   };
@@ -26,11 +35,27 @@ function LoginScreen({ onLogin }) {
   const handleAddUser = async (e) => {
     e.preventDefault();
     if (!formName || !formRole) return;
-    await usersAPI.create({ name: formName, role: formRole });
+    
+    let colorToUse = selectedColor;
+    if (!colorToUse) {
+      const usedColors = users.map(u => u.avatar_color);
+      const availableColors = THEME_COLORS.filter(c => !usedColors.includes(c));
+      colorToUse = availableColors.length > 0 ? availableColors[0] : THEME_COLORS[Math.floor(Math.random() * THEME_COLORS.length)];
+    }
+    
+    await usersAPI.create({ name: formName, role: formRole, avatar_color: colorToUse });
     setShowAddModal(false);
     setFormName('');
     setFormRole('');
+    setSelectedColor('');
     fetchUsers();
+  };
+
+  const openAddModal = () => {
+    const usedColors = users.map(u => u.avatar_color);
+    const availableColors = THEME_COLORS.filter(c => !usedColors.includes(c));
+    setSelectedColor(availableColors.length > 0 ? availableColors[0] : THEME_COLORS[0]);
+    setShowAddModal(true);
   };
 
   const handleEditUser = async (e) => {
@@ -95,9 +120,9 @@ function LoginScreen({ onLogin }) {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="glass rounded-2xl p-6 animate-pulse">
+              <div key={i} className="w-full sm:w-[280px] glass rounded-2xl p-6 animate-pulse">
                 <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/10" />
                 <div className="h-4 bg-white/10 rounded w-3/4 mx-auto mb-2" />
                 <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
@@ -105,7 +130,7 @@ function LoginScreen({ onLogin }) {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
             {users.map((user, i) => {
               const initials = user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
               const isSelected = selectedUser?.id === user.id;
@@ -116,7 +141,7 @@ function LoginScreen({ onLogin }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * i }}
                   onClick={() => setSelectedUser(user)}
-                  className={`relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
+                  className={`w-full sm:w-[280px] relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
                     isSelected
                       ? 'border-accent/50 shadow-lg shadow-accent/10 bg-accent/5'
                       : 'border-white/10 hover:border-white/20'
@@ -159,8 +184,8 @@ function LoginScreen({ onLogin }) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * users.length }}
-              onClick={() => setShowAddModal(true)}
-              className="glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
+              onClick={openAddModal}
+              className="w-full sm:w-[280px] glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
             >
               <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,6 +246,25 @@ function LoginScreen({ onLogin }) {
                     className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
                     placeholder="Orn: Developer"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">Profil Rengi</label>
+                  <div className="flex flex-wrap gap-2">
+                    {THEME_COLORS.map(color => {
+                      const isUsed = users.some(u => u.avatar_color === color);
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          disabled={isUsed}
+                          onClick={() => setSelectedColor(color)}
+                          className={`w-8 h-8 rounded-full transition-all duration-200 ${isUsed ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${selectedColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a1a]' : ''}`}
+                          style={{ backgroundColor: color }}
+                          title={isUsed ? 'Bu renk baska bir kullanici tarafindan kullaniliyor' : 'Sec'}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-colors">Iptal</button>
