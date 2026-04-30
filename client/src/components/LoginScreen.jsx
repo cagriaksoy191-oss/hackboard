@@ -268,12 +268,15 @@ function LoginScreen({ onLogin }) {
                           type="button"
                           disabled={isUsed}
                           onClick={() => setSelectedColor(color)}
-                          className={`relative overflow-hidden w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center ${isUsed ? 'opacity-60 cursor-not-allowed' : 'hover:scale-110'} ${selectedColor === color && !isUsed ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a1a]' : ''}`}
+                          className={`relative overflow-hidden w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center ${isUsed ? 'cursor-not-allowed' : 'hover:scale-110'} ${selectedColor === color && !isUsed ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a1a]' : ''}`}
                           style={{ backgroundColor: color }}
                           title={isUsed ? 'Bu renk baska bir kullanici tarafindan kullaniliyor' : 'Sec'}
                         >
                           {isUsed && (
-                            <div className="absolute w-[120%] h-1 bg-red-600 shadow-sm -rotate-45" />
+                            <>
+                              <div className="absolute inset-0 bg-black/50" />
+                              <div className="absolute w-[120%] h-[4px] bg-[#ff0000] shadow-sm -rotate-45 z-10" />
+                            </>
                           )}
                         </button>
                       );
