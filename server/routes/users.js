@@ -3,7 +3,12 @@ import { prepare } from '../db.js';
 
 const router = Router();
 
-const avatarColors = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#3b82f6'];
+const avatarColors = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', 
+  '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', 
+  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', 
+  '#ec4899', '#f43f5e', '#64748b', '#737373', '#a1a1aa'
+];
 
 router.get('/', (req, res) => {
   const users = prepare('SELECT * FROM users WHERE is_deleted = 0 ORDER BY id').all();

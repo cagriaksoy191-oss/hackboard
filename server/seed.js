@@ -9,8 +9,8 @@ function seed() {
 
     db.run(`
       INSERT INTO users (name, role, avatar_color, is_online) VALUES
-      ('Çağrı', 'Frontend Developer', '#00d4ff', 1),
-      ('Talha', 'Backend Developer', '#7c3aed', 1),
+      ('Çağrı', 'Frontend Developer', '#06b6d4', 1),
+      ('Talha', 'Backend Developer', '#8b5cf6', 1),
       ('Ahmet', 'UI/UX Designer', '#10b981', 0),
       ('Alaettin', 'Project Manager', '#f59e0b', 1);
     `);
