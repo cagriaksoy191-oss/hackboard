@@ -68,14 +68,22 @@ function LoginScreen({ onLogin }) {
     fetchUsers();
   };
 
-  const handleDeleteUser = async () => {
+  const handleDeleteUser = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!editingUser) return;
     if (window.confirm(`${editingUser.name} isimli kullaniciyi silmek istediginize emin misiniz?`)) {
-      await usersAPI.delete(editingUser.id);
-      setShowEditModal(false);
-      setEditingUser(null);
-      if (selectedUser?.id === editingUser.id) setSelectedUser(null);
-      fetchUsers();
+      try {
+        await usersAPI.delete(editingUser.id);
+        setShowEditModal(false);
+        setEditingUser(null);
+        if (selectedUser?.id === editingUser.id) setSelectedUser(null);
+        fetchUsers();
+      } catch (err) {
+        console.error("Delete user failed:", err);
+      }
     }
   };
 
@@ -120,9 +128,9 @@ function LoginScreen({ onLogin }) {
         </div>
 
         {loading ? (
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-full sm:w-[280px] glass rounded-2xl p-6 animate-pulse">
+              <div key={i} className="w-full glass rounded-2xl p-6 animate-pulse">
                 <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/10" />
                 <div className="h-4 bg-white/10 rounded w-3/4 mx-auto mb-2" />
                 <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
@@ -130,7 +138,7 @@ function LoginScreen({ onLogin }) {
             ))}
           </div>
         ) : (
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
             {users.map((user, i) => {
               const initials = user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
               const isSelected = selectedUser?.id === user.id;
@@ -141,7 +149,7 @@ function LoginScreen({ onLogin }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * i }}
                   onClick={() => setSelectedUser(user)}
-                  className={`w-full sm:w-[280px] relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
+                  className={`w-full relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
                     isSelected
                       ? 'border-accent/50 shadow-lg shadow-accent/10 bg-accent/5'
                       : 'border-white/10 hover:border-white/20'
@@ -185,7 +193,7 @@ function LoginScreen({ onLogin }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * users.length }}
               onClick={openAddModal}
-              className="w-full sm:w-[280px] glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
+              className="w-full glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
             >
               <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,7 +299,7 @@ function LoginScreen({ onLogin }) {
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-white">Kullanici Duzenle</h2>
-                <button onClick={handleDeleteUser} className="text-red-400 hover:text-red-300 p-1 bg-red-400/10 hover:bg-red-400/20 rounded transition-colors" title="Kullaniciyi Sil">
+                <button type="button" onClick={handleDeleteUser} className="text-red-400 hover:text-red-300 p-1 bg-red-400/10 hover:bg-red-400/20 rounded transition-colors" title="Kullaniciyi Sil">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </div>
