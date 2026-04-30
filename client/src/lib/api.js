@@ -19,6 +19,9 @@ export const tasksAPI = {
 
 export const usersAPI = {
   getAll: () => api.get('/users'),
+  create: (data) => api.post('/users', data),
+  update: (id, data) => api.put(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
   updateStatus: (id, isOnline) => api.patch(`/users/${id}/status`, { is_online: isOnline }),
 };
 

@@ -100,13 +100,22 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
-              style={{ backgroundColor: task.avatar_color || '#7c3aed' }}
-            >
-              {initials}
+            <div className="relative">
+              <div
+                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
+                style={{ backgroundColor: task.assigned_name ? (task.avatar_color || '#7c3aed') : '#ef4444' }}
+              >
+                {initials}
+              </div>
+              {!task.assigned_name && (
+                <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border border-red-800 flex items-center justify-center shadow-sm" title="Sahipsiz Gorev">
+                  <span className="text-[10px] font-bold text-white leading-none">!</span>
+                </div>
+              )}
             </div>
-            <span className="text-xs text-secondary">{task.assigned_name || 'Atanmamis'}</span>
+            <span className={`text-xs ${!task.assigned_name ? 'text-red-400 font-medium' : 'text-secondary'}`}>
+              {task.assigned_name || 'Sahipsiz'}
+            </span>
           </div>
           {task.estimated_hours > 0 && (
             <span className="text-xs text-tertiary">{task.estimated_hours}h</span>

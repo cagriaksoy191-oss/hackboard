@@ -6,13 +6,60 @@ function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [formName, setFormName] = useState('');
+  const [formRole, setFormRole] = useState('');
 
-  useEffect(() => {
+  const fetchUsers = () => {
     usersAPI.getAll().then((res) => {
       setUsers(res.data);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    if (!formName || !formRole) return;
+    await usersAPI.create({ name: formName, role: formRole });
+    setShowAddModal(false);
+    setFormName('');
+    setFormRole('');
+    fetchUsers();
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    if (!formName || !editingUser) return;
+    await usersAPI.update(editingUser.id, { name: formName });
+    setShowEditModal(false);
+    setEditingUser(null);
+    setFormName('');
+    fetchUsers();
+  };
+
+  const handleDeleteUser = async () => {
+    if (!editingUser) return;
+    if (window.confirm(`${editingUser.name} isimli kullaniciyi silmek istediginize emin misiniz?`)) {
+      await usersAPI.delete(editingUser.id);
+      setShowEditModal(false);
+      setEditingUser(null);
+      if (selectedUser?.id === editingUser.id) setSelectedUser(null);
+      fetchUsers();
+    }
+  };
+
+  const openEditModal = (e, user) => {
+    e.stopPropagation();
+    setEditingUser(user);
+    setFormName(user.name);
+    setShowEditModal(true);
+  };
 
   const handleLogin = () => {
     if (selectedUser) {
@@ -69,12 +116,21 @@ function LoginScreen({ onLogin }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * i }}
                   onClick={() => setSelectedUser(user)}
-                  className={`glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] ${
+                  className={`relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
                     isSelected
                       ? 'border-accent/50 shadow-lg shadow-accent/10 bg-accent/5'
                       : 'border-white/10 hover:border-white/20'
                   }`}
                 >
+                  <button
+                    onClick={(e) => openEditModal(e, user)}
+                    className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Duzenle"
+                  >
+                    <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
                   <div className="relative inline-block mb-3">
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold text-white mx-auto"
@@ -99,6 +155,20 @@ function LoginScreen({ onLogin }) {
                 </motion.button>
               );
             })}
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * users.length }}
+              onClick={() => setShowAddModal(true)}
+              className="glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
+            >
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <h3 className="text-gray-300 font-semibold text-sm">Yeni Kullanici Ekle</h3>
+            </motion.button>
           </div>
         )}
 
@@ -120,6 +190,85 @@ function LoginScreen({ onLogin }) {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Add User Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowAddModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="relative glass-strong rounded-2xl p-6 w-full max-w-sm"
+            >
+              <h2 className="text-xl font-bold text-white mb-4">Yeni Kullanici Ekle</h2>
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Ad Soyad</label>
+                  <input
+                    type="text" required value={formName} onChange={(e) => setFormName(e.target.value)}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
+                    placeholder="Ad Soyad"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Rol</label>
+                  <input
+                    type="text" required value={formRole} onChange={(e) => setFormRole(e.target.value)}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
+                    placeholder="Orn: Developer"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-colors">Iptal</button>
+                  <button type="submit" className="flex-1 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accentAlt transition-colors">Ekle</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {showEditModal && editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowEditModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="relative glass-strong rounded-2xl p-6 w-full max-w-sm"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white">Kullanici Duzenle</h2>
+                <button onClick={handleDeleteUser} className="text-red-400 hover:text-red-300 p-1 bg-red-400/10 hover:bg-red-400/20 rounded transition-colors" title="Kullaniciyi Sil">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+              <form onSubmit={handleEditUser} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Yeni Ad</label>
+                  <input
+                    type="text" required value={formName} onChange={(e) => setFormName(e.target.value)}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
+                    placeholder="Ad Soyad"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-colors">Iptal</button>
+                  <button type="submit" className="flex-1 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accentAlt transition-colors">Kaydet</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

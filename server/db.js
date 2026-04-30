@@ -244,6 +244,15 @@ export function createSchema(database) {
       is_completed INTEGER NOT NULL DEFAULT 0
     )
   `);
+
+  const usersTableInfo = database.exec("PRAGMA table_info(users)");
+  if (usersTableInfo.length > 0) {
+    const cols = usersTableInfo[0].values;
+    const hasIsDeleted = cols.some(c => c[1] === 'is_deleted');
+    if (!hasIsDeleted) {
+      database.run("ALTER TABLE users ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+    }
+  }
 }
 
 function queryAll(database, sql) {
@@ -450,9 +459,9 @@ function restoreUsers(db, users) {
   batchInsert(
     db,
     'users',
-    ['id', 'name', 'role', 'avatar_color', 'is_online', 'created_at'],
+    ['id', 'name', 'role', 'avatar_color', 'is_online', 'is_deleted', 'created_at'],
     users,
-    (u) => [u.id, u.name, u.role, u.avatar_color, 0, u.created_at]
+    (u) => [u.id, u.name, u.role, u.avatar_color, 0, u.is_deleted || 0, u.created_at]
   );
 }
 
