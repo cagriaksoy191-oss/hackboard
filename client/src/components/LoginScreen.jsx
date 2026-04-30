@@ -111,7 +111,7 @@ function LoginScreen({ onLogin }) {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-7xl"
+        className="relative z-10 w-full max-w-[1800px] px-4"
       >
         <div className="text-center mb-8">
           <motion.div
@@ -128,9 +128,9 @@ function LoginScreen({ onLogin }) {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="flex flex-wrap justify-center gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-full glass rounded-2xl p-6 animate-pulse">
+              <div key={i} className="w-full sm:w-[280px] glass rounded-2xl p-6 animate-pulse">
                 <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/10" />
                 <div className="h-4 bg-white/10 rounded w-3/4 mx-auto mb-2" />
                 <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
@@ -138,7 +138,7 @@ function LoginScreen({ onLogin }) {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+          <div className="flex flex-wrap justify-center gap-6 mb-8">
             {users.map((user, i) => {
               const initials = user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
               const isSelected = selectedUser?.id === user.id;
@@ -149,7 +149,7 @@ function LoginScreen({ onLogin }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * i }}
                   onClick={() => setSelectedUser(user)}
-                  className={`w-full relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
+                  className={`w-full sm:w-[280px] relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
                     isSelected
                       ? 'border-accent/50 shadow-lg shadow-accent/10 bg-accent/5'
                       : 'border-white/10 hover:border-white/20'
@@ -193,7 +193,7 @@ function LoginScreen({ onLogin }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * users.length }}
               onClick={openAddModal}
-              className="w-full glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
+              className="w-full sm:w-[280px] glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
             >
               <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
