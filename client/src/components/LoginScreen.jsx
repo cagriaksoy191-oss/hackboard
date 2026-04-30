@@ -111,7 +111,7 @@ function LoginScreen({ onLogin }) {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-2xl"
+        className="relative z-10 w-full max-w-7xl"
       >
         <div className="text-center mb-8">
           <motion.div
