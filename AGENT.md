@@ -441,3 +441,18 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - `client/src/pages/Chat.jsx`, `client/src/pages/Tasks.jsx`, `client/src/pages/TaskDetail.jsx`, `client/src/components/KanbanBoard.jsx`, `client/src/components/NotificationBell.jsx`, `client/src/components/BackupMenu.jsx`, `client/src/pages/Timeline.jsx` - Normalized neutral inputs, dropdowns, bubbles, dividers, empty states, and timeline surfaces for light/dark parity
 - `client/src/components/KanbanBoard.jsx` - Replaced hardcoded assignee filter options with live user data from `/api/users`
 - `client/src/pages/Timeline.jsx` - Separated loading state from empty milestone state to avoid misleading "still loading" UX
+
+### 2026-04-30 - User Management & Onboarding UX Refinement
+
+**User Deletion Stability:**
+- Replaced the browser-native `window.confirm` dialog with a custom React portal-based `ConfirmModal` for user deletion, ensuring 100% reliable execution across all devices and browsers without popup-blocker interference.
+- Maintained "soft delete" logic (`is_deleted = 1`) on the backend while updating the frontend UI to immediately reflect deletions.
+
+**Color Picker & Visual Constraints:**
+- Enforced a strict 20-color theme palette (`THEME_COLORS`) for all user avatars.
+- Added a high-vibrancy red diagonal line (`bg-[#ff0000]`) overlaid on a dark mask to visually cross out colors in the picker that are already claimed by active users.
+- Ensured soft-deleted users release their colors back into the available pool.
+
+**Data Migration & Seed Normalization:**
+- Added a robust startup migration to `server/db.js` that automatically calculates the Euclidean distance in RGB space to map any legacy/custom user colors to the exact closest match within the new 20-color palette.
+- Updated `server/seed.js` and `server/routes/users.js` so that default/randomly assigned users strictly pull from the new 20-color pool, preventing bypasses during ephemeral deployments (e.g. Render).
