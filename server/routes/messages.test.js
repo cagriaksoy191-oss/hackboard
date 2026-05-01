@@ -55,6 +55,44 @@ describe('Messages API', () => {
     assert.ok(isOrdered, 'Expected messages to be ordered by created_at ASC');
   });
 
+  it('POST /messages returns 400 when payload is invalid', async () => {
+    // Missing content
+    let res = await fetch(`http://localhost:${port}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: 1 })
+    });
+    assert.strictEqual(res.status, 400);
+    let data = await res.json();
+    assert.strictEqual(data.error, 'Valid content is required');
+
+    // Invalid content type
+    res = await fetch(`http://localhost:${port}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: 1, content: [] })
+    });
+    assert.strictEqual(res.status, 400);
+
+    // Missing user_id
+    res = await fetch(`http://localhost:${port}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: 'Hello' })
+    });
+    assert.strictEqual(res.status, 400);
+    data = await res.json();
+    assert.strictEqual(data.error, 'Valid user_id is required');
+
+    // Invalid user_id
+    res = await fetch(`http://localhost:${port}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: '1', content: 'Hello' })
+    });
+    assert.strictEqual(res.status, 400);
+  });
+
   it('POST /messages creates a new message and returns it with user info', async () => {
     const payload = {
       user_id: 1,
