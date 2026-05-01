@@ -21,7 +21,13 @@ router.put('/:id', (req, res) => {
   const { title, description, target_time, is_completed } = req.body;
   prepare(
     'UPDATE milestones SET title = COALESCE(?, title), description = COALESCE(?, description), target_time = COALESCE(?, target_time), is_completed = COALESCE(?, is_completed) WHERE id = ?'
-  ).run(title, description, target_time, is_completed, req.params.id);
+  ).run(
+    title !== undefined ? title : null,
+    description !== undefined ? description : null,
+    target_time !== undefined ? target_time : null,
+    is_completed !== undefined ? is_completed : null,
+    req.params.id
+  );
   const milestone = prepare('SELECT * FROM milestones WHERE id = ?').get(req.params.id);
   res.json(milestone);
 });
