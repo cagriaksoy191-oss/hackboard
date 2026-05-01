@@ -79,4 +79,28 @@ describe('Users API', () => {
     assert.strictEqual(data.id, 1, 'Expected user id to be 1');
     assert.strictEqual(data.is_online, 0, 'Expected is_online to be 0');
   });
+
+  it('POST /users returns 400 when name is missing', async () => {
+    const res = await fetch(`http://localhost:${port}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'Developer' })
+    });
+
+    assert.strictEqual(res.status, 400, 'Expected status code 400');
+    const data = await res.json();
+    assert.strictEqual(data.error, 'Name and role are required', 'Expected correct error message');
+  });
+
+  it('POST /users returns 400 when role is missing', async () => {
+    const res = await fetch(`http://localhost:${port}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'John Doe' })
+    });
+
+    assert.strictEqual(res.status, 400, 'Expected status code 400');
+    const data = await res.json();
+    assert.strictEqual(data.error, 'Name and role are required', 'Expected correct error message');
+  });
 });
