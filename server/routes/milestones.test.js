@@ -53,6 +53,39 @@ describe('Milestones API Integration Tests', () => {
   });
 
   describe('POST /milestones', () => {
+    it('should return 400 if title is missing or invalid', async () => {
+      const invalidMilestone = {
+        description: 'No title',
+        target_time: new Date().toISOString()
+      };
+
+      const res = await fetch(`http://localhost:${port}/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invalidMilestone)
+      });
+
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.ok(data.error.includes('Title is required'));
+    });
+
+    it('should return 400 if target_time is missing or invalid', async () => {
+      const invalidMilestone = {
+        title: 'No Target Time',
+        description: 'Missing target time'
+      };
+
+      const res = await fetch(`http://localhost:${port}/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invalidMilestone)
+      });
+
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.ok(data.error.includes('target_time is required'));
+    });
     it('should create a new milestone with all fields and return 201', async () => {
       const newMilestone = {
         title: 'Integration Test Milestone',
@@ -93,6 +126,29 @@ describe('Milestones API Integration Tests', () => {
   });
 
   describe('PUT /milestones/:id', () => {
+    it('should return 400 if title is updated with invalid format', async () => {
+      const invalidUpdate = { title: '' };
+
+      const res = await fetch(`http://localhost:${port}/milestones/1`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invalidUpdate)
+      });
+
+      assert.strictEqual(res.status, 400);
+    });
+
+    it('should return 400 if target_time is updated with invalid format', async () => {
+      const invalidUpdate = { target_time: 'not-a-date' };
+
+      const res = await fetch(`http://localhost:${port}/milestones/1`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invalidUpdate)
+      });
+
+      assert.strictEqual(res.status, 400);
+    });
     it('should update all fields of an existing milestone', async () => {
       // Milestone ID 1 is 'Planlama Tamamlandi' in seed
       const updateData = {
