@@ -86,8 +86,8 @@ router.put('/:id', (req, res) => {
   }
 
   prepare(
-    'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-  ).run(title, description, priority, assigned_to, estimated_hours, req.params.id);
+    'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), status = COALESCE(?, status), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+  ).run(title ?? null, description ?? null, status ?? null, priority ?? null, assigned_to ?? null, estimated_hours ?? null, req.params.id);
 
   const task = prepare(`
     SELECT t.*, u.name as assigned_name, u.avatar_color

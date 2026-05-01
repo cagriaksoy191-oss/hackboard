@@ -66,3 +66,62 @@ test('PATCH /subtasks/:id/toggle toggles the is_completed status', async () => {
 
     server.close();
 });
+
+test('PATCH /tasks/:id/status invalid status returns 400', async () => {
+    await initDB();
+    const app = express();
+    app.use(express.json());
+    app.use('/tasks', tasksRouter);
+
+    const server = app.listen(0);
+    const port = server.address().port;
+
+    try {
+        const res = await fetch(`http://localhost:${port}/tasks/1/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'invalid-status' })
+        });
+
+        assert.strictEqual(res.status, 400);
+        const data = await res.json();
+        assert.strictEqual(data.error, 'Invalid status');
+    } finally {
+        server.close();
+    }
+});
+
+test('PUT /tasks/:id updates status properly', async () => {
+    await initDB();
+    const { prepare } = await import('../db.js');
+
+    // Create a task
+    const taskResult = prepare('INSERT INTO tasks (title, status) VALUES (?, ?)').run('Update Status Test', 'todo');
+    const taskId = taskResult.lastInsertRowid;
+
+    const app = express();
+    app.use(express.json());
+    app.set('io', { emit: () => {} });
+    app.use('/tasks', tasksRouter);
+
+    const server = app.listen(0);
+    const port = server.address().port;
+
+    try {
+        const res = await fetch(`http://localhost:${port}/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'in-progress' })
+        });
+
+        assert.strictEqual(res.status, 200);
+        const data = await res.json();
+        assert.strictEqual(data.status, 'in-progress');
+
+        // Verify via DB
+        const updatedTask = prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+        assert.strictEqual(updatedTask.status, 'in-progress');
+    } finally {
+        server.close();
+    }
+});
