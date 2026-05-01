@@ -10,6 +10,15 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const { title, description, target_time } = req.body;
+
+  if (!title || typeof title !== 'string' || title.trim() === '') {
+    return res.status(400).json({ error: 'Title is required and must be a string' });
+  }
+
+  if (!target_time || typeof target_time !== 'string' || isNaN(Date.parse(target_time))) {
+    return res.status(400).json({ error: 'Valid target_time is required' });
+  }
+
   const result = prepare(
     'INSERT INTO milestones (title, description, target_time) VALUES (?, ?, ?)'
   ).run(title, description || '', target_time);
@@ -19,6 +28,15 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const { title, description, target_time, is_completed } = req.body;
+
+  if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
+    return res.status(400).json({ error: 'Title must be a non-empty string' });
+  }
+
+  if (target_time !== undefined && (typeof target_time !== 'string' || isNaN(Date.parse(target_time)))) {
+    return res.status(400).json({ error: 'target_time must be a valid date string' });
+  }
+
   prepare(
     'UPDATE milestones SET title = COALESCE(?, title), description = COALESCE(?, description), target_time = COALESCE(?, target_time), is_completed = COALESCE(?, is_completed) WHERE id = ?'
   ).run(
