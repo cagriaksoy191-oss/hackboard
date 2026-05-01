@@ -27,17 +27,18 @@ router.get('/', (req, res) => {
     ORDER BY hour
   `).all();
 
-  const totalTasks = prepare('SELECT COUNT(*) as total FROM tasks').get();
-  const doneTasks = prepare("SELECT COUNT(*) as done FROM tasks WHERE status = 'done'").get();
-  const progress = totalTasks.total > 0 ? Math.round((doneTasks.done / totalTasks.total) * 100) : 0;
+  const taskStats = prepare("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done FROM tasks").get();
+  const totalTasksCount = taskStats.total || 0;
+  const doneTasksCount = taskStats.done || 0;
+  const progress = totalTasksCount > 0 ? Math.round((doneTasksCount / totalTasksCount) * 100) : 0;
 
   res.json({
     taskStatusDist,
     tasksByUser,
     hourlyProductivity,
     progress,
-    totalTasks: totalTasks.total,
-    doneTasks: doneTasks.done,
+    totalTasks: totalTasksCount,
+    doneTasks: doneTasksCount,
   });
 });
 
