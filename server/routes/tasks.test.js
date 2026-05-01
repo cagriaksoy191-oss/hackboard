@@ -125,3 +125,39 @@ test('PUT /tasks/:id updates status properly', async () => {
         server.close();
     }
 });
+
+test('PUT /tasks/:id returns 409 conflict when updated_at is older', async () => {
+    await initDB();
+    const { prepare } = await import('../db.js');
+
+    // Create a task
+    const taskResult = prepare('INSERT INTO tasks (title, status, updated_at) VALUES (?, ?, ?)').run('Conflict Test Task', 'todo', '2025-05-01 12:00:00');
+    const taskId = taskResult.lastInsertRowid;
+
+    const app = express();
+    app.use(express.json());
+    app.set('io', { emit: () => {} });
+    app.use('/tasks', tasksRouter);
+
+    const server = app.listen(0);
+    const port = server.address().port;
+
+    try {
+        const res = await fetch(`http://localhost:${port}/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: 'Updated Title',
+                updated_at: '2025-01-01 10:00:00' // Older than the DB value
+            })
+        });
+
+        assert.strictEqual(res.status, 409);
+        const data = await res.json();
+        assert.strictEqual(data.conflict, true);
+        assert.ok(data.currentTask, 'Should return currentTask');
+        assert.strictEqual(data.currentTask.title, 'Conflict Test Task');
+    } finally {
+        server.close();
+    }
+});
