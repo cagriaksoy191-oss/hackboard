@@ -396,8 +396,8 @@ export function buildExportPayload() {
   };
 }
 
-const VALID_STATUSES = ['todo', 'in-progress', 'testing', 'done'];
-const VALID_PRIORITIES = ['low', 'medium', 'high', 'critical'];
+export const VALID_STATUSES = ['todo', 'in-progress', 'testing', 'done'];
+export const VALID_PRIORITIES = ['low', 'medium', 'high', 'critical'];
 
 function validateBackupPayload(payload) {
   if (!payload || typeof payload !== 'object') {
