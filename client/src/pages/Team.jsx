@@ -40,13 +40,30 @@ function Team() {
     return users.map((user) => {
       const tasks = userTasks[user.id] || [];
       const completedCount = tasks.filter((t) => t.status === 'done').length;
-      const names = user.name.split(' ');
-      const firstName = names[0];
-      const initials = names.map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+
+      const name = user.name;
+      const firstSpaceIndex = name.indexOf(' ');
+      const firstName = firstSpaceIndex === -1 ? name : name.slice(0, firstSpaceIndex);
+
+      let initials = '';
+      let isNewWord = true;
+      for (let i = 0; i < name.length; i++) {
+        const char = name[i];
+        if (char !== ' ') {
+          if (isNewWord) {
+            initials += char;
+            if (initials.length === 2) break;
+            isNewWord = false;
+          }
+        } else {
+          isNewWord = true;
+        }
+      }
+      const formattedInitials = initials.toUpperCase();
 
       return {
         ...user,
-        initials,
+        initials: formattedInitials,
         tasksCount: tasks.length,
         completedCount,
         chartData: [{ name: firstName, completed: completedCount }],
