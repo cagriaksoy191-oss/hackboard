@@ -3,6 +3,45 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
+import NotificationItem from './NotificationItem';
+
+const formatTime = (dateStr) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Simdi';
+  if (mins < 60) return `${mins}dk once`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}s once`;
+  return `${Math.floor(hours / 24)}g once`;
+};
+
+const typeIcons = {
+  message: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  ),
+  task_created: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  ),
+  task_moved: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+    </svg>
+  ),
+  task_deleted: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  ),
+  activity: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+};
 
 function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
@@ -69,16 +108,6 @@ function NotificationBell() {
     } else if (n.type && n.type.startsWith('task')) {
       navigate('/tasks');
     }
-  };
-
-  const formatTime = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Simdi';
-    if (mins < 60) return `${mins}dk once`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}s once`;
-    return `${Math.floor(hours / 24)}g once`;
   };
 
   const typeIcons = {
@@ -173,29 +202,13 @@ function NotificationBell() {
                   </div>
                 ) : (
                   notifications.map((n) => (
-                    <button
+                    <NotificationItem
                       key={n.id}
+                      n={n}
                       onClick={() => handleNotificationClick(n)}
-                      className={`w-full text-left flex gap-3 p-3 border-b border-theme-subtle hover-surface-bg cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-accent ${
-                        !n.read ? 'bg-accent/5' : ''
-                      }`}
-                    >
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                        !n.read ? 'bg-accent/20 text-accent' : 'surface-bg text-secondary'
-                      }`}>
-                        {typeIcons[n.type] || typeIcons.activity}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs ${!n.read ? 'font-bold text-primary' : 'text-secondary'}`}>
-                          {n.title}
-                        </p>
-                        <p className="text-xs text-muted truncate">{n.message}</p>
-                        <p className="text-[10px] text-muted mt-0.5">{formatTime(n.created_at)}</p>
-                      </div>
-                      {!n.read && (
-                        <span className="w-2 h-2 rounded-full bg-accent flex-shrink-0 mt-1" />
-                      )}
-                    </button>
+                      typeIcons={typeIcons}
+                      formatTime={formatTime}
+                    />
                   ))
                 )}
               </div>
