@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prepare } from '../db.js';
+import { prepare, VALID_STATUSES, VALID_PRIORITIES } from '../db.js';
 
 const router = Router();
 
@@ -18,6 +18,14 @@ router.post('/', (req, res) => {
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
     return res.status(400).json({ error: 'Title is required' });
+  }
+
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: 'Invalid priority' });
   }
 
   const trimmedTitle = title.trim();
@@ -58,7 +66,15 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { title, description, priority, assigned_to, estimated_hours } = req.body;
+  const { title, description, status, priority, assigned_to, estimated_hours } = req.body;
+
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: 'Invalid priority' });
+  }
 
   const existing = prepare('SELECT updated_at FROM tasks WHERE id = ?').get(req.params.id);
   if (existing && req.body.updated_at && existing.updated_at > req.body.updated_at) {
@@ -91,6 +107,10 @@ router.patch('/:id/status', (req, res) => {
 
   if (!status) {
     return res.status(400).json({ error: 'Status is required' });
+  }
+
+  if (!VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
   }
 
   const existing = prepare('SELECT updated_at FROM tasks WHERE id = ?').get(req.params.id);
