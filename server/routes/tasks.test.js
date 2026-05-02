@@ -15,7 +15,7 @@ test('PATCH /tasks/:id/status missing status returns 400', async () => {
 
     const res = await fetch(`http://localhost:${port}/tasks/1/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify({})
     });
 
@@ -49,7 +49,7 @@ test('PATCH /subtasks/:id/toggle toggles the is_completed status', async () => {
     // Toggle to 1
     let res = await fetch(`http://localhost:${port}/tasks/subtasks/${subtaskId}/toggle`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' }
     });
     assert.strictEqual(res.status, 200);
     let data = await res.json();
@@ -58,7 +58,7 @@ test('PATCH /subtasks/:id/toggle toggles the is_completed status', async () => {
     // Toggle back to 0
     res = await fetch(`http://localhost:${port}/tasks/subtasks/${subtaskId}/toggle`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' }
     });
     assert.strictEqual(res.status, 200);
     data = await res.json();
@@ -79,7 +79,7 @@ test('PATCH /tasks/:id/status invalid status returns 400', async () => {
     try {
         const res = await fetch(`http://localhost:${port}/tasks/1/status`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'invalid-status' })
         });
 
@@ -110,7 +110,7 @@ test('PUT /tasks/:id updates status properly', async () => {
     try {
         const res = await fetch(`http://localhost:${port}/tasks/${taskId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'in-progress' })
         });
 
@@ -145,7 +145,7 @@ test('PUT /tasks/:id returns 409 conflict when updated_at is older', async () =>
     try {
         const res = await fetch(`http://localhost:${port}/tasks/${taskId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 title: 'Updated Title',
                 updated_at: '2025-01-01 10:00:00' // Older than the DB value

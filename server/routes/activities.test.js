@@ -33,7 +33,7 @@ describe('Activities API', () => {
   });
 
   it('GET /activities returns recent activities', async () => {
-    const res = await fetch(`http://localhost:${port}/activities`);
+    const res = await fetch(`http://localhost:${port}/activities`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res.status, 200, 'Expected status code 200');
 
     const data = await res.json();

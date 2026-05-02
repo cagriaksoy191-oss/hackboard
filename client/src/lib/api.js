@@ -4,6 +4,22 @@ const api = axios.create({
   baseURL: '/api',
 });
 
+api.interceptors.request.use((config) => {
+  const userStr = localStorage.getItem('hackboard-user');
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      if (user && user.id) {
+        config.headers['X-User-Id'] = user.id.toString();
+      }
+    } catch (e) {
+      console.error('Error parsing user from localStorage', e);
+    }
+  }
+  return config;
+});
+
+
 export const tasksAPI = {
   getAll: () => api.get('/tasks'),
   create: (data) => api.post('/tasks', data),

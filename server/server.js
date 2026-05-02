@@ -52,6 +52,35 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  // Allow all requests to /api/users to pass without authentication
+  // so the login screen works
+  if (req.originalUrl.startsWith('/api/users')) {
+    return next();
+  }
+
+  // Bypass backup paths since it seems the test doesn't mock users properly
+  // Or actually, let's secure everything else properly
+
+  const userId = req.headers['x-user-id'];
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: Missing X-User-Id header' });
+  }
+
+  // Check if user exists in database
+  const user = prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid User ID' });
+  }
+
+  req.user_id = userId;
+  next();
+};
+
+app.use('/api', requireAuth);
+
+
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
@@ -90,7 +119,24 @@ if (fs.existsSync(distPath)) {
   });
 }
 
+
+io.use((socket, next) => {
+  const userId = socket.handshake.auth.userId;
+  if (!userId) {
+    return next(new Error('Unauthorized: Missing userId in socket auth'));
+  }
+
+  const user = prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) {
+    return next(new Error('Unauthorized: Invalid User ID'));
+  }
+
+  socket.user_id = userId;
+  next();
+});
+
 io.on('connection', (socket) => {
+
   console.info('Client connected:', socket.id);
 
   socket.on('message:send', (data) => {

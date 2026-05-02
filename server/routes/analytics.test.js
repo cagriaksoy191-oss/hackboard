@@ -16,7 +16,7 @@ test('GET / returns analytics data with expected structure', async () => {
     const port = server.address().port;
 
     try {
-        const res = await fetch(`http://localhost:${port}/analytics`);
+        const res = await fetch(`http://localhost:${port}/analytics`, { headers: { 'X-User-Id': '1' } });
         assert.strictEqual(res.status, 200, 'Expected status 200');
 
         const data = await res.json();

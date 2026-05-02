@@ -33,7 +33,7 @@ describe('Messages API', () => {
   });
 
   it('GET /messages returns all messages ordered by created_at', async () => {
-    const res = await fetch(`http://localhost:${port}/messages`);
+    const res = await fetch(`http://localhost:${port}/messages`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res.status, 200, 'Expected status code 200');
 
     const data = await res.json();
@@ -59,7 +59,7 @@ describe('Messages API', () => {
     // Missing content
     let res = await fetch(`http://localhost:${port}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: 1 })
     });
     assert.strictEqual(res.status, 400);
@@ -69,7 +69,7 @@ describe('Messages API', () => {
     // Invalid content type
     res = await fetch(`http://localhost:${port}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: 1, content: [] })
     });
     assert.strictEqual(res.status, 400);
@@ -77,7 +77,7 @@ describe('Messages API', () => {
     // Missing user_id
     res = await fetch(`http://localhost:${port}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: 'Hello' })
     });
     assert.strictEqual(res.status, 400);
@@ -87,7 +87,7 @@ describe('Messages API', () => {
     // Invalid user_id
     res = await fetch(`http://localhost:${port}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: '1', content: 'Hello' })
     });
     assert.strictEqual(res.status, 400);
@@ -101,7 +101,7 @@ describe('Messages API', () => {
 
     const res = await fetch(`http://localhost:${port}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 

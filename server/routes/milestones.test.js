@@ -36,7 +36,7 @@ describe('Milestones API Integration Tests', () => {
 
   describe('GET /milestones', () => {
     it('should return all milestones from seed data ordered by target_time ASC', async () => {
-      const res = await fetch(`http://localhost:${port}/milestones`);
+      const res = await fetch(`http://localhost:${port}/milestones`, { headers: { 'X-User-Id': '1' } });
       assert.strictEqual(res.status, 200);
 
       const data = await res.json();
@@ -61,7 +61,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(invalidMilestone)
       });
 
@@ -78,7 +78,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(invalidMilestone)
       });
 
@@ -95,7 +95,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(newMilestone)
       });
 
@@ -115,7 +115,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(minimalMilestone)
       });
 
@@ -131,7 +131,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones/1`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(invalidUpdate)
       });
 
@@ -143,7 +143,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones/1`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(invalidUpdate)
       });
 
@@ -160,7 +160,7 @@ describe('Milestones API Integration Tests', () => {
 
       const res = await fetch(`http://localhost:${port}/milestones/1`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
       });
 
@@ -176,7 +176,7 @@ describe('Milestones API Integration Tests', () => {
       // Create a fresh milestone to test partial update
       const createRes = await fetch(`http://localhost:${port}/milestones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: 'Partial Update Test',
           description: 'Original Description',
@@ -190,7 +190,7 @@ describe('Milestones API Integration Tests', () => {
       const partialUpdate = { is_completed: 1 };
       const updateRes = await fetch(`http://localhost:${port}/milestones/${milestoneId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(partialUpdate)
       });
 

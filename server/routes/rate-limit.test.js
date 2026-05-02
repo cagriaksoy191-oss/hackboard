@@ -33,17 +33,17 @@ describe('Rate Limiter', () => {
 
   test('should allow requests under the limit', async () => {
     const port = server.address().port;
-    const res = await fetch(`http://localhost:${port}/api/test`);
+    const res = await fetch(`http://localhost:${port}/api/test`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res.status, 200);
   });
 
   test('should block requests over the limit', async () => {
     const port = server.address().port;
     // first request is consumed by previous test (1/2)
-    const res2 = await fetch(`http://localhost:${port}/api/test`);
+    const res2 = await fetch(`http://localhost:${port}/api/test`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res2.status, 200); // 2/2
 
-    const res3 = await fetch(`http://localhost:${port}/api/test`);
+    const res3 = await fetch(`http://localhost:${port}/api/test`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res3.status, 429); // 3/2 blocked
 
     const data = await res3.json();
