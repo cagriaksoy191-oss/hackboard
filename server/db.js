@@ -653,12 +653,23 @@ export function getHealthSummary() {
   let totalRecords = 0;
   let latestDataAt = null;
 
+  if (tables.length > 0) {
+    const unionQuery = tables.map(t => `SELECT '${t}' as tableName, COUNT(*) as count FROM ${t}`).join(' UNION ALL ');
+    const countResult = database.exec(unionQuery);
+    if (countResult.length > 0) {
+      for (const row of countResult[0].values) {
+        const count = row[1];
+        tableCounts[row[0]] = count;
+        totalRecords += count;
+      }
+    }
+  }
+
+  // Ensure all tables have an entry even if the union query returned nothing for them
   for (const tableName of tables) {
-    if (!COUNT_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
-    const countResult = database.exec(COUNT_QUERY_BY_TABLE[tableName]);
-    const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] : 0;
-    tableCounts[tableName] = count;
-    totalRecords += count;
+    if (tableCounts[tableName] === undefined) {
+      tableCounts[tableName] = 0;
+    }
   }
 
   const dateResult = database.exec(
