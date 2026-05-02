@@ -17,7 +17,7 @@ test('GET /notifications returns formatted activities', async () => {
     const port = server.address().port;
 
     try {
-        const res = await fetch(`http://localhost:${port}/notifications`);
+        const res = await fetch(`http://localhost:${port}/notifications`, { headers: { 'X-User-Id': '1' } });
 
         assert.strictEqual(res.status, 200);
         const data = await res.json();
@@ -50,7 +50,7 @@ test('GET /notifications handles limit parameter', async () => {
     const port = server.address().port;
 
     try {
-        const res = await fetch(`http://localhost:${port}/notifications?limit=2`);
+        const res = await fetch(`http://localhost:${port}/notifications?limit=2`, { headers: { 'X-User-Id': '1' } });
 
         assert.strictEqual(res.status, 200);
         const data = await res.json();
@@ -73,7 +73,7 @@ test('PATCH /notifications/:id/read returns success true', async () => {
     try {
         const res = await fetch(`http://localhost:${port}/notifications/1/read`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' }
         });
 
         assert.strictEqual(res.status, 200);
@@ -96,7 +96,7 @@ test('POST /notifications returns 404 (endpoint not implemented)', async () => {
     try {
         const res = await fetch(`http://localhost:${port}/notifications`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'test' })
         });
 

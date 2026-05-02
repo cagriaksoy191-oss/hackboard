@@ -23,7 +23,7 @@ before(async () => {
 });
 
 test('GET /backup/export should return valid backup payload', async () => {
-    const res = await fetch(`http://localhost:${port}/backup/export`);
+    const res = await fetch(`http://localhost:${port}/backup/export`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res.status, 200);
     const payload = await res.json();
 
@@ -34,7 +34,7 @@ test('GET /backup/export should return valid backup payload', async () => {
 });
 
 test('GET /backup/health should return health summary', async () => {
-    const res = await fetch(`http://localhost:${port}/backup/health`);
+    const res = await fetch(`http://localhost:${port}/backup/health`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res.status, 200);
     const summary = await res.json();
 
@@ -46,12 +46,12 @@ test('GET /backup/health should return health summary', async () => {
 
 test('POST /backup/import with valid payload should restore database', async () => {
     // First export to get a valid payload
-    const exportRes = await fetch(`http://localhost:${port}/backup/export`);
+    const exportRes = await fetch(`http://localhost:${port}/backup/export`, { headers: { 'X-User-Id': '1' } });
     const validPayload = await exportRes.json();
 
     const res = await fetch(`http://localhost:${port}/backup/import`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(validPayload)
     });
 
@@ -67,7 +67,7 @@ test('POST /backup/import without data section should return 400', async () => {
 
     const res = await fetch(`http://localhost:${port}/backup/import`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(invalidPayload)
     });
 
@@ -77,7 +77,7 @@ test('POST /backup/import without data section should return 400', async () => {
 });
 
 test('POST /backup/import with invalid table data should return 400', async () => {
-    const exportRes = await fetch(`http://localhost:${port}/backup/export`);
+    const exportRes = await fetch(`http://localhost:${port}/backup/export`, { headers: { 'X-User-Id': '1' } });
     const payload = await exportRes.json();
 
     // Corrupt the payload by removing users array
@@ -85,7 +85,7 @@ test('POST /backup/import with invalid table data should return 400', async () =
 
     const res = await fetch(`http://localhost:${port}/backup/import`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
 

@@ -34,7 +34,7 @@ describe('Users API', () => {
   });
 
   it('GET /users returns all users ordered by id', async () => {
-    const res = await fetch(`http://localhost:${port}/users`);
+    const res = await fetch(`http://localhost:${port}/users`, { headers: { 'X-User-Id': '1' } });
     assert.strictEqual(res.status, 200, 'Expected status code 200');
 
     const data = await res.json();
@@ -55,7 +55,7 @@ describe('Users API', () => {
   it('PATCH /users/:id/status updates the user online status to 1 when true', async () => {
     const res = await fetch(`http://localhost:${port}/users/1/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_online: true })
     });
 
@@ -69,7 +69,7 @@ describe('Users API', () => {
   it('PATCH /users/:id/status updates the user online status to 0 when false', async () => {
     const res = await fetch(`http://localhost:${port}/users/1/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_online: false })
     });
 
@@ -83,7 +83,7 @@ describe('Users API', () => {
   it('POST /users returns 400 when name is missing', async () => {
     const res = await fetch(`http://localhost:${port}/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ role: 'Developer' })
     });
 
@@ -95,7 +95,7 @@ describe('Users API', () => {
   it('POST /users returns 400 when role is missing', async () => {
     const res = await fetch(`http://localhost:${port}/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'John Doe' })
     });
 
