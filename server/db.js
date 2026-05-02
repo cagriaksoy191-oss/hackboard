@@ -170,7 +170,40 @@ export function transaction(fn) {
   };
 }
 
-export function createSchema(database) {
+
+// Normalize user colors to match THEME_COLORS
+const THEME_COLORS = [
+    '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+    '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+    '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+    '#ec4899', '#f43f5e', '#64748b', '#737373', '#a1a1aa'
+  ];
+
+const hexToRgb = (hex) => {
+    if (!hex || hex.length !== 7) return [0, 0, 0];
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return [r, g, b];
+  };
+
+const getClosestColor = (hex) => {
+    const [r, g, b] = hexToRgb(hex);
+    let minDistance = Infinity;
+    let closestColor = THEME_COLORS[0];
+
+    for (const tc of THEME_COLORS) {
+      const [tr, tg, tb] = hexToRgb(tc);
+      const distance = Math.pow(r - tr, 2) + Math.pow(g - tg, 2) + Math.pow(b - tb, 2);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestColor = tc;
+      }
+    }
+    return closestColor;
+  };
+
+function createTables(database) {
   database.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -245,6 +278,9 @@ export function createSchema(database) {
     )
   `);
 
+}
+
+function runMigrations(database) {
   const usersTableInfo = database.exec("PRAGMA table_info(users)");
   if (usersTableInfo.length > 0) {
     const cols = usersTableInfo[0].values;
@@ -253,39 +289,9 @@ export function createSchema(database) {
       database.run("ALTER TABLE users ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
     }
   }
+}
 
-  // Normalize user colors to match THEME_COLORS
-  const THEME_COLORS = [
-    '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', 
-    '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', 
-    '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', 
-    '#ec4899', '#f43f5e', '#64748b', '#737373', '#a1a1aa'
-  ];
-  
-  const hexToRgb = (hex) => {
-    if (!hex || hex.length !== 7) return [0, 0, 0];
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return [r, g, b];
-  };
-
-  const getClosestColor = (hex) => {
-    const [r, g, b] = hexToRgb(hex);
-    let minDistance = Infinity;
-    let closestColor = THEME_COLORS[0];
-    
-    for (const tc of THEME_COLORS) {
-      const [tr, tg, tb] = hexToRgb(tc);
-      const distance = Math.pow(r - tr, 2) + Math.pow(g - tg, 2) + Math.pow(b - tb, 2);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestColor = tc;
-      }
-    }
-    return closestColor;
-  };
-
+function normalizeUserColors(database) {
   const usersResult = database.exec("SELECT id, avatar_color FROM users");
   if (usersResult.length > 0) {
     const rows = usersResult[0].values;
@@ -298,6 +304,12 @@ export function createSchema(database) {
       }
     }
   }
+}
+
+export function createSchema(database) {
+  createTables(database);
+  runMigrations(database);
+  normalizeUserColors(database);
 }
 
 function queryAll(database, sql) {
