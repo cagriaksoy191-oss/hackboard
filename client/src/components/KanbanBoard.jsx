@@ -7,6 +7,40 @@ import TaskCard from './TaskCard';
 import CreateTaskModal from './CreateTaskModal';
 import EmptyState from './EmptyState';
 
+
+const filterTasks = (tasks, searchQuery, filterPriority, filterUser) => {
+  return tasks.filter((t) => {
+    const matchesSearch = searchQuery === '' ||
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesPriority = filterPriority === 'all' || t.priority === filterPriority;
+    const matchesUser = filterUser === 'all' || t.assigned_to === parseInt(filterUser);
+    return matchesSearch && matchesPriority && matchesUser;
+  });
+};
+
+const checkActiveFilters = (searchQuery, filterPriority, filterUser) => {
+  return searchQuery !== '' || filterPriority !== 'all' || filterUser !== 'all';
+};
+
+const getSelectClassName = (filterValue) => {
+  return `px-3 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none transition-all duration-200 ${
+    filterValue !== 'all' ? 'border-accent bg-accent/10' : ''
+  }`;
+};
+
+const getSkeletonColumnClassName = (col) => {
+  return `bg-gradient-to-b ${col.darkColor} ${col.lightColor} border ${col.darkBorder} ${col.lightBorder} rounded-2xl p-3 min-h-[300px]`;
+};
+
+const getColumnClassName = (col, isHighlighted) => {
+  return `bg-gradient-to-b ${col.darkColor} ${col.lightColor} border rounded-2xl p-3 min-h-[300px] transition-all duration-300 scroll-mt-[100px] ${
+    isHighlighted
+      ? `${col.darkBorder} ${col.lightBorder} shadow-[0_0_30px_rgba(0,212,255,0.3)] border-accent/50`
+      : `${col.darkBorder} ${col.lightBorder}`
+  }`;
+};
+
 const columns = [
   { id: 'todo', title: 'Yapilacak', darkColor: 'dark:from-blue-500/20 dark:to-blue-600/10', lightColor: 'from-blue-50 to-blue-100/50', darkBorder: 'dark:border-blue-500/30', lightBorder: 'border-blue-200', dotColor: 'bg-blue-500' },
   { id: 'in-progress', title: 'Devam Ediyor', darkColor: 'dark:from-yellow-500/20 dark:to-yellow-600/10', lightColor: 'from-yellow-50 to-yellow-100/50', darkBorder: 'dark:border-yellow-500/30', lightBorder: 'border-yellow-200', dotColor: 'bg-yellow-500' },
@@ -96,16 +130,9 @@ function KanbanBoard() {
     setHighlightColumn(null);
   };
 
-  const filteredTasks = tasks.filter((t) => {
-    const matchesSearch = searchQuery === '' ||
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesPriority = filterPriority === 'all' || t.priority === filterPriority;
-    const matchesUser = filterUser === 'all' || t.assigned_to === parseInt(filterUser);
-    return matchesSearch && matchesPriority && matchesUser;
-  });
+  const filteredTasks = filterTasks(tasks, searchQuery, filterPriority, filterUser);
 
-  const hasActiveFilters = searchQuery !== '' || filterPriority !== 'all' || filterUser !== 'all';
+  const hasActiveFilters = checkActiveFilters(searchQuery, filterPriority, filterUser);
 
   return (
     <div className="relative">
@@ -137,9 +164,7 @@ function KanbanBoard() {
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className={`px-3 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none transition-all duration-200 ${
-              filterPriority !== 'all' ? 'border-accent bg-accent/10' : ''
-            }`}
+            className={getSelectClassName(filterPriority)}
           >
             <option value="all" className="option-surface">Tum Oncelikler</option>
             <option value="critical" className="option-surface">Kritik</option>
@@ -150,9 +175,7 @@ function KanbanBoard() {
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            className={`px-3 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none transition-all duration-200 ${
-              filterUser !== 'all' ? 'border-accent bg-accent/10' : ''
-            }`}
+            className={getSelectClassName(filterUser)}
           >
             <option value="all" className="option-surface">Tum Kisiler</option>
             {kanbanUsers.map((u) => (
@@ -177,7 +200,7 @@ function KanbanBoard() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {columns.map((col) => (
-            <div key={col.id} className={`bg-gradient-to-b ${col.darkColor} ${col.lightColor} border ${col.darkBorder} ${col.lightBorder} rounded-2xl p-3 min-h-[300px]`}>
+            <div key={col.id} className={getSkeletonColumnClassName(col)}>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full surface-bg-strong animate-pulse" />
                 <div className="h-4 w-20 skeleton-shimmer rounded animate-pulse" />
@@ -211,11 +234,7 @@ function KanbanBoard() {
               <div
                 id={`kanban-col-${col.id}`}
                 key={col.id}
-                className={`bg-gradient-to-b ${col.darkColor} ${col.lightColor} border rounded-2xl p-3 min-h-[300px] transition-all duration-300 scroll-mt-[100px] ${
-                  isHighlighted
-                    ? `${col.darkBorder} ${col.lightBorder} shadow-[0_0_30px_rgba(0,212,255,0.3)] border-accent/50`
-                    : `${col.darkBorder} ${col.lightBorder}`
-                }`}
+                className={getColumnClassName(col, isHighlighted)}
                 onDragOver={(e) => handleDragOver(e, col.id)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, col.id)}
