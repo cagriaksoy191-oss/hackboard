@@ -1,4 +1,5 @@
 import React from 'react';
+import { getInitials } from '../lib/stringUtils';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import CountdownTimer from './CountdownTimer';
@@ -9,9 +10,7 @@ import BackupMenu from './BackupMenu';
 function Header({ toggleSidebar }) {
   const { user, logoutUser } = useUser();
   const { theme } = useTheme();
-  const initials = user?.name
-    ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-    : '??';
+  const initials = getInitials(user?.name);
 
   return (
     <header className="glass border-b border-theme px-3 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between sticky top-0 z-30 w-full shrink-0">

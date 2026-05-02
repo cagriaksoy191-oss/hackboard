@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getInitials } from '../lib/stringUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usersAPI } from '../lib/api';
 
@@ -142,7 +143,7 @@ function LoginScreen({ onLogin }) {
         ) : (
           <div className="flex flex-wrap justify-center gap-6 mb-8">
             {users.map((user, i) => {
-              const initials = user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+              const initials = getInitials(user.name);
               const isSelected = selectedUser?.id === user.id;
               return (
                 <motion.button

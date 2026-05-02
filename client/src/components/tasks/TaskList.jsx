@@ -1,4 +1,5 @@
 import React from 'react';
+import { getInitials } from '../../lib/stringUtils.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmptyState from '../EmptyState';
 
@@ -40,9 +41,7 @@ function TaskList({
     <div className="space-y-3">
       <AnimatePresence>
         {filteredTasks.map((task, i) => {
-          const initials = task.assigned_name
-            ? task.assigned_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-            : '??';
+          const initials = getInitials(task.assigned_name);
           const isDeletingThis = isDeleting === task.id;
           return (
             <motion.div
