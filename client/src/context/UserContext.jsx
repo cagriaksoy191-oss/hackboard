@@ -33,11 +33,20 @@ export function UserProvider({ children }) {
 
   const loginUser = (userData) => {
     setUser(userData);
+    localStorage.setItem('hackboard-user', JSON.stringify(userData));
+    // Force socket reconnect to pick up new auth header
+    import('../lib/socket').then(({ default: socket }) => {
+      socket.disconnect();
+      socket.connect();
+    });
   };
 
   const logoutUser = () => {
     setUser(null);
     localStorage.removeItem('hackboard-user');
+    import('../lib/socket').then(({ default: socket }) => {
+      socket.disconnect();
+    });
   };
 
   return (
