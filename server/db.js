@@ -610,13 +610,34 @@ export async function restoreBackupData(payload) {
     }
 
     const tablesToResetSequence = BACKUP_TABLES;
-    for (const tableName of tablesToResetSequence) {
-      if (!MAX_ID_QUERY_BY_TABLE[tableName]) { throw new Error("Invalid table name: " + tableName); }
-      const maxResult = tempDB.exec(MAX_ID_QUERY_BY_TABLE[tableName]);
-      const maxId = maxResult.length > 0 && maxResult[0].values.length > 0 && maxResult[0].values[0][0] != null ? maxResult[0].values[0][0] : 0;
-      tempDB.run('DELETE FROM sqlite_sequence WHERE name = ?', [tableName]);
-      if (maxId > 0) {
-        tempDB.run('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)', [tableName, maxId]);
+    if (tablesToResetSequence.length > 0) {
+      const unionQueryParts = [];
+      for (const t of tablesToResetSequence) {
+        if (!MAX_ID_QUERY_BY_TABLE[t]) { throw new Error("Invalid table name: " + t); }
+        unionQueryParts.push(`SELECT '${t}' as tableName, (${MAX_ID_QUERY_BY_TABLE[t]}) as maxId`);
+      }
+      const unionQuery = unionQueryParts.join(' UNION ALL ');
+
+      const result = tempDB.exec(unionQuery);
+
+      if (result.length > 0 && result[0].values.length > 0) {
+        const deleteQuery = `DELETE FROM sqlite_sequence WHERE name IN (${tablesToResetSequence.map(() => '?').join(', ')})`;
+        tempDB.run(deleteQuery, tablesToResetSequence);
+
+        const insertValues = [];
+        const insertParams = [];
+        for (const row of result[0].values) {
+          const tableName = row[0];
+          const maxId = row[1];
+          if (maxId != null && maxId > 0) {
+            insertValues.push('(?, ?)');
+            insertParams.push(tableName, maxId);
+          }
+        }
+
+        if (insertValues.length > 0) {
+          tempDB.run(`INSERT INTO sqlite_sequence (name, seq) VALUES ${insertValues.join(', ')}`, insertParams);
+        }
       }
     }
 
