@@ -13,13 +13,24 @@ const navItems = [
   { path: '/analytics', label: 'Analitik', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
 ];
 
+const getInitialDesktopState = () => {
+  if (typeof window !== 'undefined') return window.innerWidth >= 1024;
+  return false;
+};
+
+const getNavLinkClassName = (isActive) =>
+  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+    isActive
+      ? 'bg-accent/20 text-accent shadow-lg shadow-accent/10'
+      : 'text-secondary hover:text-primary hover-surface-bg'
+  }`;
+
+const getAvatarColor = (user) => user?.avatar_color || '#7c3aed';
+
 function Sidebar({ isOpen, toggle }) {
   const location = useLocation();
   const { user, logoutUser } = useUser();
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window !== 'undefined') return window.innerWidth >= 1024;
-    return false;
-  });
+  const [isDesktop, setIsDesktop] = useState(getInitialDesktopState);
 
   useEffect(() => {
     const handleResize = () => {
@@ -62,11 +73,7 @@ function Sidebar({ isOpen, toggle }) {
                 key={item.path}
                 to={item.path}
                 onClick={() => { if (!isDesktop) toggle(); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-accent/20 text-accent shadow-lg shadow-accent/10'
-                    : 'text-secondary hover:text-primary hover-surface-bg'
-                }`}
+                className={getNavLinkClassName(isActive)}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
@@ -82,7 +89,7 @@ function Sidebar({ isOpen, toggle }) {
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl surface-bg">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
+                style={{ backgroundColor: getAvatarColor(user) }}
               >
                 {initials}
               </div>
