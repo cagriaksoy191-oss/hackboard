@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getInitials } from '../lib/stringUtils';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tasksAPI, usersAPI } from '../lib/api';
@@ -190,7 +191,7 @@ function TaskDetail() {
               className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
               style={{ backgroundColor: task.avatar_color || '#7c3aed' }}
             >
-              {task.assigned_name?.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) || '??'}
+              {getInitials(task.assigned_name)}
             </div>
             <span className="text-sm text-secondary">{task.assigned_name || 'Atanmamis'}</span>
           </div>

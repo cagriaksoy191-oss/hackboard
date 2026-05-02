@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './ConfirmModal';
 import EditTaskModal from './EditTaskModal';
+import { getInitials } from '../lib/stringUtils';
 
 const priorityColors = {
   low: 'bg-blue-500/20 text-blue-500 dark:text-blue-400 border-blue-500/30',
@@ -17,13 +18,59 @@ const priorityLabels = {
   critical: 'Kritik',
 };
 
+function TaskProgress({ subtasksCompleted, subtasksTotal, progress }) {
+  if (subtasksTotal <= 0) return null;
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between text-xs text-secondary mb-1">
+        <span>Alt gorevler</span>
+        <span>{subtasksCompleted}/{subtasksTotal}</span>
+      </div>
+      <div className="w-full h-1.5 surface-bg-strong rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          className="h-full bg-gradient-to-r from-accent to-accentAlt rounded-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+function TaskAssignee({ task, initials }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <div
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
+            style={{ backgroundColor: task.assigned_name ? (task.avatar_color || '#7c3aed') : '#ef4444' }}
+          >
+            {initials}
+          </div>
+          {!task.assigned_name && (
+            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border border-red-800 flex items-center justify-center shadow-sm" title="Sahipsiz Gorev">
+              <span className="text-[10px] font-bold text-white leading-none">!</span>
+            </div>
+          )}
+        </div>
+        <span className={`text-xs ${!task.assigned_name ? 'text-red-400 font-medium' : 'text-secondary'}`}>
+          {task.assigned_name || 'Sahipsiz'}
+        </span>
+      </div>
+      {task.estimated_hours > 0 && (
+        <span className="text-xs text-tertiary">{task.estimated_hours}h</span>
+      )}
+    </div>
+  );
+}
+
 function TaskCard({ task, onDragStart, onDelete, onEdit }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const initials = task.assigned_name
-    ? task.assigned_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-    : '??';
+
+  const initials = getInitials(task.assigned_name);
 
   const subtasksCompleted = task.subtasks_completed || 0;
   const subtasksTotal = task.subtasks_total || 0;
@@ -82,45 +129,16 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
           <p className="text-xs text-secondary mb-3 line-clamp-2">{task.description}</p>
         )}
 
-        {subtasksTotal > 0 && (
-          <div className="mb-3">
-            <div className="flex justify-between text-xs text-secondary mb-1">
-              <span>Alt gorevler</span>
-              <span>{subtasksCompleted}/{subtasksTotal}</span>
-            </div>
-            <div className="w-full h-1.5 surface-bg-strong rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                className="h-full bg-gradient-to-r from-accent to-accentAlt rounded-full"
-              />
-            </div>
-          </div>
-        )}
+        <TaskProgress
+          subtasksCompleted={subtasksCompleted}
+          subtasksTotal={subtasksTotal}
+          progress={progress}
+        />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <div
-                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white"
-                style={{ backgroundColor: task.assigned_name ? (task.avatar_color || '#7c3aed') : '#ef4444' }}
-              >
-                {initials}
-              </div>
-              {!task.assigned_name && (
-                <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border border-red-800 flex items-center justify-center shadow-sm" title="Sahipsiz Gorev">
-                  <span className="text-[10px] font-bold text-white leading-none">!</span>
-                </div>
-              )}
-            </div>
-            <span className={`text-xs ${!task.assigned_name ? 'text-red-400 font-medium' : 'text-secondary'}`}>
-              {task.assigned_name || 'Sahipsiz'}
-            </span>
-          </div>
-          {task.estimated_hours > 0 && (
-            <span className="text-xs text-tertiary">{task.estimated_hours}h</span>
-          )}
-        </div>
+        <TaskAssignee
+          task={task}
+          initials={initials}
+        />
       </motion.div>
 
       <ConfirmModal
