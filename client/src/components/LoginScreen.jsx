@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getInitials } from '../lib/stringUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usersAPI } from '../lib/api';
+import AddUserModal from './login/AddUserModal';
+import EditUserModal from './login/EditUserModal';
 
 const THEME_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', 
@@ -35,7 +37,7 @@ function LoginScreen({ onLogin }) {
   }, []);
 
   const handleAddUser = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!formName || !formRole) return;
     
     let colorToUse = selectedColor;
@@ -61,7 +63,7 @@ function LoginScreen({ onLogin }) {
   };
 
   const handleEditUser = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!formName || !editingUser) return;
     await usersAPI.update(editingUser.id, { name: formName });
     setShowEditModal(false);
@@ -228,128 +230,32 @@ function LoginScreen({ onLogin }) {
       </motion.div>
 
       {/* Add User Modal */}
-      <AnimatePresence>
-        {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setShowAddModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative glass-strong rounded-2xl p-6 w-full max-w-sm"
-            >
-              <h2 className="text-xl font-bold text-white mb-4">Yeni Kullanici Ekle</h2>
-              <form onSubmit={handleAddUser} className="space-y-4">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Ad Soyad</label>
-                  <input
-                    type="text" required value={formName} onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
-                    placeholder="Ad Soyad"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Rol</label>
-                  <input
-                    type="text" required value={formRole} onChange={(e) => setFormRole(e.target.value)}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
-                    placeholder="Orn: Developer"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-2">Profil Rengi</label>
-                  <div className="flex flex-wrap gap-2">
-                    {THEME_COLORS.map(color => {
-                      const isUsed = users.some(u => u.avatar_color === color);
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          disabled={isUsed}
-                          onClick={() => setSelectedColor(color)}
-                          className={`relative overflow-hidden w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center ${isUsed ? 'cursor-not-allowed' : 'hover:scale-110'} ${selectedColor === color && !isUsed ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1a1a]' : ''}`}
-                          style={{ backgroundColor: color }}
-                          title={isUsed ? 'Bu renk baska bir kullanici tarafindan kullaniliyor' : 'Sec'}
-                        >
-                          {isUsed && (
-                            <>
-                              <div className="absolute inset-0 bg-black/50" />
-                              <div className="absolute w-[120%] h-[4px] bg-[#ff0000] shadow-sm -rotate-45 z-10" />
-                            </>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-2 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-colors">Iptal</button>
-                  <button type="submit" className="flex-1 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accentAlt transition-colors">Ekle</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <AddUserModal
+        show={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={() => handleAddUser()}
+        formName={formName}
+        setFormName={setFormName}
+        formRole={formRole}
+        setFormRole={setFormRole}
+        selectedColor={selectedColor}
+        setSelectedColor={setSelectedColor}
+        THEME_COLORS={THEME_COLORS}
+        users={users}
+      />
 
       {/* Edit User Modal */}
-      <AnimatePresence>
-        {showEditModal && editingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setShowEditModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative glass-strong rounded-2xl p-6 w-full max-w-sm"
-            >
-              {!showDeleteConfirm ? (
-                <>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-white">Kullanici Duzenle</h2>
-                    <button type="button" onClick={() => setShowDeleteConfirm(true)} className="text-red-400 hover:text-red-300 p-1 bg-red-400/10 hover:bg-red-400/20 rounded transition-colors" title="Kullaniciyi Sil">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                  </div>
-                  <form onSubmit={handleEditUser} className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">Yeni Ad</label>
-                      <input
-                        type="text" required value={formName} onChange={(e) => setFormName(e.target.value)}
-                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent"
-                        placeholder="Ad Soyad"
-                      />
-                    </div>
-                    <div className="flex gap-3 pt-2">
-                      <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-colors">Iptal</button>
-                      <button type="submit" className="flex-1 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accentAlt transition-colors">Kaydet</button>
-                    </div>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-red-400">Emin misiniz?</h2>
-                  </div>
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-300">
-                      <strong className="text-white">{editingUser.name}</strong> isimli kullaniciyi kalici olarak silmek istediginize emin misiniz? O kisiye ait gorevler sahipsiz kalacaktir.
-                    </p>
-                    <div className="flex gap-3 pt-2">
-                      <button type="button" onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-colors">Iptal</button>
-                      <button type="button" onClick={handleDeleteUser} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors">Evet, Sil</button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <EditUserModal
+        show={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onEdit={() => handleEditUser()}
+        onDelete={handleDeleteUser}
+        editingUser={editingUser}
+        formName={formName}
+        setFormName={setFormName}
+        showDeleteConfirm={showDeleteConfirm}
+        setShowDeleteConfirm={setShowDeleteConfirm}
+      />
     </div>
   );
 }
