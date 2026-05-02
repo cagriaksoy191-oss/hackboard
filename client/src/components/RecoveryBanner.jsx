@@ -4,6 +4,26 @@ import { backupAPI } from '../lib/api';
 import { useToast } from './Toast';
 import ConfirmModal from './ConfirmModal';
 
+function getRecoveryDetails(snapshot, serverHealth) {
+  const snapTotal = snapshot.meta?.totalRecords || 0;
+  const serverTotal = serverHealth.totalRecords || 0;
+  const snapDate = snapshot.exportedAt ? new Date(snapshot.exportedAt).toLocaleString("tr-TR") : "Bilinmiyor";
+  const serverLooksSeed = serverHealth.looksLikeSeedData || false;
+
+  const warningText = serverLooksSeed
+    ? "Sunucuda sadece ornek veri gorunuyor. Local snapshot'unuzda " + snapTotal + " kayit var. Geri yuklemek ister misiniz?"
+    : "Local snapshot sunucudan farkli veri iceriyor. Snapshot: " + snapTotal + " kayit (" + snapDate + "), Sunucu: " + serverTotal + " kayit.";
+
+  const tableSummary = snapshot.meta?.tableCounts
+    ? Object.entries(snapshot.meta.tableCounts)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => k + ': ' + v)
+        .join(', ')
+    : '';
+
+  return { snapTotal, serverTotal, snapDate, warningText, tableSummary };
+}
+
 function RecoveryBanner({ snapshot, serverHealth, onDismiss }) {
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -13,14 +33,7 @@ function RecoveryBanner({ snapshot, serverHealth, onDismiss }) {
     return null;
   }
 
-  const snapTotal = snapshot.meta?.totalRecords || 0;
-  const serverTotal = serverHealth.totalRecords || 0;
-  const snapDate = snapshot.exportedAt ? new Date(snapshot.exportedAt).toLocaleString("tr-TR") : "Bilinmiyor";
-  const serverLooksSeed = serverHealth.looksLikeSeedData || false;
-
-  const warningText = serverLooksSeed
-    ? "Sunucuda sadece ornek veri gorunuyor. Local snapshot'unuzda " + snapTotal + " kayit var. Geri yuklemek ister misiniz?"
-    : "Local snapshot sunucudan farkli veri iceriyor. Snapshot: " + snapTotal + " kayit (" + snapDate + "), Sunucu: " + serverTotal + " kayit.";
+  const { snapTotal, snapDate, warningText, tableSummary } = getRecoveryDetails(snapshot, serverHealth);
 
   const handleRestore = async () => {
     try {
@@ -35,13 +48,6 @@ function RecoveryBanner({ snapshot, serverHealth, onDismiss }) {
       setLoading(false);
     }
   };
-
-  const tableSummary = snapshot.meta?.tableCounts
-    ? Object.entries(snapshot.meta.tableCounts)
-        .filter(([, v]) => v > 0)
-        .map(([k, v]) => k + ': ' + v)
-        .join(', ')
-    : '';
 
   return (
     <>
