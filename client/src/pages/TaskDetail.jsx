@@ -9,6 +9,33 @@ import socket from '../lib/socket';
 import TaskTimer from '../components/TaskTimer';
 import ConfirmModal from '../components/ConfirmModal';
 
+
+const priorityColors = {
+  low: 'bg-blue-500/20 text-blue-400',
+  medium: 'bg-yellow-500/20 text-yellow-400',
+  high: 'bg-orange-500/20 text-orange-400',
+  critical: 'bg-red-500/20 text-red-400',
+};
+
+const statusLabels = {
+  todo: 'Yapilacak',
+  'in-progress': 'Devam Ediyor',
+  testing: 'Test',
+  done: 'Tamamlandi',
+};
+
+
+function calculateProgress(subtasks) {
+  if (!subtasks || subtasks.length === 0) return 0;
+  const completedCount = subtasks.filter((s) => s.is_completed).length;
+  return (completedCount / subtasks.length) * 100;
+}
+
+function checkIsOverBudget(task) {
+  if (!task) return false;
+  return task.estimated_hours > 0 && task.actual_hours > task.estimated_hours;
+}
+
 function TaskDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -135,23 +162,9 @@ function TaskDetail() {
 
   if (!task) return <div className="text-center py-20 text-secondary">Yukleniyor...</div>;
 
-  const priorityColors = {
-    low: 'bg-blue-500/20 text-blue-400',
-    medium: 'bg-yellow-500/20 text-yellow-400',
-    high: 'bg-orange-500/20 text-orange-400',
-    critical: 'bg-red-500/20 text-red-400',
-  };
 
-  const statusLabels = {
-    todo: 'Yapilacak',
-    'in-progress': 'Devam Ediyor',
-    testing: 'Test',
-    done: 'Tamamlandi',
-  };
-
-  const completedCount = subtasks.filter((s) => s.is_completed).length;
-  const progress = subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0;
-  const isOverBudget = task.estimated_hours > 0 && task.actual_hours > task.estimated_hours;
+  const progress = calculateProgress(subtasks);
+  const isOverBudget = checkIsOverBudget(task);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-4xl">
