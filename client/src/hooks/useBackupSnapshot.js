@@ -3,8 +3,53 @@ import { backupAPI } from '../lib/api.js';
 import socket from '../lib/socket.js';
 import { evaluateRecovery, DISMISS_KEY_PREFIX } from '../lib/recovery.js';
 
-const SNAPSHOT_KEY = 'hackboard-snapshot:v1';
-const MAX_SNAPSHOT_SIZE = 4 * 1024 * 1024;
+export const SNAPSHOT_KEY = 'hackboard-snapshot:v1';
+export const MAX_SNAPSHOT_SIZE = 4 * 1024 * 1024;
+
+export const AUTO_SNAPSHOT_EVENTS = [
+  'task:created',
+  'task:updated',
+  'task:moved',
+  'task:deleted',
+  'message:new',
+  'subtask:created',
+  'subtask:toggled',
+  'comment:added',
+  'activity:new',
+];
+
+export function getStoredSnapshot() {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function persistSnapshot(data) {
+  try {
+    const raw = JSON.stringify(data);
+    if (raw.length > MAX_SNAPSHOT_SIZE) {
+      return { saved: false, reason: 'too_large', size: raw.length };
+    }
+    localStorage.setItem(SNAPSHOT_KEY, raw);
+    return { saved: true, size: raw.length };
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      return { saved: false, reason: 'quota_exceeded' };
+    }
+    return { saved: false, reason: 'write_error' };
+  }
+}
+
+export function dismissRecoveryMark(healthFingerprint, snapFingerprint) {
+  if (healthFingerprint && snapFingerprint) {
+    const dismissKey = DISMISS_KEY_PREFIX + healthFingerprint + ':' + snapFingerprint;
+    localStorage.setItem(dismissKey, Date.now().toString());
+  }
+}
 
 export function useBackupSnapshot() {
   const [snapshot, setSnapshot] = useState(null);
@@ -15,32 +60,15 @@ export function useBackupSnapshot() {
   const serverHealthRef = useRef(null);
 
   const loadSnapshot = useCallback(() => {
-    try {
-      const raw = localStorage.getItem(SNAPSHOT_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
+    return getStoredSnapshot();
   }, []);
 
   const saveSnapshot = useCallback((data) => {
-    try {
-      const raw = JSON.stringify(data);
-      if (raw.length > MAX_SNAPSHOT_SIZE) {
-        return { saved: false, reason: 'too_large', size: raw.length };
-      }
-      localStorage.setItem(SNAPSHOT_KEY, raw);
-      if (isMountedRef.current) {
-        setSnapshot(data);
-      }
-      return { saved: true, size: raw.length };
-    } catch (e) {
-      if (e.name === 'QuotaExceededError') {
-        return { saved: false, reason: 'quota_exceeded' };
-      }
-      return { saved: false, reason: 'write_error' };
+    const result = persistSnapshot(data);
+    if (result.saved && isMountedRef.current) {
+      setSnapshot(data);
     }
+    return result;
   }, []);
 
   const fetchAndSaveSnapshot = useCallback(async () => {
@@ -69,10 +97,7 @@ export function useBackupSnapshot() {
   const dismissRecovery = useCallback(() => {
     const snap = loadSnapshot();
     const health = serverHealthRef.current;
-    if (snap?.meta?.fingerprint && health?.fingerprint) {
-      const dismissKey = DISMISS_KEY_PREFIX + health.fingerprint + ':' + snap.meta.fingerprint;
-      localStorage.setItem(dismissKey, Date.now().toString());
-    }
+    dismissRecoveryMark(health?.fingerprint, snap?.meta?.fingerprint);
     setShowRecovery(false);
   }, [loadSnapshot]);
 
@@ -120,20 +145,8 @@ export function useBackupSnapshot() {
   }, [loadSnapshot, fetchServerHealth, fetchAndSaveSnapshot]);
 
   useEffect(() => {
-    const events = [
-      'task:created',
-      'task:updated',
-      'task:moved',
-      'task:deleted',
-      'message:new',
-      'subtask:created',
-      'subtask:toggled',
-      'comment:added',
-      'activity:new',
-    ];
-
     const handlers = {};
-    for (const event of events) {
+    for (const event of AUTO_SNAPSHOT_EVENTS) {
       handlers[event] = () => {
         triggerAutoSnapshot();
       };
@@ -149,7 +162,7 @@ export function useBackupSnapshot() {
     window.addEventListener('hackboard-snapshot-updated', handleStorageSnapshot);
 
     return () => {
-      for (const event of events) {
+      for (const event of AUTO_SNAPSHOT_EVENTS) {
         socket.off(event, handlers[event]);
       }
       window.removeEventListener('hackboard-snapshot-updated', handleStorageSnapshot);
