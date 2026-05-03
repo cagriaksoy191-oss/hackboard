@@ -10,7 +10,7 @@ HackBoard is a real-time collaborative team management panel designed for hackat
 | Frontend | React 18 + Vite + TailwindCSS + Framer Motion |
 | Routing | React Router DOM v7 |
 | Backend | Node.js + Express.js (ES Modules) |
-| Database | SQLite via sql.js (in-memory, persisted to file) |
+| Database | **Production:** PostgreSQL (Supabase) via `pg` · **Local fallback:** SQLite via sql.js |
 | Real-time | Socket.IO (server) + socket.io-client (client) |
 | Charts | Recharts |
 | HTTP Client | Axios |
@@ -32,11 +32,12 @@ HackBoard is a real-time collaborative team management panel designed for hackat
 - Server stores `io` instance via `app.set('io', io)` for access in route handlers
 - Client listeners should always unregister with the same handler reference (`socket.off(event, handler)`)
 
-**Database:**
-- sql.js (SQLite compiled to WebAssembly) runs in-memory
-- Database is exported to `hackboard.db` file on every write operation
+**Database (Dual-Mode Adapter):**
+- `db-adapter.js` switches mode at startup based on the `DATABASE_URL` env var
+- **PostgreSQL mode** (`DATABASE_URL` set): `pg` driver connects to Supabase via connection pool (`max: 10`, `keepAlive: true`, 10s timeout, 3-retry cold-start). All SQL uses `?` placeholders; `db-pg.js` auto-converts to `$1, $2…` via `toPgParams()`. `RETURNING id` is auto-appended to INSERT statements internally. Data is durable and survives restarts.
+- **SQLite mode** (`DATABASE_URL` absent): `sql.js` runs in-memory with file export. Synchronous `prepare()` calls are wrapped in async shims for API parity.
 - Auto-seeded with sample data on first run (users, tasks, subtasks, comments, messages, activities, milestones)
-- WARNING: Data is lost on server restart in ephemeral environments (Render.com free tier)
+- `ON DELETE CASCADE` enforced at PG schema level for subtasks and comments; manual deletes kept in route code for SQLite compatibility
 
 **Theme System:**
 - Dark/light mode is driven by CSS custom properties in `client/src/index.css`
@@ -61,7 +62,9 @@ Hackathon/
 |-- .env.example                      # Environment variable template
 |-- server/
 |   |-- server.js                     # Express + Socket.IO server entry point
-|   |-- db.js                         # sql.js database init, save, prepare wrapper, export/restore helpers
+|   |-- db.js                         # sql.js database init, save, prepare wrapper (SQLite local fallback)
+|   |-- db-pg.js                      # PostgreSQL pool, ?→$N conversion, backup/restore/health (production)
+|   |-- db-adapter.js                 # Dual-mode switch: DATABASE_URL → PG, else → SQLite
 |   |-- seed.js                       # Initial sample data (runs once on empty DB)
 |   `-- routes/
 |       |-- tasks.js                  # Task CRUD, subtasks, comments APIs
@@ -122,71 +125,74 @@ Hackathon/
 
 ## Database Schema
 
+> **Note:** PG uses `SERIAL PRIMARY KEY` and `TIMESTAMPTZ DEFAULT NOW()`. SQLite uses `INTEGER PRIMARY KEY AUTOINCREMENT` and `DATETIME DEFAULT CURRENT_TIMESTAMP`. The adapter handles this transparently.
+
 ### users
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| id | SERIAL / INTEGER | PRIMARY KEY |
 | name | TEXT | NOT NULL |
 | role | TEXT | NOT NULL |
 | avatar_color | TEXT | NOT NULL DEFAULT '#7c3aed' |
 | is_online | INTEGER | NOT NULL DEFAULT 1 |
-| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| is_deleted | INTEGER | NOT NULL DEFAULT 0 |
+| created_at | TIMESTAMPTZ / DATETIME | DEFAULT NOW() |
 
 ### tasks
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| id | SERIAL / INTEGER | PRIMARY KEY |
 | title | TEXT | NOT NULL |
 | description | TEXT | DEFAULT '' |
-| status | TEXT | NOT NULL DEFAULT 'todo' |
-| priority | TEXT | NOT NULL DEFAULT 'medium' |
+| status | TEXT | NOT NULL DEFAULT 'todo' · CHECK (todo, in-progress, testing, done) |
+| priority | TEXT | NOT NULL DEFAULT 'medium' · CHECK (low, medium, high, critical) |
 | assigned_to | INTEGER | FK -> users(id) |
 | estimated_hours | REAL | DEFAULT 0 |
 | actual_hours | REAL | DEFAULT 0 |
-| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP |
-| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| created_at | TIMESTAMPTZ / DATETIME | DEFAULT NOW() |
+| updated_at | TIMESTAMPTZ / DATETIME | DEFAULT NOW() |
 
 ### subtasks
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| task_id | INTEGER | NOT NULL, FK -> tasks(id) |
+| id | SERIAL / INTEGER | PRIMARY KEY |
+| task_id | INTEGER | NOT NULL, FK -> tasks(id) ON DELETE CASCADE |
 | title | TEXT | NOT NULL |
 | is_completed | INTEGER | NOT NULL DEFAULT 0 |
 
 ### comments
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| task_id | INTEGER | NOT NULL, FK -> tasks(id) |
+| id | SERIAL / INTEGER | PRIMARY KEY |
+| task_id | INTEGER | NOT NULL, FK -> tasks(id) ON DELETE CASCADE |
 | user_id | INTEGER | NOT NULL, FK -> users(id) |
 | content | TEXT | NOT NULL |
-| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| created_at | TIMESTAMPTZ / DATETIME | DEFAULT NOW() |
 
 ### messages
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| id | SERIAL / INTEGER | PRIMARY KEY |
 | user_id | INTEGER | NOT NULL, FK -> users(id) |
 | content | TEXT | NOT NULL |
-| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| created_at | TIMESTAMPTZ / DATETIME | DEFAULT NOW() |
 
 ### activities
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| id | SERIAL / INTEGER | PRIMARY KEY |
 | user_id | INTEGER | FK -> users(id) |
 | action | TEXT | NOT NULL |
 | details | TEXT | NOT NULL |
-| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| created_at | TIMESTAMPTZ / DATETIME | DEFAULT NOW() |
 
 ### milestones
-| Column | Type | Constraints |
+| Column | Type (PG / SQLite) | Constraints |
 |--------|------|-------------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| id | SERIAL / INTEGER | PRIMARY KEY |
 | title | TEXT | NOT NULL |
 | description | TEXT | DEFAULT '' |
-| target_time | DATETIME | NOT NULL |
+| target_time | TIMESTAMPTZ / DATETIME | NOT NULL |
 | is_completed | INTEGER | NOT NULL DEFAULT 0 |
 
 ## API Endpoints
@@ -280,14 +286,14 @@ Hackathon/
 
 ## Key Decisions
 
-1. **sql.js over better-sqlite3** - Chosen for simplicity and file-based persistence. Trade-off: no concurrent write safety, data loss on restart in ephemeral environments.
+1. **Dual-mode adapter (pg + sql.js)** - Production uses Supabase PostgreSQL via `pg` driver for durable persistence. Local development falls back to sql.js when `DATABASE_URL` is absent. The adapter wraps synchronous SQLite calls in async shims so all route code uses the same `await prepare(…)` API regardless of mode.
 2. **Socket.IO for all real-time** - Single WebSocket connection handles all live updates. REST API used for initial data load and as fallback.
 3. **app.set('io', io)** - Express app carries the Socket.IO instance so route handlers can emit events without importing the server module.
 4. **Relative URLs for API/Socket** - `baseURL: '/api'` and `io('/')` ensure production compatibility when frontend and backend share the same origin.
 5. **localStorage for user/theme** - Simple persistence without auth complexity. Suitable for hackathon context.
 6. **Broadcast vs targeted notifications** - Messages use `io.emit` so everyone sees the same chat stream. Notification, typing, and timer events exclude the sender where that UX is appropriate.
 7. **409 Conflict for race conditions** - `updated_at` comparison prevents silent overwrites when two users edit the same task simultaneously.
-8. **Atomic restore via temp DB** - Import creates a temporary SQL.js database, writes all records, verifies counts, then swaps the global `db` reference. Failed imports leave the live DB untouched.
+8. **Atomic restore via transaction** - In PG mode, import uses a dedicated client with `BEGIN/COMMIT/ROLLBACK`. In SQLite mode, import uses a temp DB swap. Both verify record counts before committing.
 9. **Fingerprint excludes transient fields** - `users.is_online` is normalized to `0` before fingerprint computation. This prevents presence changes from triggering false-positive recovery banners. Export payload retains real `is_online` values.
 10. **Recovery is user-initiated, never automatic** - RecoveryBanner suggests restore but never applies it without explicit user confirmation through a two-step modal flow.
 11. **Multi-client sync via reload** - After restore, `backup:restored` socket event triggers `window.location.reload()` on all connected clients, ensuring no stale React state remains.
@@ -306,8 +312,8 @@ Hackathon/
 
 ## Known Limitations
 
-1. **SQLite data loss on restart** - Render.com free tier uses ephemeral filesystem. Database resets on each deploy/restart. Seed data auto-repopulates.
-2. **No concurrent write safety** - sql.js has no transaction locking. Simultaneous writes may cause the last writer to win.
+1. ~~**SQLite data loss on restart**~~ — **RESOLVED** (2026-05-03). Production now uses Supabase PostgreSQL. Data persists across Render.com restarts, deploys, and sleep cycles.
+2. ~~**No concurrent write safety**~~ — **RESOLVED** (2026-05-03). PostgreSQL provides full ACID transaction support. `ON DELETE CASCADE` and `CHECK` constraints enforce data integrity at the database level.
 3. **No authentication** - User selection is client-side only. No password or token-based auth.
 4. **Timer is per-client** - Timer state syncs on start/stop but does not show live countdown to other users.
 5. **Notifications from activities table** - Notifications are derived from the activities log, not a dedicated notifications table. Read state is client-side only.
@@ -322,6 +328,7 @@ Hackathon/
 | PORT | Server port number | 3001 | No |
 | NODE_ENV | Environment mode | development | No |
 | ALLOWED_ORIGINS | Comma-separated list of allowed CORS origins | http://localhost:5173,http://localhost:3001 | No |
+| DATABASE_URL | PostgreSQL connection string (Supabase Transaction Pooler, port 6543). When set → PG mode. When absent → SQLite fallback. | — | **Yes (production)** |
 
 ## How to Continue Development
 
@@ -342,6 +349,7 @@ Hackathon/
 ```bash
 npm run install:all   # Install all dependencies
 npm run dev           # Start both servers (client on 5173, server on 3001)
+# No DATABASE_URL needed — automatically uses SQLite fallback
 ```
 
 ### Render.com Deployment
@@ -354,12 +362,20 @@ npm run dev           # Start both servers (client on 5173, server on 3001)
 5. Environment Variables:
    - `NODE_ENV` = `production`
    - `ALLOWED_ORIGINS` = `https://your-app-name.onrender.com`
+   - `DATABASE_URL` = `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`
 6. Deploy
 
 Alternatively, Render.com auto-detects `render.yaml` for configuration.
 
 ### Production Architecture
 In production, Express serves the Vite-built static files. Both API and WebSocket share the same origin, so no CORS issues. The SPA fallback routes all non-API requests to `index.html`.
+
+### Database Architecture (Dual-Mode)
+- **Production (Render.com):** `DATABASE_URL` → `db-pg.js` → Supabase PostgreSQL (managed, durable, connection-pooled)
+- **Local Development:** No `DATABASE_URL` → `db-adapter.js` → `db.js` → sql.js SQLite (zero-config)
+- **Rollback:** Remove `DATABASE_URL` from Render env vars → instant SQLite fallback, zero code changes
+- **Cold Start Protection:** 3-retry with exponential backoff (2s, 4s), `keepAlive: true`, 10s connection timeout
+- **Supabase Project:** `udzokyspkshuktsifthj` · Region: `eu-central-1` · 7 tables with FK + CASCADE + CHECK constraints
 
 ## Changelog
 
@@ -456,3 +472,37 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 **Data Migration & Seed Normalization:**
 - Added a robust startup migration to `server/db.js` that automatically calculates the Euclidean distance in RGB space to map any legacy/custom user colors to the exact closest match within the new 20-color palette.
 - Updated `server/seed.js` and `server/routes/users.js` so that default/randomly assigned users strictly pull from the new 20-color pool, preventing bypasses during ephemeral deployments (e.g. Render).
+
+### 2026-05-03 - PostgreSQL Migration (sql.js → Supabase)
+
+**Motivasyon:** Render.com ephemeral disk yapısı nedeniyle sunucu her restart'ta tüm veriyi kaybediyordu. Kalıcı veritabanı göçü ile bu sorun kökten çözüldü.
+
+**Yeni Dosyalar:**
+- `server/db-pg.js` — PostgreSQL connection pool (`pg` driver), `?`→`$N` otomatik placeholder dönüşümü (`toPgParams`), async `prepare().run/get/all` API'si, `RETURNING id` auto-append, backup export/import/health (dedicated client transaction ile), cold start retry (3×backoff), `keepAlive`, 10s timeout
+- `server/db-adapter.js` — Dual-mode switch: `DATABASE_URL` varsa PG, yoksa SQLite. SQLite'ın senkron `prepare()` çağrılarını async wrapper'a sararak her iki modda aynı `await prepare(…)` API'sini sunar.
+
+**Güncellenen Dosyalar (11):**
+- `package.json` — `pg@^8.20.0` bağımlılığı eklendi
+- `.env.example` — `DATABASE_URL` dokümentasyonu eklendi
+- `server/server.js` — Tüm import'lar `db-adapter.js`'den, socket handler'lar async/await, graceful shutdown PG (`pool.end()`) / SQLite (`flushSave()`) ayrımı, `DB_MODE` startup log'da
+- `server/seed.js` — `db-adapter.js`'den import, `execRaw()` ile multi-row INSERT, async
+- `server/routes/tasks.js` — async/await + try/catch + adapter import, CASCADE manual delete korundu
+- `server/routes/users.js` — async/await + try/catch + adapter import
+- `server/routes/messages.js` — async/await + try/catch + adapter import
+- `server/routes/activities.js` — async/await + try/catch + adapter import
+- `server/routes/analytics.js` — async/await + `DB_MODE` conditional (`strftime` vs `EXTRACT(HOUR)`)
+- `server/routes/milestones.js` — async/await + try/catch + adapter import
+- `server/routes/notifications.js` — async/await + try/catch + adapter import
+- `server/routes/backup.js` — async/await + adapter import
+
+**Supabase Altyapısı:**
+- Proje: `udzokyspkshuktsifthj` (eu-central-1, free tier)
+- 7 tablo: users, tasks, subtasks, comments, messages, activities, milestones
+- `ON DELETE CASCADE` (subtasks, comments), `CHECK` constraints (status, priority)
+- Sequence reset (`setval`) backup restore sonrası
+
+**Doğrulama:**
+- Yerel SQLite fallback testi: `[db-adapter] Mode: SQLite (local fallback)` ✅
+- Render.com PG testi: `[db-adapter] Mode: PostgreSQL (Supabase)` ✅
+- Canlı veri kalıcılığı: Restart sonrası veri kaybolmuyor ✅
+- Frontend: Sıfır değişiklik, API kontratı korundu ✅
