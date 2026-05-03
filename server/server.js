@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { initDB, prepare, flushSave } from './db.js';
+import { initDB, prepare, flushSave, closePool, DB_MODE } from './db-adapter.js';
 import seed from './seed.js';
 
 import taskRoutes from './routes/tasks.js';
@@ -53,29 +53,31 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter);
 
 // Authentication middleware
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   // Allow all requests to /api/users to pass without authentication
   // so the login screen works
   if (req.originalUrl.startsWith('/api/users')) {
     return next();
   }
 
-  // Bypass backup paths since it seems the test doesn't mock users properly
-  // Or actually, let's secure everything else properly
-
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: Missing X-User-Id header' });
   }
 
-  // Check if user exists in database
-  const user = prepare('SELECT id FROM users WHERE id = ?').get(userId);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid User ID' });
-  }
+  try {
+    // Check if user exists in database
+    const user = await prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid User ID' });
+    }
 
-  req.user_id = userId;
-  next();
+    req.user_id = userId;
+    next();
+  } catch (err) {
+    console.error('Auth middleware error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 };
 
 app.use('/api', requireAuth);
@@ -98,7 +100,7 @@ const io = new Server(server, {
 app.set('io', io);
 
 await initDB();
-seed();
+await seed();
 
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
@@ -119,102 +121,137 @@ if (fs.existsSync(distPath)) {
   });
 }
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
-io.use((socket, next) => {
+
+io.use(async (socket, next) => {
   const userId = socket.handshake.auth.userId;
   if (!userId) {
     return next(new Error('Unauthorized: Missing userId in socket auth'));
   }
 
-  const user = prepare('SELECT id FROM users WHERE id = ?').get(userId);
-  if (!user) {
-    return next(new Error('Unauthorized: Invalid User ID'));
-  }
+  try {
+    const user = await prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return next(new Error('Unauthorized: Invalid User ID'));
+    }
 
-  socket.user_id = userId;
-  next();
+    socket.user_id = userId;
+    next();
+  } catch (err) {
+    next(new Error('Auth error: ' + err.message));
+  }
 });
 
 io.on('connection', (socket) => {
 
   console.info('Client connected:', socket.id);
 
-  socket.on('message:send', (data) => {
-    const result = prepare('INSERT INTO messages (user_id, content) VALUES (?, ?)').run(data.user_id, data.content);
-    const message = prepare(`
-      SELECT m.*, u.name, u.avatar_color
-      FROM messages m JOIN users u ON m.user_id = u.id WHERE m.id = ?
-    `).get(result.lastInsertRowid);
-    io.emit('message:new', message);
+  socket.on('message:send', async (data) => {
+    try {
+      const result = await prepare('INSERT INTO messages (user_id, content) VALUES (?, ?)').run(data.user_id, data.content);
+      const message = await prepare(`
+        SELECT m.*, u.name, u.avatar_color
+        FROM messages m JOIN users u ON m.user_id = u.id WHERE m.id = ?
+      `).get(result.lastInsertRowid);
+      io.emit('message:new', message);
 
-    const user = prepare('SELECT name FROM users WHERE id = ?').get(data.user_id);
-    const userName = user?.name || 'Unknown';
-    const truncatedContent = data.content.length > 50
-      ? `${data.content.substring(0, 50)}...`
-      : data.content;
+      const user = await prepare('SELECT name FROM users WHERE id = ?').get(data.user_id);
+      const userName = user?.name || 'Unknown';
+      const truncatedContent = data.content.length > 50
+        ? `${data.content.substring(0, 50)}...`
+        : data.content;
 
-    socket.broadcast.emit('notification:new', {
-      id: Date.now(),
-      type: 'message',
-      title: 'New Message',
-      message: `${userName}: ${truncatedContent}`,
-      senderId: data.user_id,
-      read: false,
-      created_at: new Date().toISOString(),
-    });
+      socket.broadcast.emit('notification:new', {
+        id: Date.now(),
+        type: 'message',
+        title: 'New Message',
+        message: `${userName}: ${truncatedContent}`,
+        senderId: data.user_id,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Socket message:send error:', err);
+    }
   });
 
-  socket.on('task:update', (data) => {
-    prepare(
-      'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(data.title, data.description, data.priority, data.assigned_to, data.estimated_hours, data.id);
-    const task = prepare(`
-      SELECT t.*, u.name as assigned_name, u.avatar_color
-      FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
-    `).get(data.id);
-    io.emit('task:updated', task);
+  socket.on('task:update', async (data) => {
+    try {
+      await prepare(
+        'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).run(data.title, data.description, data.priority, data.assigned_to, data.estimated_hours, data.id);
+      const task = await prepare(`
+        SELECT t.*, u.name as assigned_name, u.avatar_color
+        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
+      `).get(data.id);
+      io.emit('task:updated', task);
+    } catch (err) {
+      console.error('Socket task:update error:', err);
+    }
   });
 
   socket.on('task:move', async (data) => {
-    prepare('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(data.status, data.id);
-    const task = prepare(`
-      SELECT t.*, u.name as assigned_name, u.avatar_color
-      FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
-    `).get(data.id);
-    prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-      data.user_id || 1, 'moved', `Task "${task.title}" to ${data.status}`
-    );
-    io.emit('task:moved', task);
-    io.emit('activity:new', {
-      user_id: data.user_id || 1,
-      action: 'moved',
-      details: `Task "${task.title}" to ${data.status}`,
-      created_at: new Date().toISOString(),
-    });
+    try {
+      await prepare('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(data.status, data.id);
+      const task = await prepare(`
+        SELECT t.*, u.name as assigned_name, u.avatar_color
+        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
+      `).get(data.id);
+      await prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
+        data.user_id || 1, 'moved', `Task "${task.title}" to ${data.status}`
+      );
+      io.emit('task:moved', task);
+      io.emit('activity:new', {
+        user_id: data.user_id || 1,
+        action: 'moved',
+        details: `Task "${task.title}" to ${data.status}`,
+        created_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Socket task:move error:', err);
+    }
   });
 
-  socket.on('task:delete', (data) => {
-    prepare('DELETE FROM subtasks WHERE task_id = ?').run(data.id);
-    prepare('DELETE FROM comments WHERE task_id = ?').run(data.id);
-    prepare('DELETE FROM tasks WHERE id = ?').run(data.id);
-    prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-      data.user_id || 1, 'deleted', `Task deleted (id: ${data.id})`
-    );
-    io.emit('task:deleted', { id: data.id });
+  socket.on('task:delete', async (data) => {
+    try {
+      // Manual CASCADE for SQLite compat; PG ON DELETE CASCADE handles this too
+      await prepare('DELETE FROM subtasks WHERE task_id = ?').run(data.id);
+      await prepare('DELETE FROM comments WHERE task_id = ?').run(data.id);
+      await prepare('DELETE FROM tasks WHERE id = ?').run(data.id);
+      await prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
+        data.user_id || 1, 'deleted', `Task deleted (id: ${data.id})`
+      );
+      io.emit('task:deleted', { id: data.id });
+    } catch (err) {
+      console.error('Socket task:delete error:', err);
+    }
   });
 
   socket.on('timer:start', (data) => {
     socket.broadcast.emit('timer:start', data);
   });
 
-  socket.on('timer:stop', (data) => {
-    prepare('UPDATE tasks SET actual_hours = ? WHERE id = ?').run(data.actualHours, data.taskId);
-    socket.broadcast.emit('timer:stop', data);
+  socket.on('timer:stop', async (data) => {
+    try {
+      await prepare('UPDATE tasks SET actual_hours = ? WHERE id = ?').run(data.actualHours, data.taskId);
+      socket.broadcast.emit('timer:stop', data);
+    } catch (err) {
+      console.error('Socket timer:stop error:', err);
+    }
   });
 
-  socket.on('user:status', (data) => {
-    prepare('UPDATE users SET is_online = ? WHERE id = ?').run(data.is_online ? 1 : 0, data.user_id);
-    io.emit('user:status', data);
+  socket.on('user:status', async (data) => {
+    try {
+      await prepare('UPDATE users SET is_online = ? WHERE id = ?').run(data.is_online ? 1 : 0, data.user_id);
+      io.emit('user:status', data);
+    } catch (err) {
+      console.error('Socket user:status error:', err);
+    }
   });
 
   socket.on('typing:start', (data) => {
@@ -232,15 +269,21 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3001;
 
-// Graceful shutdown to ensure database is written to disk
+// Graceful shutdown
 async function gracefulShutdown(signal) {
   console.info(`\nReceived ${signal}. Shutting down gracefully...`);
   try {
-    console.info('Flushing pending database writes...');
-    await flushSave();
-    console.info('Database flushed successfully.');
+    if (DB_MODE === 'sqlite') {
+      console.info('Flushing pending database writes...');
+      await flushSave();
+      console.info('Database flushed successfully.');
+    } else {
+      console.info('Closing PostgreSQL connection pool...');
+      await closePool();
+      console.info('Pool closed successfully.');
+    }
   } catch (error) {
-    console.error('Error during database flush:', error);
+    console.error('Error during shutdown:', error);
   } finally {
     process.exit(0);
   }
@@ -250,6 +293,5 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 server.listen(PORT, () => {
-
-  console.info(`HackBoard server running on port ${PORT}`);
+  console.info(`HackBoard server running on port ${PORT} [${DB_MODE}]`);
 });

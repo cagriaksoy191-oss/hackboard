@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { buildExportPayload, restoreBackupData, getHealthSummary } from '../db.js';
+import { buildExportPayload, restoreBackupData, getHealthSummary } from '../db-adapter.js';
 
 const router = Router();
 
 let restoreLock = false;
 
-router.get('/export', (req, res) => {
+router.get('/export', async (req, res) => {
   try {
-    const payload = buildExportPayload();
+    const payload = await buildExportPayload();
     res.json(payload);
   } catch (error) {
     console.error('Backup export error:', error);
@@ -15,9 +15,9 @@ router.get('/export', (req, res) => {
   }
 });
 
-router.get('/health', (req, res) => {
+router.get('/health', async (req, res) => {
   try {
-    const summary = getHealthSummary();
+    const summary = await getHealthSummary();
     res.json(summary);
   } catch (error) {
     console.error('Backup health check error:', error);
