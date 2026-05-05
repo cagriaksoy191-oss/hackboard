@@ -1,4 +1,5 @@
-💡 What: KanbanBoard bileşenindeki `filterTasks` fonksiyonu `useMemo` hook'u ile sarmalandı.
-🎯 Why: Sürükle-bırak (`draggedTaskId`, `highlightColumn`) veya yanıp sönme efektleri (`pulseTaskId`) gibi filtreleme ile ilgisi olmayan state değişikliklerinde, tüm görev listesinin her render işleminde gereksiz yere baştan filtrelenmesini engellemek için.
-📊 Impact: Sürükle-bırak sırasında ve diğer bileşen içi etkileşimlerde render performansını artırır ve gereksiz işlemci yükünü azaltır.
-🔬 Measurement: Kanban panosunda çok sayıda görev varken sürükle-bırak işlemleri sırasında React DevTools profiler ile render süreleri kontrol edilebilir.
+🎨 Palette: Add htmlFor property to TaskForm labels
+
+💡 What: `client/src/components/TaskForm.jsx` bileşenindeki form `<label>` etiketlerine `htmlFor` özellikleri eklendi ve ilgili input, textarea ve select alanlarına `id` değerleri atandı.
+🎯 Why: Form alanlarında etiket ve input eşleştirmesi olmaması, ekran okuyucu kullanan kullanıcılar için erişilebilirlik sorunlarına yol açıyor ve fare/dokunmatik cihaz kullanıcılarının sadece metne tıklayarak odaklanabilmelerini engelliyor. Bu sayede UX daha bütünsel hale geliyor.
+♿ Accessibility: Form alanlarına `htmlFor` eklenmesi ekran okuyucu yazılımlarının ilgili alanları daha iyi desteklemesini sağlar ve tıklama hedefini büyütür.

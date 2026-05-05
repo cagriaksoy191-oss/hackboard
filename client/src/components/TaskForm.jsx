@@ -2,8 +2,9 @@ export default function TaskForm({ form, setForm, users, onSubmit, onCancel, sub
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-secondary mb-1">Baslik *</label>
+        <label htmlFor="task-title" className="block text-sm font-medium text-secondary mb-1">Baslik *</label>
         <input
+          id="task-title"
           type="text"
           required
           value={form.title}
@@ -14,8 +15,9 @@ export default function TaskForm({ form, setForm, users, onSubmit, onCancel, sub
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-secondary mb-1">Aciklama</label>
+        <label htmlFor="task-description" className="block text-sm font-medium text-secondary mb-1">Aciklama</label>
         <textarea
+          id="task-description"
           rows={3}
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -26,8 +28,9 @@ export default function TaskForm({ form, setForm, users, onSubmit, onCancel, sub
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Oncelik</label>
+          <label htmlFor="task-priority" className="block text-sm font-medium text-secondary mb-1">Oncelik</label>
           <select
+            id="task-priority"
             value={form.priority}
             onChange={(e) => setForm({ ...form, priority: e.target.value })}
             className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent transition-all duration-200"
@@ -40,8 +43,9 @@ export default function TaskForm({ form, setForm, users, onSubmit, onCancel, sub
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-secondary mb-1">Tahmini Sure (saat)</label>
+          <label htmlFor="task-estimated-hours" className="block text-sm font-medium text-secondary mb-1">Tahmini Sure (saat)</label>
           <input
+            id="task-estimated-hours"
             type="number"
             min="0"
             step="0.5"
@@ -54,8 +58,9 @@ export default function TaskForm({ form, setForm, users, onSubmit, onCancel, sub
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-secondary mb-1">Atanan Kisi</label>
+        <label htmlFor="task-assigned-to" className="block text-sm font-medium text-secondary mb-1">Atanan Kisi</label>
         <select
+          id="task-assigned-to"
           value={form.assigned_to}
           onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
           className="w-full px-4 py-2.5 input-surface border-theme rounded-xl focus:outline-none focus:border-accent transition-all duration-200"
