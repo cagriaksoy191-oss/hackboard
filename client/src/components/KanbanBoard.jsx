@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tasksAPI, usersAPI } from '../lib/api';
 import { useUser } from '../context/UserContext';
@@ -130,7 +130,8 @@ function KanbanBoard() {
     setHighlightColumn(null);
   };
 
-  const filteredTasks = filterTasks(tasks, searchQuery, filterPriority, filterUser);
+    // Memoize filtered tasks to prevent re-calculating on every render (e.g. during drag-and-drop)
+  const filteredTasks = useMemo(() => filterTasks(tasks, searchQuery, filterPriority, filterUser), [tasks, searchQuery, filterPriority, filterUser]);
 
   const hasActiveFilters = checkActiveFilters(searchQuery, filterPriority, filterUser);
 
