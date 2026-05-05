@@ -61,6 +61,54 @@ test('GET /notifications handles limit parameter', async () => {
     }
 });
 
+
+test('GET /notifications clamps negative limit to default', async () => {
+    await initDB();
+    await seed();
+
+    const app = express();
+    app.use(express.json());
+    app.use('/notifications', notificationsRouter);
+
+    const server = app.listen(0);
+    const port = server.address().port;
+
+    try {
+        const res = await fetch(`http://localhost:${port}/notifications?limit=-5`, { headers: { 'X-User-Id': '1' } });
+        const data = await res.json();
+
+        assert.strictEqual(res.status, 200);
+        assert.ok(Array.isArray(data));
+        // Default limit is 10, check it's not unbounded
+        assert.ok(data.length <= 10);
+    } finally {
+        server.close();
+    }
+});
+
+test('GET /notifications clamps excessively large limit to max', async () => {
+    await initDB();
+    await seed();
+
+    const app = express();
+    app.use(express.json());
+    app.use('/notifications', notificationsRouter);
+
+    const server = app.listen(0);
+    const port = server.address().port;
+
+    try {
+        const res = await fetch(`http://localhost:${port}/notifications?limit=500`, { headers: { 'X-User-Id': '1' } });
+        const data = await res.json();
+
+        assert.strictEqual(res.status, 200);
+        assert.ok(Array.isArray(data));
+        assert.ok(data.length <= 100);
+    } finally {
+        server.close();
+    }
+});
+
 test('PATCH /notifications/:id/read returns success true', async () => {
     await initDB();
     const app = express();

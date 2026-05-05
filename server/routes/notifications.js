@@ -5,7 +5,12 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    let limit = parseInt(req.query.limit);
+    if (isNaN(limit) || limit <= 0) {
+      limit = 10;
+    } else if (limit > 100) {
+      limit = 100;
+    }
     const notifications = await prepare(`
       SELECT a.*, u.name
       FROM activities a
