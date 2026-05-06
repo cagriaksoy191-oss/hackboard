@@ -18,6 +18,8 @@ function Header({ toggleSidebar }) {
         <button
           onClick={toggleSidebar}
           className="lg:hidden p-1.5 sm:p-2 rounded-lg hover-surface-bg text-secondary hover:text-primary transition-all duration-200 shrink-0"
+          aria-label="Menuyu Ac/Kapat"
+          title="Menuyu Ac/Kapat"
         >
           <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -51,6 +53,7 @@ function Header({ toggleSidebar }) {
               onClick={logoutUser}
               className="ml-0 p-1 sm:p-1.5 rounded-lg hover:bg-error/20 text-secondary hover:text-error transition-all duration-200 shrink-0"
               title="Cikis Yap"
+              aria-label="Cikis Yap"
             >
               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
