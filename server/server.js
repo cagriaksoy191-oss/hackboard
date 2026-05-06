@@ -55,8 +55,8 @@ app.use('/api', apiLimiter);
 // Authentication middleware
 const requireAuth = async (req, res, next) => {
   // Allow all requests to /api/users to pass without authentication
-  // so the login screen works
-  if (req.originalUrl.startsWith('/api/users')) {
+  // so the login screen works. Restrict to GET/POST to secure PUT/DELETE/PATCH.
+  if (req.originalUrl.startsWith('/api/users') && (req.method === 'GET' || req.method === 'POST')) {
     return next();
   }
 
