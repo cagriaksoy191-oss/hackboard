@@ -65,11 +65,17 @@ function KanbanBoard() {
     loadTasks();
     usersAPI.getAll().then((res) => setKanbanUsers(res.data)).catch(() => {});
 
-    const handleTaskMoved = () => loadTasks();
+    // ⚡ Bolt Optimization: Update tasks via local state mapped from socket event payload
+    // rather than refetching all tasks via tasksAPI.getAll(), reducing backend load and latency.
+    const handleTaskMoved = (updatedTask) => {
+      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    };
     const handleTaskDeleted = (data) => {
       setTasks((prev) => prev.filter((t) => t.id !== data.id));
     };
-    const handleTaskUpdated = () => loadTasks();
+    const handleTaskUpdated = (updatedTask) => {
+      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    };
     const handleTaskCreated = (newTask) => {
       setTasks((prev) => [newTask, ...prev]);
     };

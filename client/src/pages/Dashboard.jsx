@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { tasksAPI } from '../lib/api';
 import StatCard from '../components/StatCard';
@@ -60,31 +60,33 @@ const STAT_CARDS_CONFIG = [
 
 
 function Dashboard() {
-  const [stats, setStats] = useState({ total: 0, done: 0, inProgress: 0, todo: 0 });
-
-  const loadStats = () => {
-    tasksAPI.getAll().then((res) => {
-      setStats(calculateTaskStats(res.data));
-    });
-  };
+  const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
-    loadStats();
+    tasksAPI.getAll().then((res) => {
+      setTasks(res.data);
+    });
 
-    const handleTaskChange = () => loadStats();
+    // ⚡ Bolt Optimization: Calculate derived stats directly from cached task state on
+    // real-time events instead of forcing a full tasksAPI.getAll() fetch on every change.
+    const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);
+    const handleTaskUpdated = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    const handleTaskDeleted = (data) => setTasks((prev) => prev.filter((t) => t.id !== data.id));
 
-    socket.on('task:created', handleTaskChange);
-    socket.on('task:updated', handleTaskChange);
-    socket.on('task:moved', handleTaskChange);
-    socket.on('task:deleted', handleTaskChange);
+    socket.on('task:created', handleTaskCreated);
+    socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:moved', handleTaskUpdated);
+    socket.on('task:deleted', handleTaskDeleted);
 
     return () => {
-      socket.off('task:created', handleTaskChange);
-      socket.off('task:updated', handleTaskChange);
-      socket.off('task:moved', handleTaskChange);
-      socket.off('task:deleted', handleTaskChange);
+      socket.off('task:created', handleTaskCreated);
+      socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:moved', handleTaskUpdated);
+      socket.off('task:deleted', handleTaskDeleted);
     };
   }, []);
+
+  const stats = useMemo(() => calculateTaskStats(tasks), [tasks]);
 
   const scrollToKanban = (colId) => {
     const elId = colId === 'top' ? 'kanban-board-container' : `kanban-col-${colId}`;
