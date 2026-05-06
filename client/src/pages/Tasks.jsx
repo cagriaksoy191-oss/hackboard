@@ -37,18 +37,22 @@ function Tasks() {
       setLoading(false);
     });
 
+    // ⚡ Bolt Optimization: Update tasks via local state mapped from socket event payload
+    // rather than refetching all tasks via tasksAPI.getAll(), reducing backend load and latency.
     const handleTaskDeleted = (data) => setTasks((prev) => prev.filter((t) => t.id !== data.id));
     const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);
-    const handleTaskUpdated = () => tasksAPI.getAll().then((res) => setTasks(res.data));
+    const handleTaskUpdated = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
 
     socket.on('task:deleted', handleTaskDeleted);
     socket.on('task:created', handleTaskCreated);
     socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:moved', handleTaskUpdated);
 
     return () => {
       socket.off('task:deleted', handleTaskDeleted);
       socket.off('task:created', handleTaskCreated);
       socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:moved', handleTaskUpdated);
     };
   }, []);
 
