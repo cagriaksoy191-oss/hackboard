@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { initDB, prepare, flushSave, closePool, DB_MODE } from './db-adapter.js';
+import { initDB, prepare, flushSave, closePool, DB_MODE, VALID_STATUSES, VALID_PRIORITIES } from './db-adapter.js';
 import seed from './seed.js';
 
 import taskRoutes from './routes/tasks.js';
@@ -182,6 +182,10 @@ io.on('connection', (socket) => {
 
   socket.on('task:update', async (data) => {
     try {
+      if (data.priority && !VALID_PRIORITIES.includes(data.priority)) {
+        console.error(`Socket task:update error: Invalid priority "${data.priority}"`);
+        return;
+      }
       await prepare(
         'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
       ).run(data.title, data.description, data.priority, data.assigned_to, data.estimated_hours, data.id);
@@ -197,6 +201,10 @@ io.on('connection', (socket) => {
 
   socket.on('task:move', async (data) => {
     try {
+      if (data.status && !VALID_STATUSES.includes(data.status)) {
+        console.error(`Socket task:move error: Invalid status "${data.status}"`);
+        return;
+      }
       await prepare('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(data.status, data.id);
       const task = await prepare(`
         SELECT t.*, u.name as assigned_name, u.avatar_color
