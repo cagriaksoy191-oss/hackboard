@@ -54,30 +54,30 @@ app.use('/api', apiLimiter);
 
 // Authentication middleware
 const requireAuth = async (req, res, next) => {
+  const userId = req.headers['x-user-id'];
+
+  if (userId) {
+    try {
+      const user = await prepare('SELECT id FROM users WHERE id = ?').get(userId);
+      if (user) {
+        req.user_id = userId;
+      }
+    } catch (err) {
+      console.error('Auth middleware database error:', err);
+    }
+  }
+
   // Allow all requests to /api/users to pass without authentication
   // so the login screen works. Restrict to GET/POST to secure PUT/DELETE/PATCH.
   if (req.originalUrl.startsWith('/api/users') && (req.method === 'GET' || req.method === 'POST')) {
     return next();
   }
 
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized: Missing X-User-Id header' });
+  if (!req.user_id) {
+    return res.status(401).json({ error: 'Unauthorized: Missing or Invalid User ID' });
   }
 
-  try {
-    // Check if user exists in database
-    const user = await prepare('SELECT id FROM users WHERE id = ?').get(userId);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid User ID' });
-    }
-
-    req.user_id = userId;
-    next();
-  } catch (err) {
-    console.error('Auth middleware error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  next();
 };
 
 app.use('/api', requireAuth);

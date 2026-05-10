@@ -16,6 +16,16 @@ describe('Users API', () => {
 
     app = express();
     app.use(express.json());
+
+    // We must mock the requireAuth behavior that we added in server.js to test users.js properly
+    app.use((req, res, next) => {
+      const userId = req.headers['x-user-id'];
+      if (userId) {
+        req.user_id = userId;
+      }
+      next();
+    });
+
     app.use('/users', usersRouter);
 
     // Provide a dummy io object if any route uses it (users router doesn't currently, but good practice)
@@ -89,10 +99,10 @@ describe('Users API', () => {
 
     assert.strictEqual(res.status, 400, 'Expected status code 400');
     const data = await res.json();
-    assert.strictEqual(data.error, 'Name and role are required', 'Expected correct error message');
+    assert.strictEqual(data.error, 'Name is required', 'Expected correct error message');
   });
 
-  it('POST /users returns 400 when role is missing', async () => {
+  it('POST /users returns 400 when role is missing for authenticated users', async () => {
     const res = await fetch(`http://localhost:${port}/users`, {
       method: 'POST',
       headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
@@ -101,6 +111,32 @@ describe('Users API', () => {
 
     assert.strictEqual(res.status, 400, 'Expected status code 400');
     const data = await res.json();
-    assert.strictEqual(data.error, 'Name and role are required', 'Expected correct error message');
+    assert.strictEqual(data.error, 'Role is required', 'Expected correct error message');
+  });
+
+  it('POST /users strips role and sets to Guest for unauthenticated users', async () => {
+    const res = await fetch(`http://localhost:${port}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Hacker', role: 'Admin' })
+    });
+
+    assert.strictEqual(res.status, 201, 'Expected status code 201');
+    const data = await res.json();
+    assert.strictEqual(data.name, 'Hacker', 'Expected name to be set');
+    assert.strictEqual(data.role, 'Guest', 'Expected role to be stripped to Guest');
+  });
+
+  it('POST /users creates user with provided role for authenticated users', async () => {
+    const res = await fetch(`http://localhost:${port}/users`, {
+      method: 'POST',
+      headers: { 'X-User-Id': '1', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Auth User', role: 'Admin' })
+    });
+
+    assert.strictEqual(res.status, 201, 'Expected status code 201');
+    const data = await res.json();
+    assert.strictEqual(data.name, 'Auth User', 'Expected name to be set');
+    assert.strictEqual(data.role, 'Admin', 'Expected role to be used');
   });
 });
