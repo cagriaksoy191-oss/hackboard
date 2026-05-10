@@ -1,11 +1,29 @@
 import { Router } from 'express';
-import { buildExportPayload, restoreBackupData, getHealthSummary } from '../db-adapter.js';
+import { buildExportPayload, restoreBackupData, getHealthSummary, prepare } from '../db-adapter.js';
 
 const router = Router();
 
 let restoreLock = false;
 
-router.get('/export', async (req, res) => {
+
+const requireAdmin = async (req, res, next) => {
+  if (!req.user_id) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const user = await prepare('SELECT role FROM users WHERE id = ?').get(req.user_id);
+    if (!user || user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Forbidden: Admin access required' });
+    }
+    next();
+  } catch (err) {
+    console.error('Admin check error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+router.get('/export', requireAdmin, async (req, res) => {
   try {
     const payload = await buildExportPayload();
     res.json(payload);
@@ -25,7 +43,7 @@ router.get('/health', async (req, res) => {
   }
 });
 
-router.post('/import', async (req, res) => {
+router.post('/import', requireAdmin, async (req, res) => {
   if (restoreLock) {
     return res.status(409).json({ error: 'A restore operation is already in progress' });
   }
