@@ -23,11 +23,23 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, role, avatar_color } = req.body;
-    if (!name || !role) {
-      return res.status(400).json({ error: 'Name and role are required' });
+
+    // Require name
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
     }
+
+    // If authenticated, use the provided role (if any, otherwise fail).
+    // If unauthenticated, force the role to 'Guest' to prevent privilege escalation.
+    let finalRole = role;
+    if (!req.user_id) {
+      finalRole = 'Guest';
+    } else if (!finalRole) {
+      return res.status(400).json({ error: 'Role is required' });
+    }
+
     const color = avatar_color || avatarColors[Math.floor(Math.random() * avatarColors.length)];
-    const result = await prepare('INSERT INTO users (name, role, avatar_color, is_online) VALUES (?, ?, ?, 1)').run(name, role, color);
+    const result = await prepare('INSERT INTO users (name, role, avatar_color, is_online) VALUES (?, ?, ?, 1)').run(name, finalRole, color);
     const user = await prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     
     const io = req.app.get('io');
