@@ -160,15 +160,6 @@ function LoginScreen({ onLogin }) {
                       : 'border-white/10 hover:border-white/20'
                   }`}
                 >
-                  <button
-                    onClick={(e) => openEditModal(e, user)}
-                    className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Duzenle"
-                  >
-                    <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
                   <div className="relative inline-block mb-3">
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold text-white mx-auto"
