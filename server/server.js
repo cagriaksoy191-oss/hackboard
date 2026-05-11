@@ -6,6 +6,10 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-secret' : undefined);
+
 import { initDB, prepare, flushSave, closePool, DB_MODE, VALID_STATUSES, VALID_PRIORITIES } from './db-adapter.js';
 import seed from './seed.js';
 
@@ -54,27 +58,32 @@ app.use('/api', apiLimiter);
 
 // Authentication middleware
 const requireAuth = async (req, res, next) => {
-  const userId = req.headers['x-user-id'];
+  const authHeader = req.headers.authorization;
 
-  if (userId) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
     try {
-      const user = await prepare('SELECT id FROM users WHERE id = ?').get(userId);
-      if (user) {
-        req.user_id = userId;
+      const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+      if (decoded && decoded.userId) {
+        const user = await prepare('SELECT id FROM users WHERE id = ?').get(decoded.userId);
+        if (user) {
+          req.user_id = decoded.userId;
+        }
       }
     } catch (err) {
-      console.error('Auth middleware database error:', err);
+      console.error('Auth middleware token/db error:', err);
     }
   }
 
   // Allow all requests to /api/users to pass without authentication
   // so the login screen works. Restrict to GET/POST to secure PUT/DELETE/PATCH.
+  // /api/users/login is also a POST, so it's allowed
   if (req.originalUrl.startsWith('/api/users') && (req.method === 'GET' || req.method === 'POST')) {
     return next();
   }
 
   if (!req.user_id) {
-    return res.status(401).json({ error: 'Unauthorized: Missing or Invalid User ID' });
+    return res.status(401).json({ error: 'Unauthorized: Missing or Invalid Token' });
   }
 
   next();
@@ -129,18 +138,23 @@ app.use((err, req, res, next) => {
 
 
 io.use(async (socket, next) => {
-  const userId = socket.handshake.auth.userId;
-  if (!userId) {
-    return next(new Error('Unauthorized: Missing userId in socket auth'));
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Unauthorized: Missing token in socket auth'));
   }
 
   try {
-    const user = await prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    if (!decoded || !decoded.userId) {
+      return next(new Error('Unauthorized: Invalid Token payload'));
+    }
+
+    const user = await prepare('SELECT id FROM users WHERE id = ?').get(decoded.userId);
     if (!user) {
       return next(new Error('Unauthorized: Invalid User ID'));
     }
 
-    socket.user_id = userId;
+    socket.user_id = decoded.userId;
     next();
   } catch (err) {
     next(new Error('Auth error: ' + err.message));

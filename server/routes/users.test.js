@@ -123,8 +123,8 @@ describe('Users API', () => {
 
     assert.strictEqual(res.status, 201, 'Expected status code 201');
     const data = await res.json();
-    assert.strictEqual(data.name, 'Hacker', 'Expected name to be set');
-    assert.strictEqual(data.role, 'Guest', 'Expected role to be stripped to Guest');
+    assert.strictEqual(data.user.name, 'Hacker', 'Expected name to be set');
+    assert.strictEqual(data.user.role, 'Guest', 'Expected role to be stripped to Guest');
   });
 
   it('POST /users creates user with provided role for authenticated users', async () => {
@@ -136,7 +136,37 @@ describe('Users API', () => {
 
     assert.strictEqual(res.status, 201, 'Expected status code 201');
     const data = await res.json();
-    assert.strictEqual(data.name, 'Auth User', 'Expected name to be set');
-    assert.strictEqual(data.role, 'Admin', 'Expected role to be used');
+    assert.strictEqual(data.user.name, 'Auth User', 'Expected name to be set');
+    assert.strictEqual(data.user.role, 'Admin', 'Expected role to be used');
+  });
+
+  it('POST /users/login returns 400 when userId is missing', async () => {
+    const res = await fetch(`http://localhost:${port}/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    assert.strictEqual(res.status, 400);
+  });
+
+  it('POST /users/login returns 401 when userId is invalid', async () => {
+    const res = await fetch(`http://localhost:${port}/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 9999 })
+    });
+    assert.strictEqual(res.status, 401);
+  });
+
+  it('POST /users/login returns user and token when userId is valid', async () => {
+    const res = await fetch(`http://localhost:${port}/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 1 })
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.user.id, 1);
+    assert.ok(data.token);
   });
 });

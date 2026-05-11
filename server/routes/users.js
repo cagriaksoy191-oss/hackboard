@@ -1,5 +1,10 @@
 import { Router } from 'express';
 import { prepare } from '../db-adapter.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-secret' : undefined);
+
+
 
 const router = Router();
 
@@ -9,6 +14,26 @@ const avatarColors = [
   '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', 
   '#ec4899', '#f43f5e', '#64748b', '#737373', '#a1a1aa'
 ];
+
+
+router.post('/login', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    const user = await prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user || user.is_deleted) {
+      return res.status(401).json({ error: 'Invalid user' });
+    }
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ user, token });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -45,7 +70,10 @@ router.post('/', async (req, res) => {
     const io = req.app.get('io');
     if (io) io.emit('user:created', user);
 
-    res.status(201).json(user);
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    res.status(201).json({ user, token });
+
   } catch (err) {
     console.error('User create error:', err);
     res.status(500).json({ error: 'Internal server error' });
