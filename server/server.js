@@ -80,9 +80,8 @@ const requireAuth = async (req, res, next) => {
   }
 
   // Allow all requests to /api/users to pass without authentication
-  // so the login screen works. Restrict to GET/POST to secure PUT/DELETE/PATCH.
-  // /api/users/login is also a POST, so it's allowed
-  if (req.originalUrl.startsWith('/api/users') && (req.method === 'GET' || req.method === 'POST')) {
+  // so the login screen works. This allows creating, editing, and deleting characters before login.
+  if (req.originalUrl.startsWith('/api/users')) {
     return next();
   }
 
