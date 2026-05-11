@@ -5,20 +5,27 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const userStr = localStorage.getItem('hackboard-user');
-  if (userStr) {
-    try {
-      const user = JSON.parse(userStr);
-      if (user && user.id) {
-        config.headers['X-User-Id'] = user.id.toString();
-      }
-    } catch (e) {
-      console.error('Error parsing user from localStorage', e);
-    }
+  const token = localStorage.getItem('hackboard-token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });
 
+
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('hackboard-token');
+      localStorage.removeItem('hackboard-user');
+      // Dispatch custom event to trigger app-wide logout state or redirect
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const tasksAPI = {
   getAll: () => api.get('/tasks'),
@@ -34,6 +41,7 @@ export const tasksAPI = {
 };
 
 export const usersAPI = {
+  login: (userId) => api.post('/users/login', { userId }),
   getAll: () => api.get('/users'),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
