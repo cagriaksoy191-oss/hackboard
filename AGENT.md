@@ -66,6 +66,16 @@ Hackathon/
 |   |-- db-pg.js                      # PostgreSQL pool, ?→$N conversion, backup/restore/health (production)
 |   |-- db-adapter.js                 # Dual-mode switch: DATABASE_URL → PG, else → SQLite
 |   |-- seed.js                       # Initial sample data (runs once on empty DB)
+|   |-- migrate.js                    # Dual-mode migration runner (reads SQL from migrations/)
+|   |-- auth/
+|   |   |-- password.js               # scrypt-based password hashing and verification
+|   |   |-- tokens.js                 # JWT access/refresh token generation, rotation, revocation
+|   |   `-- guards.js                 # requireAuth, requireTenant, requireRole, legacyAuth middleware
+|   |-- migrations/
+|   |   |-- 001_multi_tenant_tables.sql   # organizations, workspaces, memberships, sprints, channels, etc.
+|   |   |-- 002_alter_existing_tables.sql # Multi-tenant + auth + RAG columns on existing tables
+|   |   |-- 003_seed_default_org.sql      # Default org, workspace, workflow stages, channel
+|   |   `-- 004_backfill_tenant_data.sql  # Assign org_id/workspace_id to existing records
 |   `-- routes/
 |       |-- tasks.js                  # Task CRUD, subtasks, comments APIs
 |       |-- users.js                  # User list and online status API
@@ -74,7 +84,10 @@ Hackathon/
 |       |-- analytics.js              # Dashboard analytics aggregation API
 |       |-- milestones.js             # Milestone CRUD API
 |       |-- notifications.js          # Notification list API (derived from activities)
-|       `-- backup.js                 # Export/import/health backup APIs with atomic restore
+|       |-- backup.js                 # Export/import/health backup APIs with atomic restore
+|       `-- v1/
+|           |-- index.js              # API v1 route aggregator
+|           `-- auth.js               # v1 auth: register, login, refresh, logout, legacy-login, set-password
 `-- client/
     |-- package.json                  # Client package: React deps + build scripts
     |-- vite.config.js                # Vite config with proxy, manualChunks, and build optimization
@@ -506,3 +519,31 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - Render.com PG testi: `[db-adapter] Mode: PostgreSQL (Supabase)` ✅
 - Canlı veri kalıcılığı: Restart sonrası veri kaybolmuyor ✅
 - Frontend: Sıfır değişiklik, API kontratı korundu ✅
+
+### 2026-05-20 - Phase 1: Multi-Tenancy Foundation & Auth Architecture
+
+**Motivasyon:** HackBoard'u hackathon-seviyesinden kurumsal platforma dönüştürmek için temel altyapı: çok kiracılı (multi-tenant) veri izolasyonu, gerçek kimlik doğrulama (e-posta/şifre), rol bazlı erişim kontrolü (RBAC) ve SQL migration altyapısı.
+
+**Yeni Dizinler ve Dosyalar:**
+- `server/auth/password.js` — Node.js `crypto.scrypt` tabanlı şifre hash/doğrulama (bcrypt native addon sorunlarını önler)
+- `server/auth/tokens.js` — JWT access token (15dk) + refresh token (7gün, DB'de hashli, rotation destekli) yönetimi
+- `server/auth/guards.js` — 4 middleware: `requireAuth` (JWT doğrulama), `requireTenant` (org context çözümleme + üyelik kontrolü), `requireRole` (RBAC), `legacyAuth` (geriye dönük uyum)
+- `server/migrate.js` — Dual-mode migration runner: `server/migrations/*.sql` dosyalarını sırayla okur, statement bazlı çalıştırır, `_migrations` tablosunda takip eder, ALTER TABLE duplicate column hatalarını idempotent şekilde atlar
+- `server/migrations/001_multi_tenant_tables.sql` — organizations, workspaces, org_memberships, tags, task_tags, sprints, workflow_stages, channels, refresh_tokens tabloları
+- `server/migrations/002_alter_existing_tables.sql` — Mevcut tablolara org_id, workspace_id, email, password_hash, sprint_id, workflow_stage_id, content_type, embedding_status, version kolonları
+- `server/migrations/003_seed_default_org.sql` — Varsayılan organizasyon, workspace, workflow stages (mevcut 4 Kanban kolonu), default chat kanalı
+- `server/migrations/004_backfill_tenant_data.sql` — Mevcut verilere org_id=1, workspace_id=1 atanması, task status → workflow_stage_id eşlenmesi
+- `server/routes/v1/index.js` — API v1 route toplayıcısı
+- `server/routes/v1/auth.js` — `POST register/login/refresh/logout/legacy-login/set-password` endpoint'leri
+
+**Güncellenen Dosyalar:**
+- `server/server.js` — Inline JWT_SECRET ve requireAuth middleware kaldırıldı → `auth/guards.js`'den `legacyAuth` import edildi. Migration runner (`runMigrations`) ve membership backfill (`backfillMemberships`) DB init sonrası çağrılıyor. Socket.IO auth `verifyAccessToken` kullanıyor. Socket bağlantısında `socket.join(`tenant:${orgId}`)` ile room-based izolasyon eklendi. v1 route'ları `/api/v1` prefix'ine mount edildi.
+- `server/routes/users.js` — `jwt` import kaldırıldı → `auth/tokens.js`'den `generateAccessToken` import edildi. Login ve user create'te token üretimi `generateAccessToken` ile yapılıyor. Yeni kullanıcılar otomatik olarak default org'a üye yapılıyor.
+
+**Mimari Kararlar:**
+- Multi-tenancy: Shared database + `tenant_id` kolon izolasyonu (ADR-001)
+- Auth: E-posta/şifre + JWT access/refresh token çifti (ADR-002)
+- Şifre hash: `crypto.scrypt` (platform-bağımsız, native addon gereksiz)
+- Migration: Idempotent SQL (duplicate column/table hataları atlanır)
+- Geriye dönük uyum: Eski `/api` route'ları `legacyAuth` ile korunuyor; yeni `/api/v1` route'ları `requireAuth + requireTenant` kullanıyor
+- Room-based Socket.IO: Her bağlantıda `tenant:{orgId}` odasına otomatik katılım

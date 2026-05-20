@@ -1,12 +1,6 @@
 import { Router } from 'express';
 import { prepare } from '../db-adapter.js';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? undefined : 'dev-secret');
-if (!JWT_SECRET) {
-  console.error("FATAL ERROR: JWT_SECRET is not defined.");
-  process.exit(1);
-}
+import { generateAccessToken, generateRefreshToken } from '../auth/tokens.js';
 
 
 
@@ -31,7 +25,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid user' });
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    // Get org membership for token
+    const membership = await prepare('SELECT org_id FROM org_memberships WHERE user_id = ? ORDER BY joined_at LIMIT 1').get(user.id);
+    const token = generateAccessToken({ userId: user.id, orgId: membership?.org_id || null });
     res.json({ user, token });
   } catch (err) {
     console.error('Login error:', err);
@@ -75,7 +71,20 @@ router.post('/', async (req, res) => {
     if (io) io.emit('user:created', user);
 
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    // Get or auto-assign org membership
+    const membership = await prepare('SELECT org_id FROM org_memberships WHERE user_id = ? ORDER BY joined_at LIMIT 1').get(user.id);
+    let orgId = membership?.org_id || null;
+
+    // If no membership, join default org
+    if (!orgId) {
+      const defaultOrg = await prepare('SELECT id FROM organizations WHERE slug = ?').get('default');
+      if (defaultOrg) {
+        await prepare('INSERT INTO org_memberships (org_id, user_id, role) VALUES (?, ?, ?)').run(defaultOrg.id, user.id, 'member');
+        orgId = defaultOrg.id;
+      }
+    }
+
+    const token = generateAccessToken({ userId: user.id, orgId });
     res.status(201).json({ user, token });
 
   } catch (err) {

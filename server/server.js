@@ -6,16 +6,12 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? undefined : 'dev-secret');
-if (!JWT_SECRET) {
-  console.error("FATAL ERROR: JWT_SECRET is not defined.");
-  process.exit(1);
-}
 
 import { initDB, prepare, flushSave, closePool, DB_MODE, VALID_STATUSES, VALID_PRIORITIES } from './db-adapter.js';
 import seed from './seed.js';
+import { runMigrations, backfillMemberships } from './migrate.js';
+import { legacyAuth } from './auth/guards.js';
+import { verifyAccessToken } from './auth/tokens.js';
 
 import taskRoutes from './routes/tasks.js';
 import userRoutes from './routes/users.js';
@@ -25,6 +21,7 @@ import analyticsRoutes from './routes/analytics.js';
 import milestoneRoutes from './routes/milestones.js';
 import notificationRoutes from './routes/notifications.js';
 import backupRoutes from './routes/backup.js';
+import v1Routes from './routes/v1/index.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -60,39 +57,10 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 
-// Authentication middleware
-const requireAuth = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-      if (decoded && decoded.userId) {
-        const user = await prepare('SELECT id FROM users WHERE id = ?').get(decoded.userId);
-        if (user) {
-          req.user_id = decoded.userId;
-        }
-      }
-    } catch (err) {
-      console.error('Auth middleware token/db error:', err);
-    }
-  }
-
-  // Allow all requests to /api/users to pass without authentication
-  // so the login screen works. This allows creating, editing, and deleting characters before login.
-  if (req.originalUrl.startsWith('/api/users')) {
-    return next();
-  }
-
-  if (!req.user_id) {
-    return res.status(401).json({ error: 'Unauthorized: Missing or Invalid Token' });
-  }
-
-  next();
-};
-
-app.use('/api', requireAuth);
+// Authentication middleware (legacy routes use legacyAuth from auth/guards.js)
+// v1 routes handle their own auth via requireAuth + requireTenant
+app.use('/api/v1', v1Routes);
+app.use('/api', legacyAuth);
 
 
 const io = new Server(server, {
@@ -112,7 +80,9 @@ const io = new Server(server, {
 app.set('io', io);
 
 await initDB();
+await runMigrations();
 await seed();
+await backfillMemberships();
 
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
@@ -147,7 +117,7 @@ io.use(async (socket, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    const decoded = verifyAccessToken(token);
     if (!decoded || !decoded.userId) {
       return next(new Error('Unauthorized: Invalid Token payload'));
     }
@@ -158,6 +128,13 @@ io.use(async (socket, next) => {
     }
 
     socket.user_id = decoded.userId;
+    socket.org_id = decoded.orgId;
+
+    // Join tenant room for isolated broadcasts
+    if (decoded.orgId) {
+      socket.join(`tenant:${decoded.orgId}`);
+    }
+
     next();
   } catch (err) {
     next(new Error('Auth error: ' + err.message));
