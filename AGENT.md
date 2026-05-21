@@ -528,7 +528,7 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - `server/auth/password.js` — Node.js `crypto.scrypt` tabanlı şifre hash/doğrulama (bcrypt native addon sorunlarını önler)
 - `server/auth/tokens.js` — JWT access token (15dk) + refresh token (7gün, DB'de hashli, rotation destekli) yönetimi
 - `server/auth/guards.js` — 4 middleware: `requireAuth` (JWT doğrulama), `requireTenant` (org context çözümleme + üyelik kontrolü), `requireRole` (RBAC), `legacyAuth` (geriye dönük uyum)
-- `server/migrate.js` — Dual-mode migration runner: `server/migrations/*.sql` dosyalarını sırayla okur, statement bazlı çalıştırır, `_migrations` tablosunda takip eder, ALTER TABLE duplicate column hatalarını idempotent şekilde atlar
+- `server/migrate.js` — Dual-mode migration runner: `server/migrations/*.sql` dosyalarını sırayla okur, statement bazlı çalıştırır, `_migrations` tablosunda takip eder, ALTER TABLE duplicate column hatalarını idempotent şekilde atlar. Ayrıca PostgreSQL modunda çalışırken SQLite DDL sözdizimini (AUTOINCREMENT -> SERIAL, DATETIME -> TIMESTAMPTZ vb.) dinamik olarak PostgreSQL lehçesine dönüştürür.
 - `server/migrations/001_multi_tenant_tables.sql` — organizations, workspaces, org_memberships, tags, task_tags, sprints, workflow_stages, channels, refresh_tokens tabloları
 - `server/migrations/002_alter_existing_tables.sql` — Mevcut tablolara org_id, workspace_id, email, password_hash, sprint_id, workflow_stage_id, content_type, embedding_status, version kolonları
 - `server/migrations/003_seed_default_org.sql` — Varsayılan organizasyon, workspace, workflow stages (mevcut 4 Kanban kolonu), default chat kanalı

@@ -23,13 +23,23 @@ const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
  * Ensure the _migrations tracking table exists.
  */
 async function ensureMigrationsTable() {
-  await execRaw(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  if (DB_MODE === 'postgresql') {
+    await execRaw(`
+      CREATE TABLE IF NOT EXISTS _migrations (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        applied_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+  } else {
+    await execRaw(`
+      CREATE TABLE IF NOT EXISTS _migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  }
 }
 
 /**
@@ -70,7 +80,15 @@ function splitStatements(sql) {
  */
 async function execStatement(statement) {
   try {
-    await execRaw(statement);
+    let stmt = statement;
+    if (DB_MODE === 'postgresql') {
+      stmt = stmt
+        .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY')
+        .replace(/DATETIME DEFAULT CURRENT_TIMESTAMP/gi, 'TIMESTAMPTZ DEFAULT NOW()')
+        .replace(/DATETIME/gi, 'TIMESTAMPTZ')
+        .replace(/AUTOINCREMENT/gi, '');
+    }
+    await execRaw(stmt);
     return { success: true };
   } catch (err) {
     const msg = err.message || '';
