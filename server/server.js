@@ -141,6 +141,22 @@ io.use(async (socket, next) => {
     // Join tenant room for isolated broadcasts
     if (decoded.orgId) {
       socket.join(`tenant:${decoded.orgId}`);
+
+      try {
+        // Auto-join workspaces under this organization to fix real-time updates!
+        const workspaces = await prepare('SELECT id FROM workspaces WHERE org_id = ?').all(decoded.orgId);
+        for (const ws of workspaces) {
+          socket.join(`workspace:${ws.id}`);
+
+          // Auto-join all channels of these workspaces as well for instant chat sync!
+          const channels = await prepare('SELECT id FROM channels WHERE workspace_id = ?').all(ws.id);
+          for (const ch of channels) {
+            socket.join(`channel:${ch.id}`);
+          }
+        }
+      } catch (err) {
+        console.error('Socket room auto-join error:', err);
+      }
     }
 
     next();
