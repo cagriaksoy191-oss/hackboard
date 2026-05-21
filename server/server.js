@@ -84,14 +84,22 @@ await runMigrations();
 await seed();
 await backfillMemberships();
 
-app.use('/api/tasks', taskRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/activities', activityRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/milestones', milestoneRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/backup', backupRoutes);
+// Legacy routes with deprecation headers (migrate to /api/v1)
+const deprecationMiddleware = (req, res, next) => {
+  res.set('X-API-Deprecated', 'true');
+  res.set('X-API-Migration', 'Use /api/v1/ prefix for new API');
+  res.set('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString());
+  next();
+};
+
+app.use('/api/tasks', deprecationMiddleware, taskRoutes);
+app.use('/api/users', deprecationMiddleware, userRoutes);
+app.use('/api/messages', deprecationMiddleware, messageRoutes);
+app.use('/api/activities', deprecationMiddleware, activityRoutes);
+app.use('/api/analytics', deprecationMiddleware, analyticsRoutes);
+app.use('/api/milestones', deprecationMiddleware, milestoneRoutes);
+app.use('/api/notifications', deprecationMiddleware, notificationRoutes);
+app.use('/api/backup', deprecationMiddleware, backupRoutes);
 
 const distPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(distPath)) {
@@ -143,16 +151,51 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket) => {
 
-  console.info('Client connected:', socket.id);
+  console.info('Client connected:', socket.id, `[tenant:${socket.org_id || 'none'}]`);
 
+  // ── Workspace Room Management ──
+  socket.on('workspace:join', (data) => {
+    if (data.workspaceId) {
+      socket.join(`workspace:${data.workspaceId}`);
+      console.info(`Socket ${socket.id} joined workspace:${data.workspaceId}`);
+    }
+    if (data.channelId) {
+      socket.join(`channel:${data.channelId}`);
+    }
+  });
+
+  socket.on('workspace:leave', (data) => {
+    if (data.workspaceId) {
+      socket.leave(`workspace:${data.workspaceId}`);
+    }
+    if (data.channelId) {
+      socket.leave(`channel:${data.channelId}`);
+    }
+  });
+
+  // Helper: get the best room for broadcast
+  function getTenantRoom() {
+    return socket.org_id ? `tenant:${socket.org_id}` : null;
+  }
+
+  // ── Messages ──
   socket.on('message:send', async (data) => {
     try {
-      const result = await prepare('INSERT INTO messages (user_id, content) VALUES (?, ?)').run(data.user_id, data.content);
+      const result = await prepare('INSERT INTO messages (user_id, content, org_id) VALUES (?, ?, ?)').run(
+        data.user_id, data.content, socket.org_id || null
+      );
       const message = await prepare(`
         SELECT m.*, u.name, u.avatar_color
         FROM messages m JOIN users u ON m.user_id = u.id WHERE m.id = ?
       `).get(result.lastInsertRowid);
-      io.emit('message:new', message);
+
+      // Broadcast to tenant room (or global fallback for legacy clients)
+      const room = getTenantRoom();
+      if (room) {
+        io.to(room).emit('message:new', message);
+      } else {
+        io.emit('message:new', message);
+      }
 
       const user = await prepare('SELECT name FROM users WHERE id = ?').get(data.user_id);
       const userName = user?.name || 'Unknown';
@@ -160,7 +203,7 @@ io.on('connection', (socket) => {
         ? `${data.content.substring(0, 50)}...`
         : data.content;
 
-      socket.broadcast.emit('notification:new', {
+      const notifPayload = {
         id: Date.now(),
         type: 'message',
         title: 'New Message',
@@ -168,12 +211,19 @@ io.on('connection', (socket) => {
         senderId: data.user_id,
         read: false,
         created_at: new Date().toISOString(),
-      });
+      };
+
+      if (room) {
+        socket.to(room).emit('notification:new', notifPayload);
+      } else {
+        socket.broadcast.emit('notification:new', notifPayload);
+      }
     } catch (err) {
       console.error('Socket message:send error:', err);
     }
   });
 
+  // ── Task Updates ──
   socket.on('task:update', async (data) => {
     try {
       if (data.priority && !VALID_PRIORITIES.includes(data.priority)) {
@@ -181,87 +231,145 @@ io.on('connection', (socket) => {
         return;
       }
       await prepare(
-        'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
       ).run(data.title, data.description, data.priority, data.assigned_to, data.estimated_hours, data.id);
       const task = await prepare(`
         SELECT t.*, u.name as assigned_name, u.avatar_color
         FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
       `).get(data.id);
-      io.emit('task:updated', task);
+
+      const room = task?.workspace_id ? `workspace:${task.workspace_id}` : getTenantRoom();
+      if (room) {
+        io.to(room).emit('task:updated', task);
+      } else {
+        io.emit('task:updated', task);
+      }
     } catch (err) {
       console.error('Socket task:update error:', err);
     }
   });
 
+  // ── Task Move (Status Change) ──
   socket.on('task:move', async (data) => {
     try {
       if (data.status && !VALID_STATUSES.includes(data.status)) {
         console.error(`Socket task:move error: Invalid status "${data.status}"`);
         return;
       }
-      await prepare('UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(data.status, data.id);
+      await prepare('UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(data.status, data.id);
       const task = await prepare(`
         SELECT t.*, u.name as assigned_name, u.avatar_color
         FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
       `).get(data.id);
-      await prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-        data.user_id || 1, 'moved', `Task "${task.title}" to ${data.status}`
+      await prepare('INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+        data.user_id || 1, 'moved', `Task "${task.title}" to ${data.status}`,
+        socket.org_id || null, task?.workspace_id || null, 'task', task?.id
       );
-      io.emit('task:moved', task);
-      io.emit('activity:new', {
-        user_id: data.user_id || 1,
-        action: 'moved',
-        details: `Task "${task.title}" to ${data.status}`,
-        created_at: new Date().toISOString(),
-      });
+
+      const room = task?.workspace_id ? `workspace:${task.workspace_id}` : getTenantRoom();
+      if (room) {
+        io.to(room).emit('task:moved', task);
+        io.to(room).emit('activity:new', {
+          user_id: data.user_id || 1,
+          action: 'moved',
+          details: `Task "${task.title}" to ${data.status}`,
+          created_at: new Date().toISOString(),
+        });
+      } else {
+        io.emit('task:moved', task);
+        io.emit('activity:new', {
+          user_id: data.user_id || 1,
+          action: 'moved',
+          details: `Task "${task.title}" to ${data.status}`,
+          created_at: new Date().toISOString(),
+        });
+      }
     } catch (err) {
       console.error('Socket task:move error:', err);
     }
   });
 
+  // ── Task Delete ──
   socket.on('task:delete', async (data) => {
     try {
-      // Manual CASCADE for SQLite compat; PG ON DELETE CASCADE handles this too
+      const task = await prepare('SELECT * FROM tasks WHERE id = ?').get(data.id);
+      // Manual CASCADE for SQLite compat
       await prepare('DELETE FROM subtasks WHERE task_id = ?').run(data.id);
       await prepare('DELETE FROM comments WHERE task_id = ?').run(data.id);
+      await prepare('DELETE FROM task_tags WHERE task_id = ?').run(data.id);
       await prepare('DELETE FROM tasks WHERE id = ?').run(data.id);
-      await prepare('INSERT INTO activities (user_id, action, details) VALUES (?, ?, ?)').run(
-        data.user_id || 1, 'deleted', `Task deleted (id: ${data.id})`
+      await prepare('INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+        data.user_id || 1, 'deleted', `Task deleted (id: ${data.id})`,
+        socket.org_id || null, task?.workspace_id || null, 'task', data.id
       );
-      io.emit('task:deleted', { id: data.id });
+
+      const room = task?.workspace_id ? `workspace:${task.workspace_id}` : getTenantRoom();
+      if (room) {
+        io.to(room).emit('task:deleted', { id: data.id });
+      } else {
+        io.emit('task:deleted', { id: data.id });
+      }
     } catch (err) {
       console.error('Socket task:delete error:', err);
     }
   });
 
+  // ── Timer Events ──
   socket.on('timer:start', (data) => {
-    socket.broadcast.emit('timer:start', data);
+    const room = getTenantRoom();
+    if (room) {
+      socket.to(room).emit('timer:start', data);
+    } else {
+      socket.broadcast.emit('timer:start', data);
+    }
   });
 
   socket.on('timer:stop', async (data) => {
     try {
       await prepare('UPDATE tasks SET actual_hours = ? WHERE id = ?').run(data.actualHours, data.taskId);
-      socket.broadcast.emit('timer:stop', data);
+      const room = getTenantRoom();
+      if (room) {
+        socket.to(room).emit('timer:stop', data);
+      } else {
+        socket.broadcast.emit('timer:stop', data);
+      }
     } catch (err) {
       console.error('Socket timer:stop error:', err);
     }
   });
 
+  // ── User Status ──
   socket.on('user:status', async (data) => {
     try {
       await prepare('UPDATE users SET is_online = ? WHERE id = ?').run(data.is_online ? 1 : 0, data.user_id);
-      io.emit('user:status', data);
+      const room = getTenantRoom();
+      if (room) {
+        io.to(room).emit('user:status', data);
+      } else {
+        io.emit('user:status', data);
+      }
     } catch (err) {
       console.error('Socket user:status error:', err);
     }
   });
 
+  // ── Typing Indicators ──
   socket.on('typing:start', (data) => {
-    socket.broadcast.emit('typing:start', data);
+    const room = getTenantRoom();
+    if (room) {
+      socket.to(room).emit('typing:start', data);
+    } else {
+      socket.broadcast.emit('typing:start', data);
+    }
   });
 
   socket.on('typing:stop', (data) => {
-    socket.broadcast.emit('typing:stop', data);
+    const room = getTenantRoom();
+    if (room) {
+      socket.to(room).emit('typing:stop', data);
+    } else {
+      socket.broadcast.emit('typing:stop', data);
+    }
   });
 
   socket.on('disconnect', () => {

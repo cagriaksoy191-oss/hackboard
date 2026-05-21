@@ -86,8 +86,18 @@ Hackathon/
 |       |-- notifications.js          # Notification list API (derived from activities)
 |       |-- backup.js                 # Export/import/health backup APIs with atomic restore
 |       `-- v1/
-|           |-- index.js              # API v1 route aggregator
-|           `-- auth.js               # v1 auth: register, login, refresh, logout, legacy-login, set-password
+|           |-- index.js              # API v1 route aggregator (requireAuth + requireTenant)
+|           |-- auth.js               # v1 auth: register, login, refresh, logout, legacy-login, set-password
+|           |-- tasks.js              # Tenant-aware task CRUD with optimistic locking
+|           |-- messages.js           # Channel + thread support, room-scoped broadcasts
+|           |-- activities.js         # Entity-typed activity feed
+|           |-- analytics.js          # Workspace + sprint scoped analytics
+|           |-- milestones.js         # Sprint-linked milestones
+|           |-- sprints.js            # Workspace-scoped sprint/cycle management
+|           |-- workspaces.js         # Org-scoped workspace CRUD
+|           |-- organizations.js      # Org management + member roles
+|           |-- tags.js               # Org-scoped tag CRUD + task attach/detach
+|           `-- workflows.js          # Workspace-scoped workflow stage CRUD + reorder
 `-- client/
     |-- package.json                  # Client package: React deps + build scripts
     |-- vite.config.js                # Vite config with proxy, manualChunks, and build optimization
@@ -547,3 +557,29 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - Migration: Idempotent SQL (duplicate column/table hataları atlanır)
 - Geriye dönük uyum: Eski `/api` route'ları `legacyAuth` ile korunuyor; yeni `/api/v1` route'ları `requireAuth + requireTenant` kullanıyor
 - Room-based Socket.IO: Her bağlantıda `tenant:{orgId}` odasına otomatik katılım
+
+### 2026-05-21 - Phase 2: Backend REST & WebSocket Modülerizasyonu
+
+**Motivasyon:** Phase 1'de kurulan multi-tenant altyapıyı tüm API katmanına yaymak. Global broadcast'ten room-based izolasyona geçiş. API versiyonlama ile geriye dönük uyumluluk garantisi.
+
+**Yeni Dosyalar (10 route):**
+- `server/routes/v1/tasks.js` — Tenant-aware CRUD, optimistic locking (version kolonu), workspace/sprint filtreleme, room-scoped broadcast
+- `server/routes/v1/messages.js` — Channel + thread desteği, pagination (before_id), room seçimi: channel > workspace > tenant
+- `server/routes/v1/activities.js` — entity_type + entity_id filtreleme ile granüler aktivite akışı
+- `server/routes/v1/analytics.js` — Workspace + sprint bazlı analitik, workflow stage dağılımı, sprint burndown
+- `server/routes/v1/milestones.js` — Sprint-linked milestone CRUD, tenant izolasyonu
+- `server/routes/v1/sprints.js` — Workspace-scoped sprint yönetimi (planning/active/completed/cancelled)
+- `server/routes/v1/workspaces.js` — Org-scoped workspace CRUD, auto-create workflow stages + default channel
+- `server/routes/v1/organizations.js` — Org detay, ayarlar, üye listesi, rol değişikliği (owner-only), üye çıkarma (admin+)
+- `server/routes/v1/tags.js` — Org-scoped etiket CRUD + task-tag attach/detach
+- `server/routes/v1/workflows.js` — Workspace-scoped workflow stage CRUD + position reorder + silme koruması
+
+**Güncellenen Dosyalar:**
+- `server/routes/v1/index.js` — Tüm v1 route'ları `requireAuth + requireTenant` middleware zinciriyle bağlandı
+- `server/server.js` — Socket.IO handler'lar: `io.emit()` → `io.to(room).emit()` dönüşümü. `workspace:join`/`workspace:leave` event'leri eklendi. Activity INSERT'lerine `org_id, workspace_id, entity_type, entity_id` eklendi. `version = version + 1` optimistic locking tüm task update'lerine eklendi. Legacy route'lara `X-API-Deprecated`, `X-API-Migration`, `Sunset` header'ları eklendi (90 gün).
+
+**Mimari Kararlar:**
+- Room hiyerarşisi: `channel:{id}` > `workspace:{id}` > `tenant:{orgId}` (en dar scope tercih edilir)
+- Optimistic locking: `WHERE id = ? AND version = ?` + `version = version + 1` (409 Conflict dönüşü ile)
+- Geriye dönük uyum: Legacy route'lar çalışmaya devam ediyor, `X-API-Deprecated: true` header'ı ile deprecation sinyali
+- Socket.IO fallback: `socket.org_id` null ise (legacy client) global broadcast'e geri düşer
