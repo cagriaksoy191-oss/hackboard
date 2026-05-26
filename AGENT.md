@@ -106,7 +106,8 @@ Hackathon/
     `-- src/
         |-- main.jsx                  # React entry point
         |-- App.jsx                   # Router + provider wrapper with React.lazy code splitting
-        |-- index.css                 # Global styles, CSS variables, and shared theme helper utilities
+        |-- design-tokens.css         # ★ Merkezi tasarım token sistemi (renk, tipografi, spacing, shadow, animasyon)
+        |-- index.css                 # Global stiller, design-tokens import, backward-compat aliaslar, utility sınıflar
         |-- lib/
         |   |-- api.js                # Axios API client with /api base URL (includes backupAPI)
         |   `-- socket.js             # Socket.IO client singleton (connects to '/')
@@ -116,6 +117,31 @@ Hackathon/
         |-- hooks/
         |   `-- useBackupSnapshot.js  # Local snapshot management, debounced auto-refresh, recovery evaluation
         |-- components/
+        |   |-- atoms/                # ★ Atomic Design — En küçük birimler
+        |   |   |-- index.js          # Barrel export
+        |   |   |-- Button.jsx        # primary, secondary, ghost, danger, accent varyantları + loading
+        |   |   |-- Input.jsx         # text/email/password/search/textarea, icon slots, focus ring
+        |   |   |-- Badge.jsx         # Status, priority, tag gösterimi + dot indicator
+        |   |   |-- Avatar.jsx        # İnitials/image, online status dot, 5 boyut
+        |   |   |-- Spinner.jsx       # Accessible loading spinner
+        |   |   `-- Tooltip.jsx       # 4 yön, delay, fade-in animasyonu
+        |   |-- molecules/            # ★ Atomic Design — Atom kombinasyonları
+        |   |   |-- index.js          # Barrel export
+        |   |   |-- FormField.jsx     # Label + Input + Error + hint
+        |   |   |-- SearchBar.jsx     # Input + search/clear ikonları
+        |   |   |-- UserChip.jsx      # Avatar + Name inline
+        |   |   |-- StatMetric.jsx    # Değer + etiket + trend göstergesi
+        |   |   |-- EmptyState.jsx    # İkon + mesaj + CTA butonu
+        |   |   `-- TagChip.jsx       # Renk noktası + tag adı + removable
+        |   |-- organisms/            # ★ Atomic Design — Tam işlevsel bileşenler
+        |   |   |-- index.js          # Barrel export
+        |   |   |-- TaskCard.jsx      # Badge + Avatar + Tooltip atom'ları ile yeniden tasarlanmış görev kartı
+        |   |   |-- KanbanColumn.jsx  # Kolon başlığı, renk dot, görev sayısı, drop zone
+        |   |   |-- ActivityItem.jsx  # Eylem ikonu + kullanıcı + detay + zaman
+        |   |   |-- SprintCard.jsx    # Sprint özeti: durum badge, tarih, ilerleme çubuğu
+        |   |   |-- ChatMessage.jsx   # Apple Messages esintili mesaj baloncuğu + thread
+        |   |   |-- NotificationItem.jsx # Tip ikonu + okunmadı dot + zaman
+        |   |   `-- MilestoneNode.jsx # Tamamlanma/gecikme durumu, bayrak/onay ikonu
         |   |-- Layout.jsx            # Responsive app shell: login gate, desktop sidebar state, header, recovery banner
         |   |-- Sidebar.jsx           # Desktop-persistent / mobile-overlay navigation drawer with route links
         |   |-- Header.jsx            # Top bar: countdown timer, live status, theme toggle, backup menu, notification bell, user avatar, logout (compact on mobile, overflow clipping resolved)
@@ -131,9 +157,9 @@ Hackathon/
         |   |-- NotificationBell.jsx  # Real-time notification dropdown with unread badge, click-through routing, and route-aware suppression
         |   |-- ActivityFeed.jsx      # Live activity stream component
         |   |-- StatCard.jsx          # Dashboard stat card component (clickable for kanban scroll navigation)
-        |   |-- CountdownTimer.jsx    # Hackathon countdown timer in header
+        |   |-- CountdownTimer.jsx    # Hackathon countdown timer in header (deprecated — Phase 3'te kaldırılacak)
         |   |-- ThemeToggle.jsx       # Sun/moon theme switch button
-        |   |-- EmptyState.jsx        # Empty state placeholder with animated icon
+        |   |-- EmptyState.jsx        # Empty state placeholder with animated icon (legacy — molecules/EmptyState.jsx ile değiştirilecek)
         |   |-- Toast.jsx             # Toast notification provider + context + hook
         |   `-- ErrorBoundary.jsx     # React error boundary with refresh button
         `-- pages/
@@ -583,3 +609,88 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - Optimistic locking: `WHERE id = ? AND version = ?` + `version = version + 1` (409 Conflict dönüşü ile)
 - Geriye dönük uyum: Legacy route'lar çalışmaya devam ediyor, `X-API-Deprecated: true` header'ı ile deprecation sinyali
 - Socket.IO fallback: `socket.org_id` null ise (legacy client) global broadcast'e geri düşer
+
+### 2026-05-21 - Phase 2 Hotfix: Sunucu Taraflı Otomatik Oda Aboneliği
+
+**Sorun:** Phase 2'de `task:move`/`task:updated` gibi event'ler `workspace:${workspace_id}` odalarına daraltıldı. Ancak istemci (legacy frontend) henüz `workspace:join` event'i tetiklemediği için Kanban sürüklemeleri anlık olarak ekrana yansımıyordu (ancak sayfa yenilenince veriler doğru geliyordu).
+
+**Çözüm (`server/server.js` — Socket.IO `io.use` middleware):**
+- JWT doğrulaması ve `orgId` çözümlemesinden hemen sonra, sunucu o organizasyona ait **tüm workspace** ve **channel**'ları DB'den sorgular.
+- Bağlanan soket sunucu tarafında otomatik olarak `workspace:${ws.id}` ve `channel:${ch.id}` odalarına dahil edilir.
+- İstemcide manuel `workspace:join` event'i yönetimi gereksizleşti; gerçek zamanlı senkronizasyon (Kanban, Chat) kesintisiz çalışıyor.
+
+**Phase 3 İçin Direktif:**
+- İstemci zaten sunucu tarafından tüm workspace/channel odalarına otomatik olarak konumlandırılmaktadır.
+- Phase 3 tasarım entegrasyonlarında ayrıca `socket.emit('workspace:join')` çağrısı yapılmasına **gerek yoktur**.
+- Socket.IO event listener'ları (`task:moved`, `task:updated`, `message:new` vb.) doğrudan UI güncellemelerini tetikleyebilir.
+
+### 2026-05-26 - Phase 3.1: Tasarım Token Sistemi ve Atomic Design Temeli
+
+**Motivasyon:** Hackathon tarzı neon efektler, agresif renkler ve tutarsız değerleri profesyonel, Apple-esintili minimal bir tasarım diline dönüştürmek. Atomic Design ile yeniden kullanılabilir bileşen katmanı kurmak.
+
+**Yeni Dosyalar:**
+- `client/src/design-tokens.css` — Merkezi tasarım token'ları: tipografi (Inter, 10 boyut), spacing (4px tabanlı 20 adım), radius (8 adım), Apple-style çok katmanlı gölge (7 seviye + renkli accent shadow'lar), animasyon (7 duration + 7 easing dahil ease-apple/ease-spring), Slate nötr palet (12 ton), accent renkler (5 renk × hover/muted varyantları), priority/status renkler, z-index ölçeği, dark/light semantic token'lar
+- `client/src/components/atoms/Button.jsx` — 5 varyant × 5 boyut + loading/icon/fullWidth
+- `client/src/components/atoms/Input.jsx` — forwardRef, label/error/hint, icon slots, multiline, focus ring
+- `client/src/components/atoms/Badge.jsx` — 13 preset (priority + status + semantic), dot indicator, removable, custom color
+- `client/src/components/atoms/Avatar.jsx` — İnitials/image, 5 boyut, online/offline status dot
+- `client/src/components/atoms/Spinner.jsx` — Accessible, 5 boyut, sr-only label
+- `client/src/components/atoms/Tooltip.jsx` — 4 yön, configurable delay, keyboard accessible, fade-in
+- `client/src/components/molecules/FormField.jsx` — Label + Input + required indicator + children slot
+- `client/src/components/molecules/SearchBar.jsx` — Search/clear ikon, clearable state
+- `client/src/components/molecules/UserChip.jsx` — Avatar + name/subtitle, interactive mode
+- `client/src/components/molecules/StatMetric.jsx` — Büyük değer + etiket + trend göstergesi
+- `client/src/components/molecules/EmptyState.jsx` — İkon container + title + description + CTA, compact mode
+- `client/src/components/molecules/TagChip.jsx` — Renk dot + tag adı + removable
+
+**Güncellenen Dosyalar:**
+- `client/src/index.css` — Tamamen yeniden yapılandırıldı: design-tokens.css import, pulse-glow/neon efektler kaldırıldı, card-hover `scale(1.02)` → `translateY(-1px)` + shadow, dragging `rotate(3deg)` → `rotate(1deg)`, Apple-style focus ring, fade-in/slide-up animasyonlar eklendi, Firefox scrollbar desteği, backward-compat legacy token alias'ları korundu
+- `client/index.html` — Title: "HackBoard — Enterprise Workflow Platform", meta description eklendi
+
+**Kaldırılan Hackathon Öğeleri:**
+- `pulse-glow` animasyonu (neon `#00d4ff` glow)
+- `#00d4ff` cyan rengi → `accent-primary` (indigo) ile değiştirildi
+- `rgba(26, 26, 46, *)` mor tonlu yüzeyler → `slate-800/900` bazlı nötr tonlar
+- `scale(1.02)` agresif hover → `translateY(-1px)` zarif Apple-style hover
+
+**Mimari Kararlar:**
+- Token-first: Hiçbir bileşen raw renk/boyut değeri kullanmamalı, her zaman `var(--token)` referansı
+- Backward-compat: Eski `--bg-color`, `--card-bg` vb. token'lar yeni semantic token'lara alias olarak korundu
+- Atomic Design: atoms → molecules → organisms → templates hiyerarşisi
+- Barrel export: Her katman `index.js` ile clean import sağlar
+
+### 2026-05-26 - Phase 3.2: Organisms — Tam İşlevsel Bileşenler
+
+**Yeni Dosyalar (7 organism):**
+- `client/src/components/organisms/TaskCard.jsx` — Badge + Avatar + Tooltip atom'ları ile Apple-style görev kartı; tag gösterimi, subtask progress, priority dot, saat göstergesi, backward-compat drag/delete/edit API
+- `client/src/components/organisms/KanbanColumn.jsx` — Renk dot başlık, görev sayısı badge, drag-over accent highlight + shadow, scrollable kart alanı
+- `client/src/components/organisms/ActivityItem.jsx` — 6 eylem tipi × özel SVG ikon + renk-kodlu ikon arka planı, göreli zaman, compact mode
+- `client/src/components/organisms/SprintCard.jsx` — Sprint durumu badge (planning/active/completed/cancelled), tarih aralığı, ilerleme çubuğu, aktif sprint accent vurgusu
+- `client/src/components/organisms/ChatMessage.jsx` — Apple Messages esintili mesaj baloncuğu: kendi mesajları accent renk, karşı mesajlar surface renk, thread yanıt butonu (hover-reveal)
+- `client/src/components/organisms/NotificationItem.jsx` — 4 tip (message/task/mention/system) × özel ikon + renk, okunmadı dot + accent arka plan
+- `client/src/components/organisms/MilestoneNode.jsx` — Tamamlanma/gecikme durumu renk kodlaması, onay/bayrak ikonu, tarih göstergesi
+
+### 2026-05-26 - Phase 3.3: Ana Bileşen Entegrasyonu — Apple Tasarım Dili Uygulaması
+
+**Motivasyon:** Phase 3.1-3.2'de oluşturulan Atomic Design bileşenlerini (atoms/molecules/organisms) ana sayfa ve layout bileşenlerine entegre ederek uygulamayı Apple-esintili yeni tasarım sistemiyle canlandırmak.
+
+**Yeniden Yazılan Dosyalar:**
+- `client/src/components/Sidebar.jsx` — Hackathon gradient logo → temiz indigo logo + "Enterprise Platform" alt başlığı, section header ("Navigasyon"), SVG inline path'ler → tam JSX SVG ikonlar, `glass-strong` → solid `bg-surface` arka plan, Avatar atom + online status, Tooltip atom logout butonu, aktif sayfa indigo dot göstergesi
+- `client/src/components/Header.jsx` — **CountdownTimer kaldırıldı** (hackathon artefact), frosted glass `backdrop-blur-xl` efekti, Avatar atom kullanıcı gösterimi, Tooltip logout, `animate-ping` canlı göstergesi, `glass` → solid surface/blur
+- `client/src/components/KanbanBoard.jsx` — `TaskCard` → `organisms/TaskCard`, yeni `KanbanColumn` organism ile kolon render, `SearchBar` molecule, `Button` atom, `EmptyState` molecule; neon glow highlight (`#00d4ff`) kaldırıldı, gradient kolon arka planları → clean surface token'lar
+- `client/src/pages/Dashboard.jsx` — Eski `StatCard` import kaldırıldı, inline `DashboardStatCard` ile Apple-style stat kartları (motion spring değer animasyonu, hover icon scale, design-token ikonlar); hackathon renk sınıfları (`bg-accent/20` vb.) → token-based
+- `client/src/components/ActivityFeed.jsx` — `ActivityItem` organism kullanımı, `EmptyState` molecule, inline SVG path'ler → organism'a taşındı, `glass` → clean surface container, ping göstergeli header
+
+**Kaldırılan Hackathon Öğeleri:**
+- `CountdownTimer` import ve render (Header'dan tamamen kaldırıldı)
+- `StatCard` bileşeni import (Dashboard artık inline DashboardStatCard kullanıyor)
+- Neon glow column highlight (`shadow-[0_0_30px_rgba(0,212,255,0.3)]`)
+- Gradient column arka planları (`bg-gradient-to-b from-blue-500/20 to-blue-600/10` vb.)
+- `getInitials` import (Avatar atom kendi hesaplar)
+
+**Korunan İş Mantığı:**
+- Socket.IO event listener'ları (`task:moved`, `task:created`, `task:deleted`, `task:updated`, `activity:new`) — %100 korundu
+- Drag & drop Kanban mantığı — `handleDragStart`, `handleDrop`, `handleDragOver` — %100 korundu
+- Optimistic update pattern — `setTasks(prev => ...)` — %100 korundu
+- Filter/search memoization — `useMemo(() => filterTasks(...))` — %100 korundu
+- `scrollToKanban` dashboard navigasyonu — %100 korundu

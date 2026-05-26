@@ -3,11 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { tasksAPI, usersAPI } from '../lib/api';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
-import TaskCard from './TaskCard';
+import TaskCard from './organisms/TaskCard';
+import KanbanColumn from './organisms/KanbanColumn';
+import { EmptyState } from './molecules';
+import { SearchBar } from './molecules';
+import { Button } from './atoms';
 import CreateTaskModal from './CreateTaskModal';
-import EmptyState from './EmptyState';
 
+/* ──────────────────────────────────────────────
+   Columns — Clean, token-based color definition
+   ────────────────────────────────────────────── */
+const columns = [
+  { id: 'todo',        title: 'Yapılacak',     color: '#3b82f6' },
+  { id: 'in-progress', title: 'Devam Ediyor',  color: '#f59e0b' },
+  { id: 'testing',     title: 'Test',           color: '#8b5cf6' },
+  { id: 'done',        title: 'Tamamlandı',     color: '#22c55e' },
+];
 
+/* ──────────────────────────────────────────────
+   Helpers
+   ────────────────────────────────────────────── */
 const filterTasks = (tasks, searchQuery, filterPriority, filterUser) => {
   return tasks.filter((t) => {
     const matchesSearch = searchQuery === '' ||
@@ -19,35 +34,9 @@ const filterTasks = (tasks, searchQuery, filterPriority, filterUser) => {
   });
 };
 
-const checkActiveFilters = (searchQuery, filterPriority, filterUser) => {
-  return searchQuery !== '' || filterPriority !== 'all' || filterUser !== 'all';
-};
-
-const getSelectClassName = (filterValue) => {
-  return `px-3 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none transition-all duration-200 ${
-    filterValue !== 'all' ? 'border-accent bg-accent/10' : ''
-  }`;
-};
-
-const getSkeletonColumnClassName = (col) => {
-  return `bg-gradient-to-b ${col.darkColor} ${col.lightColor} border ${col.darkBorder} ${col.lightBorder} rounded-2xl p-3 min-h-[300px]`;
-};
-
-const getColumnClassName = (col, isHighlighted) => {
-  return `bg-gradient-to-b ${col.darkColor} ${col.lightColor} border rounded-2xl p-3 min-h-[300px] transition-all duration-300 scroll-mt-[100px] ${
-    isHighlighted
-      ? `${col.darkBorder} ${col.lightBorder} shadow-[0_0_30px_rgba(0,212,255,0.3)] border-accent/50`
-      : `${col.darkBorder} ${col.lightBorder}`
-  }`;
-};
-
-const columns = [
-  { id: 'todo', title: 'Yapilacak', darkColor: 'dark:from-blue-500/20 dark:to-blue-600/10', lightColor: 'from-blue-50 to-blue-100/50', darkBorder: 'dark:border-blue-500/30', lightBorder: 'border-blue-200', dotColor: 'bg-blue-500' },
-  { id: 'in-progress', title: 'Devam Ediyor', darkColor: 'dark:from-yellow-500/20 dark:to-yellow-600/10', lightColor: 'from-yellow-50 to-yellow-100/50', darkBorder: 'dark:border-yellow-500/30', lightBorder: 'border-yellow-200', dotColor: 'bg-yellow-500' },
-  { id: 'testing', title: 'Test', darkColor: 'dark:from-purple-500/20 dark:to-purple-600/10', lightColor: 'from-purple-50 to-purple-100/50', darkBorder: 'dark:border-purple-500/30', lightBorder: 'border-purple-200', dotColor: 'bg-purple-500' },
-  { id: 'done', title: 'Tamamlandi', darkColor: 'dark:from-green-500/20 dark:to-green-600/10', lightColor: 'from-green-50 to-green-100/50', darkBorder: 'dark:border-green-500/30', lightBorder: 'border-green-200', dotColor: 'bg-green-500' },
-];
-
+/* ──────────────────────────────────────────────
+   KanbanBoard Component
+   ────────────────────────────────────────────── */
 function KanbanBoard() {
   const { user } = useUser();
   const [tasks, setTasks] = useState([]);
@@ -65,20 +54,11 @@ function KanbanBoard() {
     loadTasks();
     usersAPI.getAll().then((res) => setKanbanUsers(res.data)).catch(() => {});
 
-    // ⚡ Bolt Optimization: Update tasks via local state mapped from socket event payload
-    // rather than refetching all tasks via tasksAPI.getAll(), reducing backend load and latency.
-    const handleTaskMoved = (updatedTask) => {
-      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
-    };
-    const handleTaskDeleted = (data) => {
-      setTasks((prev) => prev.filter((t) => t.id !== data.id));
-    };
-    const handleTaskUpdated = (updatedTask) => {
-      setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
-    };
-    const handleTaskCreated = (newTask) => {
-      setTasks((prev) => [newTask, ...prev]);
-    };
+    // ⚡ Socket listeners — optimistic local state updates
+    const handleTaskMoved = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    const handleTaskDeleted = (data) => setTasks((prev) => prev.filter((t) => t.id !== data.id));
+    const handleTaskUpdated = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+    const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);
 
     socket.on('task:moved', handleTaskMoved);
     socket.on('task:deleted', handleTaskDeleted);
@@ -94,12 +74,10 @@ function KanbanBoard() {
   }, []);
 
   const loadTasks = () => {
-    tasksAPI.getAll().then((res) => {
-      setTasks(res.data);
-      setLoading(false);
-    });
+    tasksAPI.getAll().then((res) => { setTasks(res.data); setLoading(false); });
   };
 
+  /* ── Drag & Drop ── */
   const handleDragStart = (e, taskId) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
@@ -109,10 +87,6 @@ function KanbanBoard() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setHighlightColumn(colId);
-  };
-
-  const handleDragLeave = () => {
-    setHighlightColumn(null);
   };
 
   const handleDrop = (e, status) => {
@@ -131,136 +105,152 @@ function KanbanBoard() {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
-  const handleDragEnd = () => {
-    setDraggedTaskId(null);
-    setHighlightColumn(null);
-  };
-
-    // Memoize filtered tasks to prevent re-calculating on every render (e.g. during drag-and-drop)
+  /* ── Filters ── */
   const filteredTasks = useMemo(() => filterTasks(tasks, searchQuery, filterPriority, filterUser), [tasks, searchQuery, filterPriority, filterUser]);
+  const hasActiveFilters = searchQuery !== '' || filterPriority !== 'all' || filterUser !== 'all';
 
-  const hasActiveFilters = checkActiveFilters(searchQuery, filterPriority, filterUser);
+  const selectClass = (val) => `
+    px-3 py-2 rounded-lg text-[13px] font-medium
+    bg-[var(--bg-input)] border border-[var(--border-input)]
+    text-[var(--text-primary)]
+    focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)]
+    transition-all duration-150 ease-[var(--ease-apple)]
+    ${val !== 'all' ? 'border-[var(--accent-primary)] bg-[var(--accent-primary-subtle)]' : ''}
+  `.trim().replace(/\s+/g, ' ');
+
+  /* ── Skeleton ── */
+  const renderSkeleton = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      {columns.map((col) => (
+        <div
+          key={col.id}
+          className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-3 min-h-[300px]"
+        >
+          <div className="flex items-center gap-2 px-1 mb-3">
+            <div className="w-2.5 h-2.5 rounded-full skeleton" />
+            <div className="h-4 w-20 skeleton rounded" />
+            <div className="ml-auto h-5 w-8 skeleton rounded-md" />
+          </div>
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3.5">
+                <div className="h-4 skeleton rounded w-3/4 mb-2" />
+                <div className="h-3 skeleton rounded w-1/2 mb-3" />
+                <div className="flex justify-between items-center">
+                  <div className="h-5 w-5 skeleton rounded-full" />
+                  <div className="h-3 skeleton rounded w-8" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ── Empty icon ── */
+  const emptyIcon = (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
 
   return (
     <div className="relative">
+      {/* ─── Header ─── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-        <h3 className="text-lg font-bold text-primary">Kanban Board</h3>
-        <button
+        <h3 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Kanban Board</h3>
+        <Button
+          variant="accent"
+          size="sm"
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 bg-gradient-to-r from-accent to-accentAlt text-white text-sm font-medium rounded-xl hover:opacity-90 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+          icon={
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          }
         >
-          + Yeni Gorev
-        </button>
+          Yeni Görev
+        </Button>
       </div>
 
-      <div className="glass rounded-2xl p-4 mb-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
+      {/* ─── Filters ─── */}
+      <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <div className="flex-1">
+            <SearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Gorev ara..."
-              aria-label="Gorev Ara"
-              className="w-full pl-10 pr-4 py-2 input-surface border-theme rounded-xl text-sm focus:outline-none focus:border-accent transition-all duration-200"
+              placeholder="Görev ara..."
+              size="md"
             />
           </div>
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className={getSelectClassName(filterPriority)}
+            className={selectClass(filterPriority)}
           >
-            <option value="all" className="option-surface">Tum Oncelikler</option>
+            <option value="all" className="option-surface">Tüm Öncelikler</option>
             <option value="critical" className="option-surface">Kritik</option>
-            <option value="high" className="option-surface">Yuksek</option>
+            <option value="high" className="option-surface">Yüksek</option>
             <option value="medium" className="option-surface">Orta</option>
-            <option value="low" className="option-surface">Dusuk</option>
+            <option value="low" className="option-surface">Düşük</option>
           </select>
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            className={getSelectClassName(filterUser)}
+            className={selectClass(filterUser)}
           >
-            <option value="all" className="option-surface">Tum Kisiler</option>
+            <option value="all" className="option-surface">Tüm Kişiler</option>
             {kanbanUsers.map((u) => (
               <option key={u.id} value={u.id} className="option-surface">{u.name}</option>
             ))}
           </select>
           {hasActiveFilters && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setFilterPriority('all');
-                setFilterUser('all');
-              }}
-              className="px-3 py-2 bg-error/20 border border-error/30 text-error text-sm rounded-xl hover:bg-error/30 transition-all duration-200"
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => { setSearchQuery(''); setFilterPriority('all'); setFilterUser('all'); }}
             >
               Temizle
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {columns.map((col) => (
-            <div key={col.id} className={getSkeletonColumnClassName(col)}>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 rounded-full surface-bg-strong animate-pulse" />
-                <div className="h-4 w-20 skeleton-shimmer rounded animate-pulse" />
-              </div>
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="surface-bg border border-theme-subtle rounded-xl p-4 animate-pulse">
-                    <div className="h-4 skeleton-shimmer rounded w-3/4 mb-2" />
-                    <div className="h-3 skeleton-base rounded w-1/2 mb-3" />
-                    <div className="flex justify-between">
-                      <div className="h-7 w-7 skeleton-shimmer rounded-full" />
-                      <div className="h-3 skeleton-base rounded w-8" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : filteredTasks.length === 0 ? (
+      {/* ─── Board ─── */}
+      {loading ? renderSkeleton() : filteredTasks.length === 0 ? (
         <EmptyState
-          message={hasActiveFilters ? 'Filtreye uygun gorev bulunamadi' : 'Henuz gorev yok, hadi ekleyelim!'}
-          icon="task"
+          icon={emptyIcon}
+          title={hasActiveFilters ? 'Filtre sonucu bulunamadı' : 'Henüz görev yok'}
+          description={hasActiveFilters ? 'Farklı filtreler deneyebilirsiniz.' : 'Hadi ilk görevi ekleyelim!'}
+          onAction={hasActiveFilters ? undefined : () => setShowCreateModal(true)}
+          actionLabel="Görev Ekle"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="kanban-board-container">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3" id="kanban-board-container">
           {columns.map((col) => {
             const colTasks = filteredTasks.filter((t) => t.status === col.id);
-            const isHighlighted = highlightColumn === col.id;
             return (
               <div
                 id={`kanban-col-${col.id}`}
                 key={col.id}
-                className={getColumnClassName(col, isHighlighted)}
-                onDragOver={(e) => handleDragOver(e, col.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, col.id)}
+                className="scroll-mt-[100px]"
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
-                  <h4 className="text-sm font-semibold text-primary">{col.title}</h4>
-                  <span className="ml-auto text-xs text-secondary surface-bg border border-theme-subtle px-2 py-0.5 rounded-full">
-                    {colTasks.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
+                <KanbanColumn
+                  title={col.title}
+                  color={col.color}
+                  count={colTasks.length}
+                  onDragOver={(e) => handleDragOver(e, col.id)}
+                  onDrop={(e) => handleDrop(e, col.id)}
+                >
                   <AnimatePresence>
                     {colTasks.map((task) => (
                       <motion.div
                         key={task.id}
-                        animate={pulseTaskId === task.id ? { scale: [1, 1.03, 1] } : {}}
-                        transition={{ duration: 0.4 }}
+                        animate={pulseTaskId === task.id ? { scale: [1, 1.02, 1] } : {}}
+                        transition={{ duration: 0.3 }}
                       >
                         <TaskCard
                           task={task}
@@ -271,21 +261,19 @@ function KanbanBoard() {
                       </motion.div>
                     ))}
                   </AnimatePresence>
-                </div>
+                </KanbanColumn>
               </div>
             );
           })}
         </div>
       )}
 
+      {/* ─── Create Task Modal ─── */}
       <AnimatePresence>
         {showCreateModal && (
           <CreateTaskModal
             onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              setShowCreateModal(false);
-              loadTasks();
-            }}
+            onSuccess={() => { setShowCreateModal(false); loadTasks(); }}
           />
         )}
       </AnimatePresence>
