@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { analyticsAPI, tasksAPI } from '../lib/api';
 import { useToast } from '../components/Toast';
+import { Button } from '../components/atoms';
 import {
   PieChart,
   Pie,
@@ -25,7 +26,26 @@ import {
   exportJSON as handleExportJSON,
   exportCSV as handleExportCSV,
 } from '../lib/analyticsHelpers.js';
+import Spinner from '../components/atoms/Spinner';
 
+/* ──────────────────────────────────────────────
+   Recharts Theme — Design-token aware
+   ────────────────────────────────────────────── */
+const chartTooltipStyle = {
+  backgroundColor: 'var(--bg-surface-3)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '10px',
+  color: 'var(--text-primary)',
+  fontSize: '12px',
+  boxShadow: 'var(--shadow-lg)',
+};
+
+const axisTickStyle = { fill: 'var(--text-tertiary)', fontSize: 11 };
+const gridStroke = 'var(--border-subtle)';
+
+/* ──────────────────────────────────────────────
+   Analytics Page
+   ────────────────────────────────────────────── */
 function Analytics() {
   const [data, setData] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -36,136 +56,124 @@ function Analytics() {
     tasksAPI.getAll().then((res) => setTasks(res.data));
   }, []);
 
-  if (!data) return <div className="text-center py-20 text-gray-400">Yukleniyor...</div>;
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   const pieData = formatPieData(data.taskStatusDist);
-
   const barData = formatBarData(data.tasksByUser);
-
   const lineData = formatLineData(data.hourlyProductivity);
 
   const exportJSON = () => handleExportJSON(tasks, addToast);
-
   const exportCSV = () => handleExportCSV(tasks, addToast);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+      className="space-y-6"
+    >
+      {/* ─── Header ─── */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Analitik Panel</h2>
+        <h2 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Analitik Panel</h2>
         <div className="flex gap-2">
-          <button
-            onClick={exportJSON}
-            className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent text-sm font-medium rounded-xl hover:bg-accent/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            JSON Indir
-          </button>
-          <button
-            onClick={exportCSV}
-            className="px-4 py-2 bg-accentAlt/20 border border-accentAlt/30 text-accentAlt text-sm font-medium rounded-xl hover:bg-accentAlt/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            CSV Indir
-          </button>
+          <Button variant="secondary" size="sm" onClick={exportJSON}>
+            JSON İndir
+          </Button>
+          <Button variant="secondary" size="sm" onClick={exportCSV}>
+            CSV İndir
+          </Button>
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Genel Ilerleme</h3>
-          <span className="text-2xl font-bold text-accent">{data.progress}%</span>
+      {/* ─── Progress Card ─── */}
+      <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Genel İlerleme</h3>
+          <span className="text-2xl font-bold text-[var(--accent-primary)]">{data.progress}%</span>
         </div>
-        <div className="w-full h-4 bg-white/10 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-[var(--interactive-muted)] rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${data.progress}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-            className="h-full bg-gradient-to-r from-accent to-accentAlt rounded-full"
+            transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+            className="h-full bg-[var(--accent-primary)] rounded-full"
           />
         </div>
-        <div className="flex justify-between mt-2 text-xs text-gray-400">
-          <span>{data.doneTasks} tamamlandi</span>
+        <div className="flex justify-between mt-2 text-[11px] text-[var(--text-tertiary)]">
+          <span>{data.doneTasks} tamamlandı</span>
           <span>{data.totalTasks} toplam</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass rounded-2xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Gorev Dagilimi</h3>
-          <ResponsiveContainer width="100%" height={280}>
+      {/* ─── Charts Grid ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Pie Chart */}
+        <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5">
+          <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-4">Görev Dağılımı</h3>
+          <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
+                innerRadius={55}
+                outerRadius={95}
+                paddingAngle={4}
                 dataKey="value"
+                strokeWidth={0}
               >
                 {pieData.map((entry, i) => (
                   <Cell key={i} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1a1a2e',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  color: '#e2e8f0',
-                }}
-              />
+              <Tooltip contentStyle={chartTooltipStyle} />
               <Legend
-                formatter={(value) => <span className="text-sm text-gray-300">{value}</span>}
+                formatter={(value) => <span className="text-[11px] text-[var(--text-secondary)]">{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="glass rounded-2xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Kisi Basi Gorev</h3>
-          <ResponsiveContainer width="100%" height={280}>
+        {/* Bar Chart */}
+        <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5">
+          <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-4">Kişi Başı Görev</h3>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1a1a2e',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  color: '#e2e8f0',
-                }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="name" tick={axisTickStyle} />
+              <YAxis tick={axisTickStyle} />
+              <Tooltip contentStyle={chartTooltipStyle} />
               <Legend
-                formatter={(value) => <span className="text-sm text-gray-300">{value}</span>}
+                formatter={(value) => <span className="text-[11px] text-[var(--text-secondary)]">{value}</span>}
               />
-              <Bar dataKey="completed" name="Tamamlanan" fill="#10b981" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="total" name="Toplam" fill="#7c3aed" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="completed" name="Tamamlanan" fill="#22c55e" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="total" name="Toplam" fill="#6366f1" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="glass rounded-2xl p-6 lg:col-span-2">
-          <h3 className="text-lg font-semibold text-white mb-4">Saatlik Verimlilik</h3>
-          <ResponsiveContainer width="100%" height={280}>
+        {/* Line Chart */}
+        <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5 lg:col-span-2">
+          <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-4">Saatlik Verimlilik</h3>
+          <ResponsiveContainer width="100%" height={260}>
             <LineChart data={lineData.length > 0 ? lineData : [{ hour: '--:--', completed: 0 }]}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="hour" tick={{ fill: '#9ca3af', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1a1a2e',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  color: '#e2e8f0',
-                }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="hour" tick={axisTickStyle} />
+              <YAxis tick={axisTickStyle} />
+              <Tooltip contentStyle={chartTooltipStyle} />
               <Line
                 type="monotone"
                 dataKey="completed"
-                stroke="#00d4ff"
+                stroke="#6366f1"
                 strokeWidth={2}
-                dot={{ fill: '#00d4ff', r: 4 }}
-                activeDot={{ r: 6 }}
+                dot={{ fill: '#6366f1', r: 3 }}
+                activeDot={{ r: 5, fill: '#6366f1' }}
               />
             </LineChart>
           </ResponsiveContainer>

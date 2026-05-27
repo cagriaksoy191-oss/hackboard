@@ -694,3 +694,27 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - Optimistic update pattern — `setTasks(prev => ...)` — %100 korundu
 - Filter/search memoization — `useMemo(() => filterTasks(...))` — %100 korundu
 - `scrollToKanban` dashboard navigasyonu — %100 korundu
+
+### 2026-05-27 - Phase 3.4: Kalan Sayfa Entegrasyonu — Tam Apple Arayüzü
+
+**Yeniden Yazılan Dosyalar (4 sayfa + 2 alt bileşen):**
+- `client/src/pages/Chat.jsx` — `glass` → solid surface+border, online kullanıcı sayısı göstergesi, consistent 15px heading, ping indicator
+- `client/src/components/chat/ChatMessage.jsx` — Avatar atom kullanımı, gradient bubble → solid `accent-primary`, design-token renk sistemi
+- `client/src/components/chat/ChatInput.jsx` — Gradient send butonu → solid accent+shadow, frosted glass backdrop, aktif emoji state indicator, design-token input
+- `client/src/pages/Team.jsx` — Avatar atom + online status, Badge atom görev priority, `text-white`/`text-gray-400` → design-token, `bg-white/5` → `interactive-muted`, AnimatePresence görev detay paneli, seçili kullanıcı accent vurgusu
+- `client/src/pages/Analytics.jsx` — Spinner atom loading, Button atom export, `#1a1a2e` tooltip → design-token `bg-surface-3`, cyan `#00d4ff` line → indigo `#6366f1`, gradient progress → solid accent, `glass` → card+border
+- `client/src/pages/Timeline.jsx` — Spinner atom loading, EmptyState molecule, Badge atom milestone durumu (success/warning), marker renkleri design-token, `glass-strong` tooltip → surface-3+shadow-lg
+
+**Kaldırılan Hackathon Öğeleri:**
+- `bg-gradient-to-r from-accent to-accentAlt` (Chat send buton + mesaj baloncuğu)
+- `#1a1a2e` hardcoded tooltip arka planı (Analytics 3 grafik)
+- `#00d4ff` cyan line chart rengi (Analytics)
+- `text-white` / `text-gray-400` hardcoded metin renkleri (Team + Analytics)
+- `glass` / `glass-strong` container sınıfları → solid `bg-surface` / `bg-card`
+- `getInitials` import (Team — Avatar atom kendi hesaplar)
+
+**Korunan İş Mantığı (%100):**
+- Chat: `message:send`, `typing:start/stop` socket event'ları, emoji picker, auto-scroll
+- Team: `usersAPI.getAll()`, `tasksAPI.getAll()`, görev haritası, navigate to task detail
+- Analytics: `analyticsAPI.get()`, `formatPieData/formatBarData/formatLineData`, JSON/CSV export
+- Timeline: `milestonesAPI.getAll()`, `calculateRange/calculatePosition`, now indicator interval

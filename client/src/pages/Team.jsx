@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI, tasksAPI } from '../lib/api';
 import {
@@ -7,33 +7,26 @@ import {
   Bar,
   ResponsiveContainer,
 } from 'recharts';
-import { getInitials } from '../lib/stringUtils';
+import Avatar from '../components/atoms/Avatar';
+import Badge from '../components/atoms/Badge';
 
-
-const getTaskStatusColorClass = (status) => {
-  switch (status) {
-    case 'done': return 'bg-success';
-    case 'in-progress': return 'bg-warning';
-    case 'testing': return 'bg-purple-500';
-    default: return 'bg-blue-500';
-  }
+const statusColors = {
+  done: 'var(--accent-success)',
+  'in-progress': 'var(--accent-warning)',
+  testing: '#8b5cf6',
+  todo: 'var(--accent-info)',
 };
-
 
 const processUsersData = (users, userTasks) => {
   return users.map((user) => {
     const tasks = userTasks[user.id] || [];
     const completedCount = tasks.filter((t) => t.status === 'done').length;
-
     const name = user.name;
     const firstSpaceIndex = name.indexOf(' ');
     const firstName = firstSpaceIndex === -1 ? name : name.slice(0, firstSpaceIndex);
 
-    const formattedInitials = getInitials(name);
-
     return {
       ...user,
-      initials: formattedInitials,
       tasksCount: tasks.length,
       completedCount,
       chartData: [{ name: firstName, completed: completedCount }],
@@ -62,112 +55,118 @@ function Team() {
   }, []);
 
   const handleUserClick = (user) => {
-    if (selectedUser?.id === user.id) {
-      setSelectedUser(null);
-    } else {
-      setSelectedUser(user);
-    }
+    setSelectedUser(selectedUser?.id === user.id ? null : user);
   };
 
   const processedUsers = useMemo(() => processUsersData(users, userTasks), [users, userTasks]);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Takim Uyeleri</h2>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-6">
+      <h2 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Takım Üyeleri</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {processedUsers.map((user, i) => {
-          return (
-            <motion.div
-              key={user.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              onClick={() => handleUserClick(user)}
-              className="glass rounded-2xl p-5 card-hover cursor-pointer"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="relative">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                    style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
-                  >
-                    {user.initials}
-                  </div>
-                  <span
-                    className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card ${
-                      user.is_online ? 'bg-success' : 'bg-error'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white">{user.name}</h3>
-                  <p className="text-xs text-gray-400">{user.role}</p>
-                </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {processedUsers.map((user, i) => (
+          <motion.button
+            key={user.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+            onClick={() => handleUserClick(user)}
+            className={`
+              w-full text-left rounded-xl p-4
+              border transition-all duration-200 ease-[var(--ease-apple)]
+              hover:shadow-[var(--shadow-md)]
+              ${selectedUser?.id === user.id
+                ? 'bg-[var(--accent-primary-subtle)] border-[var(--accent-primary)] shadow-[var(--shadow-accent)]'
+                : 'bg-[var(--bg-card)] border-[var(--border-default)] hover:border-[var(--border-strong)]'
+              }
+            `.trim().replace(/\s+/g, ' ')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar
+                name={user.name}
+                color={user.avatar_color || '#6366f1'}
+                size="md"
+                showStatus
+                isOnline={user.is_online}
+              />
+              <div className="min-w-0">
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{user.name}</h3>
+                <p className="text-[11px] text-[var(--text-tertiary)]">{user.role}</p>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-white/5 rounded-lg p-2 text-center">
-                  <p className="text-lg font-bold text-white">{user.tasksCount}</p>
-                  <p className="text-xs text-gray-400">Toplam</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-2 text-center">
-                  <p className="text-lg font-bold text-success">{user.completedCount}</p>
-                  <p className="text-xs text-gray-400">Tamamlanan</p>
-                </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-[var(--interactive-muted)] rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-[var(--text-primary)]">{user.tasksCount}</p>
+                <p className="text-[10px] text-[var(--text-tertiary)]">Toplam</p>
               </div>
+              <div className="bg-[var(--interactive-muted)] rounded-lg p-2 text-center">
+                <p className="text-lg font-bold text-[var(--accent-success)]">{user.completedCount}</p>
+                <p className="text-[10px] text-[var(--text-tertiary)]">Tamamlanan</p>
+              </div>
+            </div>
 
-              <div className="h-16">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={user.chartData}>
-                    <Bar dataKey="completed" fill={user.avatar_color || '#7c3aed'} radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-          );
-        })}
+            <div className="h-12">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={user.chartData}>
+                  <Bar dataKey="completed" fill={user.avatar_color || '#6366f1'} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.button>
+        ))}
       </div>
 
-      {selectedUser && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white">
-              {selectedUser.name} - Gorevleri
-            </h3>
-            <button
-              onClick={() => setSelectedUser(null)}
-              className="p-2 rounded-lg hover:bg-white/10 text-gray-400"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="space-y-2">
-            {(userTasks[selectedUser.id] || []).map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                onClick={() => navigate(`/tasks/${task.id}`)}
+      {/* Selected User Tasks */}
+      <AnimatePresence>
+        {selectedUser && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight">
+                {selectedUser.name} — Görevleri
+              </h3>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="p-1.5 rounded-md hover:bg-[var(--interactive-hover)] text-[var(--text-tertiary)] transition-colors duration-150"
               >
-                <div className="flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full ${getTaskStatusColorClass(task.status)}`} />
-                  <span className="text-sm text-white">{task.title}</span>
-                </div>
-                <span className="text-xs text-gray-400">{task.priority}</span>
-              </div>
-            ))}
-            {(!userTasks[selectedUser.id] || userTasks[selectedUser.id].length === 0) && (
-              <p className="text-gray-500 text-sm text-center py-4">Atanmis gorev yok.</p>
-            )}
-          </div>
-        </motion.div>
-      )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {(userTasks[selectedUser.id] || []).map((task) => (
+                <button
+                  key={task.id}
+                  className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--interactive-muted)] hover:bg-[var(--interactive-hover)] transition-colors duration-150 text-left"
+                  onClick={() => navigate(`/tasks/${task.id}`)}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: statusColors[task.status] || statusColors.todo }}
+                    />
+                    <span className="text-[12px] text-[var(--text-primary)]">{task.title}</span>
+                  </div>
+                  <Badge variant={task.priority} size="xs">
+                    {task.priority}
+                  </Badge>
+                </button>
+              ))}
+              {(!userTasks[selectedUser.id] || userTasks[selectedUser.id].length === 0) && (
+                <p className="text-[12px] text-[var(--text-muted)] text-center py-4">Atanmış görev yok.</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
