@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { getInitials } from '../lib/stringUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usersAPI } from '../lib/api';
+import Avatar from './atoms/Avatar';
+import { Button } from './atoms';
+import Spinner from './atoms/Spinner';
 import AddUserModal from './login/AddUserModal';
 import EditUserModal from './login/EditUserModal';
 
 const THEME_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', 
-  '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', 
-  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', 
+  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+  '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+  '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
   '#ec4899', '#f43f5e', '#64748b', '#737373', '#a1a1aa'
 ];
 
@@ -32,26 +34,19 @@ function LoginScreen({ onLogin }) {
     });
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const handleAddUser = async (e) => {
     if (e) e.preventDefault();
     if (!formName || !formRole) return;
-    
     let colorToUse = selectedColor;
     if (!colorToUse) {
       const usedColors = users.map(u => u.avatar_color);
       const availableColors = THEME_COLORS.filter(c => !usedColors.includes(c));
       colorToUse = availableColors.length > 0 ? availableColors[0] : THEME_COLORS[Math.floor(Math.random() * THEME_COLORS.length)];
     }
-    
     await usersAPI.create({ name: formName, role: formRole, avatar_color: colorToUse });
-    setShowAddModal(false);
-    setFormName('');
-    setFormRole('');
-    setSelectedColor('');
+    setShowAddModal(false); setFormName(''); setFormRole(''); setSelectedColor('');
     fetchUsers();
   };
 
@@ -66,170 +61,169 @@ function LoginScreen({ onLogin }) {
     if (e) e.preventDefault();
     if (!formName || !editingUser) return;
     await usersAPI.update(editingUser.id, { name: formName });
-    setShowEditModal(false);
-    setEditingUser(null);
-    setFormName('');
+    setShowEditModal(false); setEditingUser(null); setFormName('');
     fetchUsers();
   };
 
   const handleDeleteUser = async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (e) { e.preventDefault(); e.stopPropagation(); }
     if (!editingUser) return;
-    
     try {
       await usersAPI.delete(editingUser.id);
-      setShowDeleteConfirm(false);
-      setShowEditModal(false);
-      setEditingUser(null);
+      setShowDeleteConfirm(false); setShowEditModal(false); setEditingUser(null);
       if (selectedUser?.id === editingUser.id) setSelectedUser(null);
       fetchUsers();
-    } catch (err) {
-      console.error("Delete user failed:", err);
-    }
+    } catch (err) { console.error("Delete user failed:", err); }
   };
 
   const openEditModal = (e, user) => {
     e.stopPropagation();
-    setEditingUser(user);
-    setFormName(user.name);
-    setShowDeleteConfirm(false);
-    setShowEditModal(true);
+    setEditingUser(user); setFormName(user.name); setShowDeleteConfirm(false); setShowEditModal(true);
   };
 
-  const handleLogin = () => {
-    if (selectedUser) {
-      onLogin(selectedUser);
-    }
-  };
+  const handleLogin = () => { if (selectedUser) onLogin(selectedUser); };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accentAlt/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg-app)]">
+      {/* Subtle gradient orbs — Apple-style ambient */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-[var(--accent-primary)] opacity-[0.04] rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/3 w-[400px] h-[400px] bg-[var(--accent-info)] opacity-[0.03] rounded-full blur-[100px]" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative z-10 w-full max-w-[1800px] px-4"
+        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+        className="relative z-10 w-full max-w-[900px] px-4"
       >
-        <div className="text-center mb-8">
+        {/* ─── Branding ─── */}
+        <div className="text-center mb-10">
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring' }}
-            className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-accent to-accentAlt flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-accent/20"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+            className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--accent-primary)] flex items-center justify-center text-white text-2xl font-bold shadow-[var(--shadow-accent)]"
           >
             H
           </motion.div>
-          <h1 className="text-4xl font-bold text-white mb-2">HackBoard</h1>
-          <p className="text-gray-400 text-lg">Hackathon Yonetim Paneli</p>
-          <p className="text-gray-500 text-sm mt-2">Devam etmek icin bir kullanici secin</p>
+          <h1 className="text-[28px] font-bold text-[var(--text-primary)] tracking-tight mb-1">HackBoard</h1>
+          <p className="text-[var(--text-tertiary)] text-[14px]">Enterprise Workflow Platform</p>
+          <p className="text-[var(--text-muted)] text-[12px] mt-1.5">Devam etmek için bir profil seçin</p>
         </div>
 
+        {/* ─── User Grid ─── */}
         {loading ? (
-          <div className="flex flex-wrap justify-center gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-full sm:w-[280px] glass rounded-2xl p-6 animate-pulse">
-                <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/10" />
-                <div className="h-4 bg-white/10 rounded w-3/4 mx-auto mb-2" />
-                <div className="h-3 bg-white/5 rounded w-1/2 mx-auto" />
-              </div>
-            ))}
+          <div className="flex items-center justify-center py-12">
+            <Spinner size="lg" />
           </div>
         ) : (
-          <div className="flex flex-wrap justify-center gap-6 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
             {users.map((user, i) => {
-              const initials = getInitials(user.name);
               const isSelected = selectedUser?.id === user.id;
               return (
                 <motion.button
                   key={user.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * i }}
+                  transition={{ delay: 0.04 * i, duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
                   onClick={() => setSelectedUser(user)}
-                  className={`w-full sm:w-[280px] relative glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] group ${
-                    isSelected
-                      ? 'border-accent/50 shadow-lg shadow-accent/10 bg-accent/5'
-                      : 'border-white/10 hover:border-white/20'
-                  }`}
+                  className={`
+                    relative rounded-xl p-4 text-center
+                    border transition-all duration-200 ease-[var(--ease-apple)]
+                    group
+                    ${isSelected
+                      ? 'bg-[var(--accent-primary-subtle)] border-[var(--accent-primary)] shadow-[var(--shadow-accent)]'
+                      : 'bg-[var(--bg-card)] border-[var(--border-default)] hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)]'
+                    }
+                  `.trim().replace(/\s+/g, ' ')}
                 >
+                  {/* Edit Button */}
                   <button
                     onClick={(e) => openEditModal(e, user)}
-                    className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Duzenle"
+                    className="absolute top-2 right-2 p-1 rounded-md bg-[var(--interactive-muted)] hover:bg-[var(--interactive-hover)] opacity-0 group-hover:opacity-100 transition-all duration-150 text-[var(--text-tertiary)]"
+                    title="Düzenle"
+                    aria-label="Kullanıcıyı düzenle"
                   >
-                    <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                     </svg>
                   </button>
-                  <div className="relative inline-block mb-3">
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold text-white mx-auto"
-                      style={{ backgroundColor: user.avatar_color || '#7c3aed' }}
-                    >
-                      {initials}
-                    </div>
+
+                  {/* Avatar */}
+                  <div className="relative inline-block mb-2.5">
+                    <Avatar
+                      name={user.name}
+                      color={user.avatar_color || '#6366f1'}
+                      size="lg"
+                    />
                     {isSelected && (
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -bottom-1 -right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center"
+                        className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-[var(--accent-primary)] rounded-full flex items-center justify-center border-2 border-[var(--bg-card)]"
                       >
-                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 13l4 4L19 7" />
                         </svg>
                       </motion.div>
                     )}
                   </div>
-                  <h3 className="text-white font-semibold text-sm">{user.name}</h3>
-                  <p className="text-gray-400 text-xs mt-1">{user.role}</p>
+
+                  <h3 className="text-[12px] font-semibold text-[var(--text-primary)] truncate">{user.name}</h3>
+                  <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{user.role}</p>
                 </motion.button>
               );
             })}
+
+            {/* Add User Button */}
             <motion.button
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * users.length }}
+              transition={{ delay: 0.04 * users.length, duration: 0.2 }}
               onClick={openAddModal}
-              className="w-full sm:w-[280px] glass rounded-2xl p-6 text-center transition-all duration-300 hover:scale-[1.03] border-white/10 hover:border-white/20 border-dashed flex flex-col items-center justify-center min-h-[160px]"
+              className="
+                rounded-xl p-4 text-center min-h-[120px]
+                border border-dashed border-[var(--border-default)]
+                bg-[var(--interactive-muted)]
+                hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary-subtle)]
+                transition-all duration-200 ease-[var(--ease-apple)]
+                flex flex-col items-center justify-center
+              "
             >
-              <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-500 flex items-center justify-center mb-3">
-                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <div className="w-10 h-10 rounded-full border-2 border-dashed border-[var(--text-muted)] flex items-center justify-center mb-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
                 </svg>
               </div>
-              <h3 className="text-gray-300 font-semibold text-sm">Yeni Kullanici Ekle</h3>
+              <span className="text-[11px] font-medium text-[var(--text-tertiary)]">Yeni Kullanıcı</span>
             </motion.button>
           </div>
         )}
 
+        {/* ─── Login Button ─── */}
         <AnimatePresence>
           {selectedUser && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
+              exit={{ opacity: 0, y: 8 }}
               className="text-center"
             >
-              <button
+              <Button
+                variant="accent"
+                size="lg"
                 onClick={handleLogin}
-                className="px-12 py-3 bg-gradient-to-r from-accent to-accentAlt text-white font-semibold rounded-xl hover:opacity-90 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-accent/20"
+                className="px-12"
               >
-                Giris Yap
-              </button>
+                Giriş Yap
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Add User Modal */}
+      {/* Modals */}
       <AddUserModal
         show={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -243,8 +237,6 @@ function LoginScreen({ onLogin }) {
         THEME_COLORS={THEME_COLORS}
         users={users}
       />
-
-      {/* Edit User Modal */}
       <EditUserModal
         show={showEditModal}
         onClose={() => setShowEditModal(false)}

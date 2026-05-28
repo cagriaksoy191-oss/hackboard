@@ -718,3 +718,17 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - Team: `usersAPI.getAll()`, `tasksAPI.getAll()`, görev haritası, navigate to task detail
 - Analytics: `analyticsAPI.get()`, `formatPieData/formatBarData/formatLineData`, JSON/CSV export
 - Timeline: `milestonesAPI.getAll()`, `calculateRange/calculatePosition`, now indicator interval
+
+### 2026-05-29 - Phase 3.5: LoginScreen Yeniden Tasarımı — Phase 3 Tamamlandı ✅
+
+**Yeniden Yazılan Dosyalar (3 dosya):**
+- `client/src/components/LoginScreen.jsx` — Gradient logo → solid accent + shadow-accent, Avatar atom, Button atom, Spinner atom, compact 4-col grid, subtle ambient orbs (%3-4 opacity, blur-120px, pulse yok), `bg-white/10` skeleton → Spinner, `text-white`/`text-gray-400` → design-token, hackathon "Yonetim Paneli" → "Enterprise Workflow Platform"
+- `client/src/components/login/AddUserModal.jsx` — `glass-strong` → solid `bg-surface` + `border-default` + `shadow-xl`, Button atoms (İptal=secondary, Ekle=accent), uppercase tracking labels, used-color X ikonu (kırmızı çubuk yerine), `ring-offset` surface rengiyle eşleşme
+- `client/src/components/login/EditUserModal.jsx` — Button atoms (İptal=secondary, Kaydet=accent, Sil=danger), silme onayında uyarı üçgeni ikonu + accent-danger başlık, design-token input stilleri
+
+**Phase 3 Genel Durum:** ✅ TAMAMLANDI
+- 3.1: Design tokens + Atomic (atoms + molecules) ✅
+- 3.2: Organisms (7 bileşen) ✅
+- 3.3: Ana bileşen entegrasyonu (Sidebar, Header, KanbanBoard, Dashboard, ActivityFeed) ✅
+- 3.4: Kalan sayfa entegrasyonu (Chat, Team, Analytics, Timeline) ✅
+- 3.5: LoginScreen + modal yeniden tasarımı ✅
