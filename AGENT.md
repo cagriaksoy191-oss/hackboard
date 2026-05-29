@@ -772,3 +772,21 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 
 **Backend (Zaten Mevcut):**
 - `server/routes/v1/workflows.js` — GET, POST, PUT, PATCH /reorder, DELETE — RBAC (owner/admin), workspace-scoped, Socket.IO broadcast
+
+### 2026-05-30 - Phase 4.3: Threaded Chat & Kanallar
+
+**Hedef:** Kanal-bazlı sohbet, konu başlığı/alt yanıt (thread) paneli, kanal Room izolasyonu.
+
+**Yeni Dosyalar:**
+- `server/routes/v1/channels.js` — GET (list + message_count + last_message_at), POST (create, RBAC admin+), DELETE (default koruması) — Socket.IO broadcast (`channel:created/deleted`)
+- `server/migrations/005_seed_default_channels.sql` — Yazılım, Tasarım, Duyurular varsayılan kanalları (INSERT OR IGNORE)
+
+**Değiştirilen Dosyalar:**
+- `server/routes/v1/index.js` — `channelRoutes` import + `/channels` route kaydı
+- `server/server.js` — Socket.IO `message:send` handler channel_id/thread_id destekli hale getirildi; `channel:join/leave` room event'leri eklendi; thread reply ayrı `thread:reply` event'i ile yayınlanıyor; bildirimler `thread_reply` tipini destekliyor
+- `client/src/lib/api.js` — `messagesAPI` v1'e yükseltildi (channel_id/thread_id params desteği + getThread endpoint); `channelsAPI` eklendi (getAll, create, delete)
+- `client/src/pages/Chat.jsx` — Tamamen yeniden yazıldı:
+  * **ChannelSidebar:** Sol tarafta # hash ile kanal listesi, aktif kanal highlight, inline kanal oluşturma formu, varsayılan badge
+  * **Ana Sohbet Alanı:** Kanal-scoped mesaj yükleme, per-mesaj thread butonu (yanıt sayısıyla), socket room join/leave yönetimi
+  * **ThreadPanel:** Apple Messages esintili sağdan kayan panel (spring animation), parent mesaj gösterimi, kronolojik alt yanıtlar, canlı thread:reply socket güncellemesi, inline yanıt input'u
+- `client/src/components/chat/TypingIndicator.jsx` — Design token'lara uyumlu hale getirildi (eski raw Tailwind → `var(--text-muted)`, `var(--text-tertiary)`)

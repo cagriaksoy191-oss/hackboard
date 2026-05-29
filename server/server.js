@@ -189,6 +189,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ── Channel Room Management ──
+  socket.on('channel:join', (data) => {
+    if (data.channelId) {
+      socket.join(`channel:${data.channelId}`);
+    }
+  });
+
+  socket.on('channel:leave', (data) => {
+    if (data.channelId) {
+      socket.leave(`channel:${data.channelId}`);
+    }
+  });
+
   // Helper: get the best room for broadcast
   function getTenantRoom() {
     return socket.org_id ? `tenant:${socket.org_id}` : null;
@@ -197,22 +210,47 @@ io.on('connection', (socket) => {
   // ── Messages ──
   socket.on('message:send', async (data) => {
     try {
-      const result = await prepare('INSERT INTO messages (user_id, content, org_id) VALUES (?, ?, ?)').run(
-        data.user_id, data.content, socket.org_id || null
-      );
+      const channelId = data.channel_id || null;
+      const threadId = data.thread_id || null;
+      const workspaceId = socket.workspace_id || null;
+
+      // If replying to a thread, verify parent exists
+      if (threadId) {
+        const parent = await prepare('SELECT id FROM messages WHERE id = ?').get(threadId);
+        if (!parent) return;
+      }
+
+      const result = await prepare(
+        'INSERT INTO messages (user_id, content, org_id, workspace_id, channel_id, thread_id) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(data.user_id, data.content, socket.org_id || null, workspaceId, channelId, threadId);
+
       const message = await prepare(`
         SELECT m.*, u.name, u.avatar_color
         FROM messages m JOIN users u ON m.user_id = u.id WHERE m.id = ?
       `).get(result.lastInsertRowid);
 
-      // Broadcast to tenant room (or global fallback for legacy clients)
-      const room = getTenantRoom();
-      if (room) {
-        io.to(room).emit('message:new', message);
+      // Room-scoped broadcast
+      if (channelId) {
+        // Channel-scoped: broadcast to channel room
+        io.to(`channel:${channelId}`).emit('message:new', message);
       } else {
-        io.emit('message:new', message);
+        const room = getTenantRoom();
+        if (room) {
+          io.to(room).emit('message:new', message);
+        } else {
+          io.emit('message:new', message);
+        }
       }
 
+      // Thread reply notification
+      if (threadId) {
+        const room = channelId ? `channel:${channelId}` : getTenantRoom();
+        if (room) {
+          io.to(room).emit('thread:reply', { threadId, message });
+        }
+      }
+
+      // Notification
       const user = await prepare('SELECT name FROM users WHERE id = ?').get(data.user_id);
       const userName = user?.name || 'Unknown';
       const truncatedContent = data.content.length > 50
@@ -221,16 +259,19 @@ io.on('connection', (socket) => {
 
       const notifPayload = {
         id: Date.now(),
-        type: 'message',
-        title: 'New Message',
+        type: threadId ? 'thread_reply' : 'message',
+        title: threadId ? 'Thread Reply' : 'New Message',
         message: `${userName}: ${truncatedContent}`,
         senderId: data.user_id,
+        channelId,
+        threadId,
         read: false,
         created_at: new Date().toISOString(),
       };
 
-      if (room) {
-        socket.to(room).emit('notification:new', notifPayload);
+      const notifRoom = getTenantRoom();
+      if (notifRoom) {
+        socket.to(notifRoom).emit('notification:new', notifPayload);
       } else {
         socket.broadcast.emit('notification:new', notifPayload);
       }

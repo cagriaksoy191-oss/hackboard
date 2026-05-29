@@ -6,17 +6,18 @@ function TypingIndicator({ typingUsers, getUserById }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex items-center gap-2 text-muted text-sm"
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 4 }}
+      className="flex items-center gap-2 text-[11px] text-[var(--text-tertiary)] px-1"
     >
-      <div className="flex gap-1">
-        <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-        <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div className="flex gap-0.5">
+        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
       <span>
-        {typingUsers.map((id) => getUserById(id)?.name).filter(Boolean).join(', ')} yaziyor...
+        {typingUsers.map((id) => getUserById(id)?.name).filter(Boolean).join(', ')} yazıyor...
       </span>
     </motion.div>
   );

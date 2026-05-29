@@ -19,6 +19,7 @@ import workspaceRoutes from './workspaces.js';
 import organizationRoutes from './organizations.js';
 import tagRoutes from './tags.js';
 import workflowRoutes from './workflows.js';
+import channelRoutes from './channels.js';
 
 const router = Router();
 
@@ -40,6 +41,7 @@ protectedRouter.use('/workspaces', workspaceRoutes);
 protectedRouter.use('/organizations', organizationRoutes);
 protectedRouter.use('/tags', tagRoutes);
 protectedRouter.use('/workflows', workflowRoutes);
+protectedRouter.use('/channels', channelRoutes);
 
 router.use(protectedRouter);
 

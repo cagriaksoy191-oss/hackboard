@@ -50,8 +50,15 @@ export const usersAPI = {
 };
 
 export const messagesAPI = {
-  getAll: () => api.get('/messages'),
-  create: (data) => api.post('/messages', data),
+  getAll: (params) => api.get('/v1/messages', { params }),
+  create: (data) => api.post('/v1/messages', data),
+  getThread: (messageId) => api.get(`/v1/messages/${messageId}/thread`),
+};
+
+export const channelsAPI = {
+  getAll: (params) => api.get('/v1/channels', { params }),
+  create: (data) => api.post('/v1/channels', data),
+  delete: (id) => api.delete(`/v1/channels/${id}`),
 };
 
 export const activitiesAPI = {
