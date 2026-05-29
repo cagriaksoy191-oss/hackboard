@@ -732,3 +732,43 @@ In production, Express serves the Vite-built static files. Both API and WebSocke
 - 3.3: Ana bileşen entegrasyonu (Sidebar, Header, KanbanBoard, Dashboard, ActivityFeed) ✅
 - 3.4: Kalan sayfa entegrasyonu (Chat, Team, Analytics, Timeline) ✅
 - 3.5: LoginScreen + modal yeniden tasarımı ✅
+
+### 2026-05-29 - Phase 4.1: Sprint / Döngü Yönetimi
+
+**Hedef:** Sprint oluşturma, durum yönetimi, görev atama, burndown grafiği ile tam döngü yönetim sistemi.
+
+**Yeni Dosyalar:**
+- `client/src/pages/Sprints.jsx` — Sprint listesi: status tab (Tümü/Aktif/Planlama/Tamamlanan), Apple segmented control, create modal (tarih/hedef), SprintCard organism grid, socket live-update (`sprint:created/updated`), EmptyState + Spinner atomları
+- `client/src/pages/SprintDetail.jsx` — Sprint detay: breadcrumb nav, durum badge, tarih aralığı + gün sayacı, 5-kolon stat row, animasyonlu progress bar, BurndownChart, inline görev atama paneli (unassigned task listesi), TaskCard organism grid
+- `client/src/components/organisms/BurndownChart.jsx` — Sprint burndown grafiği: ideal (lineer totalTasks→0) vs gerçek (tasks.updated_at'dan hesaplanan kümülatif tamamlama) ComposedChart, dashed ideal çizgi, solid accent actual çizgi, design-token tooltip
+
+**Değiştirilen Dosyalar:**
+- `client/src/lib/api.js` — `sprintsAPI` eklendi (getAll, create, update, updateStatus, getTasks, addTask) — `/api/v1/sprints` endpointleri
+- `client/src/App.jsx` — `/sprints` ve `/sprints/:id` route'ları + lazy import
+- `client/src/components/Sidebar.jsx` — Sprint lightning bolt (⚡) navigation item eklendi (Görevler ile Takım arasında)
+
+**Backend (Zaten Mevcut):**
+- `server/routes/v1/sprints.js` — GET, POST, PUT, PATCH /status, GET /:id/tasks — workspace-scoped, tenant-isolated, Socket.IO room broadcast
+
+### 2026-05-29 - Phase 4.1 Bugfix: Runtime Çökme Onarımları
+
+**Düzeltilen Hatalar:**
+1. **EmptyState prop uyumsuzluğu** — `Sprints.jsx`'te `action={{ label, onClick }}` object olarak geçiliyordu; kullanıcının EmptyState basitleştirmesine uygun olarak `actionLabel` + `onAction` prop'larına dönüştürüldü
+2. **TaskCard onClick uyumsuzluğu** — `SprintDetail.jsx`'te `TaskCard`'a `onClick` ve boş `onDragStart` geçiliyordu; TaskCard bu prop'ları desteklemediği için kaldırıldı ve yerine lightweight inline task-row bileşeni eklendi (status dot, priority badge, assignee, hover arrow)
+3. **Kullanılmayan import'lar** — `Badge` (Sprints.jsx), `TaskCard` (SprintDetail.jsx), `LineChart/ReferenceLine/Area` (BurndownChart.jsx) temizlendi
+
+### 2026-05-29 - Phase 4.2: Özelleştirilebilir İş Akışı Aşamaları
+
+**Hedef:** Workspace başına tanımlanabilen Kanban kolon/aşama yapısı (varsayılan 4 kolon yerine).
+
+**Yeni Dosyalar:**
+- `client/src/pages/WorkflowSettings.jsx` — Drag-reorderable aşama listesi (Framer Motion Reorder), add modal (isim/renk/done-state), inline edit (double-click), delete (görev kontrolü ile), socket live-update (`workflow:created/updated/reordered/deleted`), error banner (409 conflict), bilgi kartı
+
+**Değiştirilen Dosyalar:**
+- `client/src/lib/api.js` — `workflowsAPI` eklendi (getAll, create, update, reorder, delete)
+- `client/src/components/KanbanBoard.jsx` — Statik `columns` array → `workflowStages` state + `useMemo` dinamik kolon hesaplama + workflow API yükleme + socket `workflow:reordered` listener + CSS grid `repeat(N, minmax(0,1fr))` dinamik kolon genişliği
+- `client/src/App.jsx` — `/settings/workflow` route + lazy import
+- `client/src/components/Sidebar.jsx` — ⚙️ İş Akışı (gear icon) navigation item eklendi
+
+**Backend (Zaten Mevcut):**
+- `server/routes/v1/workflows.js` — GET, POST, PUT, PATCH /reorder, DELETE — RBAC (owner/admin), workspace-scoped, Socket.IO broadcast

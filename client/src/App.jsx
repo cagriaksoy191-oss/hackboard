@@ -13,6 +13,9 @@ const Timeline = lazy(() => import('./pages/Timeline'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const TaskDetail = lazy(() => import('./pages/TaskDetail'));
+const Sprints = lazy(() => import('./pages/Sprints'));
+const SprintDetail = lazy(() => import('./pages/SprintDetail'));
+const WorkflowSettings = lazy(() => import('./pages/WorkflowSettings'));
 
 function LoadingFallback() {
   return (
@@ -40,6 +43,9 @@ function App() {
                 <Route path="/timeline" element={<Layout><Suspense fallback={<LoadingFallback />}><Timeline /></Suspense></Layout>} />
                 <Route path="/chat" element={<Layout><Suspense fallback={<LoadingFallback />}><Chat /></Suspense></Layout>} />
                 <Route path="/analytics" element={<Layout><Suspense fallback={<LoadingFallback />}><Analytics /></Suspense></Layout>} />
+                <Route path="/sprints" element={<Layout><Suspense fallback={<LoadingFallback />}><Sprints /></Suspense></Layout>} />
+                <Route path="/sprints/:id" element={<Layout><Suspense fallback={<LoadingFallback />}><SprintDetail /></Suspense></Layout>} />
+                <Route path="/settings/workflow" element={<Layout><Suspense fallback={<LoadingFallback />}><WorkflowSettings /></Suspense></Layout>} />
               </Routes>
             </BrowserRouter>
           </ToastProvider>

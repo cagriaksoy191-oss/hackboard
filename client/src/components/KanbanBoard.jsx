@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { tasksAPI, usersAPI } from '../lib/api';
+import { tasksAPI, usersAPI, workflowsAPI } from '../lib/api';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
 import TaskCard from './organisms/TaskCard';
@@ -11,13 +11,13 @@ import { Button } from './atoms';
 import CreateTaskModal from './CreateTaskModal';
 
 /* ──────────────────────────────────────────────
-   Columns — Clean, token-based color definition
+   Default columns — fallback when no custom workflow
    ────────────────────────────────────────────── */
-const columns = [
-  { id: 'todo',        title: 'Yapılacak',     color: '#3b82f6' },
-  { id: 'in-progress', title: 'Devam Ediyor',  color: '#f59e0b' },
-  { id: 'testing',     title: 'Test',           color: '#8b5cf6' },
-  { id: 'done',        title: 'Tamamlandı',     color: '#22c55e' },
+const DEFAULT_COLUMNS = [
+  { id: 'todo',        title: 'Yapılacak',     color: '#3b82f6', slug: 'todo' },
+  { id: 'in-progress', title: 'Devam Ediyor',  color: '#f59e0b', slug: 'in-progress' },
+  { id: 'testing',     title: 'Test',           color: '#8b5cf6', slug: 'testing' },
+  { id: 'done',        title: 'Tamamlandı',     color: '#22c55e', slug: 'done' },
 ];
 
 /* ──────────────────────────────────────────────
@@ -49,27 +49,44 @@ function KanbanBoard() {
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterUser, setFilterUser] = useState('all');
   const [kanbanUsers, setKanbanUsers] = useState([]);
+  const [workflowStages, setWorkflowStages] = useState(null);
+
+  // Compute columns: use custom workflow stages if defined, otherwise default
+  const columns = useMemo(() => {
+    if (workflowStages && workflowStages.length > 0) {
+      return workflowStages.map(s => ({
+        id: s.slug,
+        title: s.name,
+        color: s.color || '#6366f1',
+      }));
+    }
+    return DEFAULT_COLUMNS;
+  }, [workflowStages]);
 
   useEffect(() => {
     loadTasks();
     usersAPI.getAll().then((res) => setKanbanUsers(res.data)).catch(() => {});
+    workflowsAPI.getAll().then((res) => setWorkflowStages(res.data)).catch(() => setWorkflowStages(null));
 
     // ⚡ Socket listeners — optimistic local state updates
     const handleTaskMoved = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     const handleTaskDeleted = (data) => setTasks((prev) => prev.filter((t) => t.id !== data.id));
     const handleTaskUpdated = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);
+    const handleWorkflowReorder = (stages) => setWorkflowStages(stages);
 
     socket.on('task:moved', handleTaskMoved);
     socket.on('task:deleted', handleTaskDeleted);
     socket.on('task:updated', handleTaskUpdated);
     socket.on('task:created', handleTaskCreated);
+    socket.on('workflow:reordered', handleWorkflowReorder);
 
     return () => {
       socket.off('task:moved', handleTaskMoved);
       socket.off('task:deleted', handleTaskDeleted);
       socket.off('task:updated', handleTaskUpdated);
       socket.off('task:created', handleTaskCreated);
+      socket.off('workflow:reordered', handleWorkflowReorder);
     };
   }, []);
 
@@ -229,7 +246,18 @@ function KanbanBoard() {
           actionLabel="Görev Ekle"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3" id="kanban-board-container">
+        <div
+          className={`grid gap-3 ${
+            columns.length <= 4
+              ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
+              : 'overflow-x-auto'
+          }`}
+          style={columns.length > 4 ? {
+            display: 'grid',
+            gridTemplateColumns: `repeat(${columns.length}, minmax(260px, 1fr))`,
+          } : undefined}
+          id="kanban-board-container"
+        >
           {columns.map((col) => {
             const colTasks = filteredTasks.filter((t) => t.status === col.id);
             return (

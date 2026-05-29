@@ -68,6 +68,23 @@ export const milestonesAPI = {
   update: (id, data) => api.put(`/milestones/${id}`, data),
 };
 
+export const sprintsAPI = {
+  getAll: (params) => api.get('/v1/sprints', { params }),
+  create: (data) => api.post('/v1/sprints', data),
+  update: (id, data) => api.put(`/v1/sprints/${id}`, data),
+  updateStatus: (id, status) => api.patch(`/v1/sprints/${id}/status`, { status }),
+  getTasks: (id) => api.get(`/v1/sprints/${id}/tasks`),
+  addTask: (id, data) => api.post(`/v1/sprints/${id}/tasks`, data),
+};
+
+export const workflowsAPI = {
+  getAll: (params) => api.get('/v1/workflows', { params }),
+  create: (data) => api.post('/v1/workflows', data),
+  update: (id, data) => api.put(`/v1/workflows/${id}`, data),
+  reorder: (data) => api.patch('/v1/workflows/reorder', data),
+  delete: (id) => api.delete(`/v1/workflows/${id}`),
+};
+
 export const backupAPI = {
   exportData: () => api.get('/backup/export'),
   getHealth: () => api.get('/backup/health'),
