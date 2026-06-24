@@ -330,4 +330,31 @@ router.post('/set-password', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/v1/auth/health
+ * Public health check endpoint for deployment platforms (Render, etc.)
+ */
+router.get('/health', async (req, res) => {
+  try {
+    // Quick DB connectivity check
+    const dbCheck = await prepare('SELECT 1 as ok').get();
+    const { DB_MODE } = await import('../../db-adapter.js');
+
+    res.json({
+      status: 'healthy',
+      version: '1.0.0',
+      uptime: Math.floor(process.uptime()),
+      dbMode: DB_MODE,
+      dbConnected: !!dbCheck?.ok,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 export default router;

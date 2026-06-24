@@ -22,6 +22,7 @@ import milestoneRoutes from './routes/milestones.js';
 import notificationRoutes from './routes/notifications.js';
 import backupRoutes from './routes/backup.js';
 import v1Routes from './routes/v1/index.js';
+import { startEmbeddingWorker, queueEmbedding } from './embedding-worker.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -83,6 +84,13 @@ await initDB();
 await runMigrations();
 await seed();
 await backfillMemberships();
+
+// Start RAG embedding background worker (initializes vector store adapter)
+try {
+  await startEmbeddingWorker();
+} catch (err) {
+  console.warn('[Server] Embedding worker startup warning:', err.message);
+}
 
 // Legacy routes with deprecation headers (migrate to /api/v1)
 const deprecationMiddleware = (req, res, next) => {
@@ -275,6 +283,9 @@ io.on('connection', (socket) => {
       } else {
         socket.broadcast.emit('notification:new', notifPayload);
       }
+
+      // Queue message for RAG vector indexing
+      queueEmbedding('message', message.id).catch(() => {});
     } catch (err) {
       console.error('Socket message:send error:', err);
     }
@@ -300,6 +311,11 @@ io.on('connection', (socket) => {
         io.to(room).emit('task:updated', task);
       } else {
         io.emit('task:updated', task);
+      }
+
+      // Queue for RAG re-indexing if content changed
+      if (data.title || data.description) {
+        queueEmbedding('task', data.id).catch(() => {});
       }
     } catch (err) {
       console.error('Socket task:update error:', err);
@@ -341,6 +357,9 @@ io.on('connection', (socket) => {
           created_at: new Date().toISOString(),
         });
       }
+
+      // Queue for RAG re-indexing (status metadata affects search results)
+      queueEmbedding('task', data.id).catch(() => {});
     } catch (err) {
       console.error('Socket task:move error:', err);
     }

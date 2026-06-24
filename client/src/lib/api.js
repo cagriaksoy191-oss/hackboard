@@ -61,6 +61,11 @@ export const channelsAPI = {
   delete: (id) => api.delete(`/v1/channels/${id}`),
 };
 
+export const searchAPI = {
+  query: (params) => api.get('/v1/search', { params }),
+  reindex: () => api.post('/v1/search/reindex'),
+};
+
 export const activitiesAPI = {
   getAll: () => api.get('/activities'),
 };

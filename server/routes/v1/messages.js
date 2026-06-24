@@ -7,6 +7,7 @@
 
 import { Router } from 'express';
 import { prepare } from '../../db-adapter.js';
+import { queueEmbedding } from '../../embedding-worker.js';
 
 const router = Router();
 
@@ -129,6 +130,9 @@ router.post('/', async (req, res) => {
         created_at: new Date().toISOString(),
       });
     }
+
+    // Queue message for RAG vector indexing
+    queueEmbedding('message', message.id).catch(() => {});
 
     res.status(201).json(message);
   } catch (err) {

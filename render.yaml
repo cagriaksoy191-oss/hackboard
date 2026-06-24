@@ -1,12 +1,41 @@
+# render.yaml — HackBoard Production Deployment Configuration
+# Deploys as a single web service serving both API and client SPA.
+#
+# Build: npm install (root + client) → client/dist (Vite production bundle)
+# Start: node server/server.js (Express serves API + static SPA files)
+
 services:
   - type: web
     name: hackboard
     runtime: node
     buildCommand: npm install && cd client && npm install && npm run build
-    startCommand: npm start
+    startCommand: node server/server.js
     envVars:
+      # ── Core ──
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3001
+
+      # ── CORS: Allowed frontend origins (comma-separated) ──
       - key: ALLOWED_ORIGINS
         value: https://hackboard.onrender.com
+
+      # ── Auth: JWT Secret (override with Render secret) ──
+      - key: JWT_SECRET
+        sync: false  # Must be set manually in Render dashboard
+
+      # ── Database: PostgreSQL (Supabase or Render Postgres) ──
+      # When DATABASE_URL is set, the app uses PostgreSQL mode.
+      # When absent, falls back to SQLite (hackboard.db).
+      - key: DATABASE_URL
+        sync: false  # Set to your Supabase/Render PostgreSQL connection string
+
+      # ── RAG Embedding (optional — defaults to mock provider) ──
+      - key: EMBEDDING_PROVIDER
+        value: mock
+      - key: EMBEDDING_DIMENSIONS
+        value: "768"
+
     plan: free
+    healthCheckPath: /api/v1/auth/health

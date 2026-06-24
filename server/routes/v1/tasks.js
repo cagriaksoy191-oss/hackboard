@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { prepare, VALID_STATUSES, VALID_PRIORITIES } from '../../db-adapter.js';
+import { queueEmbedding } from '../../embedding-worker.js';
 
 const router = Router();
 
@@ -146,6 +147,9 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Queue new task for RAG indexing
+    queueEmbedding('task', task.id).catch(() => {});
+
     res.status(201).json(task);
   } catch (err) {
     console.error('v1 Task create error:', err);
@@ -222,6 +226,9 @@ router.put('/:id', async (req, res) => {
       io.to(room).emit('task:updated', task);
     }
 
+    // Queue for RAG re-indexing
+    queueEmbedding('task', task.id).catch(() => {});
+
     res.json(task);
   } catch (err) {
     console.error('v1 Task update error:', err);
@@ -277,6 +284,9 @@ router.patch('/:id/status', async (req, res) => {
       const room = task.workspace_id ? `workspace:${task.workspace_id}` : `tenant:${orgId}`;
       io.to(room).emit('task:moved', task);
     }
+
+    // Queue for RAG re-indexing (status change affects search metadata)
+    queueEmbedding('task', task.id).catch(() => {});
 
     res.json(task);
   } catch (err) {
@@ -426,6 +436,9 @@ router.post('/:id/comments', async (req, res) => {
       const room = task.workspace_id ? `workspace:${task.workspace_id}` : `tenant:${req.tenant.orgId}`;
       io.to(room).emit('comment:added', { taskId: parseInt(req.params.id), comment });
     }
+
+    // Queue comment for RAG vector indexing (explicit over implicit DEFAULT)
+    queueEmbedding('comment', comment.id).catch(() => {});
 
     res.status(201).json(comment);
   } catch (err) {

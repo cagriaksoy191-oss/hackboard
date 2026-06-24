@@ -20,6 +20,7 @@ import organizationRoutes from './organizations.js';
 import tagRoutes from './tags.js';
 import workflowRoutes from './workflows.js';
 import channelRoutes from './channels.js';
+import searchRoutes from './search.js';
 
 const router = Router();
 
@@ -42,6 +43,7 @@ protectedRouter.use('/organizations', organizationRoutes);
 protectedRouter.use('/tags', tagRoutes);
 protectedRouter.use('/workflows', workflowRoutes);
 protectedRouter.use('/channels', channelRoutes);
+protectedRouter.use('/search', searchRoutes);
 
 router.use(protectedRouter);
 

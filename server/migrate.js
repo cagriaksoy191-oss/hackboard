@@ -146,6 +146,19 @@ export async function runMigrations() {
 
     let allSucceeded = true;
     for (const stmt of statements) {
+      // ── Engine-conditional directives ──
+      // Statements containing "-- @pg-only" run only in PostgreSQL mode.
+      // Statements containing "-- @sqlite-only" run only in SQLite mode.
+      // This enables engine-specific SQL within a single migration file.
+      if (stmt.includes('-- @pg-only') && DB_MODE !== 'postgresql') {
+        console.info('  ↳ Skipped (pg-only directive, current mode: sqlite)');
+        continue;
+      }
+      if (stmt.includes('-- @sqlite-only') && DB_MODE === 'postgresql') {
+        console.info('  ↳ Skipped (sqlite-only directive, current mode: postgresql)');
+        continue;
+      }
+
       try {
         const result = await execStatement(stmt);
         if (result.skipped) {
