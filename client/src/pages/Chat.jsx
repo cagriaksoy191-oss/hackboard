@@ -267,8 +267,13 @@ function Chat() {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [createChannelName, setCreateChannelName] = useState('');
   const [replyCounts, setReplyCounts] = useState({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const prevChannelRef = useRef(null);
+  const shouldScrollToBottomRef = useRef(false);
   const { user: currentUser } = useUser();
 
   // Load channels + users
@@ -304,8 +309,13 @@ function Chat() {
     prevChannelRef.current = activeChannel.id;
 
     setMessages([]);
-    messagesAPI.getAll({ channel_id: activeChannel.id }).then(res => {
+    setHasMore(true);
+    setLoadingOlder(false);
+    shouldScrollToBottomRef.current = true;
+
+    messagesAPI.getAll({ channel_id: activeChannel.id, limit: 50 }).then(res => {
       setMessages(res.data);
+      setHasMore(res.data.length === 50);
       // Build reply counts
       const counts = {};
       res.data.forEach(m => {
@@ -330,30 +340,108 @@ function Chat() {
       }
       // Only add if it's for the active channel
       if (activeChannel && msg.channel_id === activeChannel.id) {
+        shouldScrollToBottomRef.current = true;
         setMessages(prev => [...prev, msg]);
       }
     };
     const handleTypingStart = (data) => {
-      setTypingUsers(prev => prev.includes(data.user_id) ? prev : [...prev, data.user_id]);
+      if (activeChannel && data.channel_id === activeChannel.id) {
+        setTypingUsers(prev => prev.includes(data.user_id) ? prev : [...prev, data.user_id]);
+      }
     };
     const handleTypingStop = (data) => {
-      setTypingUsers(prev => prev.filter(id => id !== data.user_id));
+      if (activeChannel && data.channel_id === activeChannel.id) {
+        setTypingUsers(prev => prev.filter(id => id !== data.user_id));
+      }
     };
 
     socket.on('message:new', handleMessageNew);
     socket.on('typing:start', handleTypingStart);
     socket.on('typing:stop', handleTypingStop);
 
+    const handleReconnectRefetch = () => {
+      if (!activeChannel) return;
+      console.info('[Chat] Socket reconnected. Refetching channel messages...');
+      messagesAPI.getAll({ channel_id: activeChannel.id, limit: 50 }).then(res => {
+        setMessages(res.data);
+        setHasMore(res.data.length === 50);
+        const counts = {};
+        res.data.forEach(m => {
+          if (m.reply_count) counts[m.id] = m.reply_count;
+        });
+        setReplyCounts(counts);
+      }).catch(() => {});
+    };
+    window.addEventListener('socket:reconnect-refetch', handleReconnectRefetch);
+
     return () => {
       socket.off('message:new', handleMessageNew);
       socket.off('typing:start', handleTypingStart);
       socket.off('typing:stop', handleTypingStop);
+      window.removeEventListener('socket:reconnect-refetch', handleReconnectRefetch);
     };
   }, [activeChannel]);
 
+  // Scroll to bottom effect
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (shouldScrollToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      shouldScrollToBottomRef.current = false;
+    }
   }, [messages]);
+
+  // Infinite Scroll Handler (load older messages)
+  const handleScroll = async () => {
+    const container = scrollContainerRef.current;
+    if (!container || loadingOlder || !hasMore || !activeChannel) return;
+
+    // Trigger near top (<= 15px)
+    if (container.scrollTop <= 15) {
+      if (messages.length === 0) return;
+      const oldestId = messages[0].id;
+      setLoadingOlder(true);
+
+      const prevScrollHeight = container.scrollHeight;
+      const prevScrollTop = container.scrollTop;
+
+      try {
+        const res = await messagesAPI.getAll({
+          channel_id: activeChannel.id,
+          before_id: oldestId,
+          limit: 50,
+        });
+
+        if (res.data.length > 0) {
+          // Prepend older messages
+          setMessages(prev => [...res.data, ...prev]);
+          setHasMore(res.data.length === 50);
+
+          // Update reply counts for prepended messages
+          setReplyCounts(prev => {
+            const counts = { ...prev };
+            res.data.forEach(m => {
+              if (m.reply_count) counts[m.id] = m.reply_count;
+            });
+            return counts;
+          });
+
+          // Restore scroll position to prevent jumping
+          setTimeout(() => {
+            if (scrollContainerRef.current) {
+              const diff = scrollContainerRef.current.scrollHeight - prevScrollHeight;
+              scrollContainerRef.current.scrollTop = prevScrollTop + diff;
+            }
+          }, 0);
+        } else {
+          setHasMore(false);
+        }
+      } catch (err) {
+        console.error('Failed to load older messages:', err);
+      } finally {
+        setLoadingOlder(false);
+      }
+    }
+  };
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -365,16 +453,18 @@ function Chat() {
     });
     setNewMessage('');
     setShowEmoji(false);
-    socket.emit('typing:stop', { user_id: currentUser?.id || 1 });
+    socket.emit('typing:stop', { user_id: currentUser?.id || 1, channel_id: activeChannel.id });
   };
 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    socket.emit('typing:start', { user_id: currentUser?.id || 1 });
-    clearTimeout(window.typingTimeout);
-    window.typingTimeout = setTimeout(() => {
-      socket.emit('typing:stop', { user_id: currentUser?.id || 1 });
-    }, 2000);
+    if (activeChannel) {
+      socket.emit('typing:start', { user_id: currentUser?.id || 1, channel_id: activeChannel.id });
+      clearTimeout(window.typingTimeout);
+      window.typingTimeout = setTimeout(() => {
+        socket.emit('typing:stop', { user_id: currentUser?.id || 1, channel_id: activeChannel.id });
+      }, 2000);
+    }
   };
 
   const addEmoji = (emoji) => setNewMessage(prev => prev + emoji);
@@ -444,8 +534,12 @@ function Chat() {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2.5 relative">
+          {/* Messages Container with scroll listener */}
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto p-4 space-y-2.5 relative"
+          >
             {!activeChannel ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-[12px] text-[var(--text-muted)]">Bir kanal seçin</p>
@@ -457,36 +551,43 @@ function Chat() {
                 <p className="text-[11px] text-[var(--text-muted)]">İlk mesajı gönderin!</p>
               </div>
             ) : (
-              <AnimatePresence>
-                {messages.map((msg, i) => {
-                  const isMe = msg.user_id === (currentUser?.id || 1);
-                  const user = getUserById(msg.user_id);
-                  const threadCount = replyCounts[msg.id] || 0;
-                  return (
-                    <div key={msg.id || i}>
-                      <ChatMessage
-                        msg={msg}
-                        isMe={isMe}
-                        user={user}
-                        formatTime={formatTime}
-                        index={i}
-                      />
-                      {/* Thread indicator */}
-                      <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isMe ? 'pr-10' : 'pl-10'}`}>
-                        <button
-                          onClick={() => handleOpenThread(msg)}
-                          className="flex items-center gap-1.5 mt-0.5 px-2 py-0.5 rounded-md text-[10px] text-[var(--accent-primary)] hover:bg-[var(--accent-primary-subtle)] transition-colors"
-                        >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                          </svg>
-                          {threadCount > 0 ? `${threadCount} yanıt` : 'Yanıtla'}
-                        </button>
+              <div>
+                {loadingOlder && (
+                  <div className="flex items-center justify-center py-2 shrink-0">
+                    <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                <AnimatePresence initial={false}>
+                  {messages.map((msg, i) => {
+                    const isMe = msg.user_id === (currentUser?.id || 1);
+                    const user = getUserById(msg.user_id);
+                    const threadCount = replyCounts[msg.id] || 0;
+                    return (
+                      <div key={msg.id || i}>
+                        <ChatMessage
+                          msg={msg}
+                          isMe={isMe}
+                          user={user}
+                          formatTime={formatTime}
+                          index={i}
+                        />
+                        {/* Thread indicator */}
+                        <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isMe ? 'pr-10' : 'pl-10'}`}>
+                          <button
+                            onClick={() => handleOpenThread(msg)}
+                            className="flex items-center gap-1.5 mt-0.5 px-2 py-0.5 rounded-md text-[10px] text-[var(--accent-primary)] hover:bg-[var(--accent-primary-subtle)] transition-colors"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                            </svg>
+                            {threadCount > 0 ? `${threadCount} yanıt` : 'Yanıtla'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </AnimatePresence>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
             )}
             <TypingIndicator typingUsers={typingUsers} getUserById={getUserById} />
             <div ref={messagesEndRef} />

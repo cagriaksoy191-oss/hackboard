@@ -123,7 +123,7 @@ router.put('/:id', async (req, res) => {
 router.patch('/:id/status', async (req, res) => {
   try {
     const { orgId } = req.tenant;
-    const { status } = req.body;
+    const { status, transferSprintId } = req.body;
 
     if (!status || !VALID_SPRINT_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Valid status is required' });
@@ -137,11 +137,47 @@ router.patch('/:id/status', async (req, res) => {
 
     if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
 
+    // Handle rollover if sprint is completed
+    if (status === 'completed') {
+      let targetSprintId = null;
+      if (transferSprintId) {
+        const targetSprint = await prepare(
+          'SELECT id FROM sprints WHERE id = ? AND workspace_id = ?'
+        ).get(transferSprintId, sprint.workspace_id);
+        if (targetSprint) {
+          targetSprintId = targetSprint.id;
+        }
+      }
+
+      // Bulk move tasks that are NOT done
+      await prepare(
+        'UPDATE tasks SET sprint_id = ?, updated_at = CURRENT_TIMESTAMP WHERE sprint_id = ? AND status != ?'
+      ).run(targetSprintId, req.params.id, 'done');
+
+      // Log activity
+      const destName = targetSprintId ? `Sprint #${targetSprintId}` : 'backlog';
+      await prepare(
+        'INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        req.user.id,
+        'completed',
+        `Sprint "${sprint.name}" completed. Incomplete tasks moved to ${destName}.`,
+        orgId,
+        sprint.workspace_id,
+        'sprint',
+        sprint.id
+      );
+    }
+
     await prepare('UPDATE sprints SET status = ? WHERE id = ?').run(status, req.params.id);
     const updated = await prepare('SELECT * FROM sprints WHERE id = ?').get(req.params.id);
 
     const io = req.app.get('io');
-    if (io) io.to(`workspace:${sprint.workspace_id}`).emit('sprint:updated', updated);
+    if (io) {
+      io.to(`workspace:${sprint.workspace_id}`).emit('sprint:updated', updated);
+      // Trigger a task refresh for connected clients since tasks sprint_id changed
+      io.to(`workspace:${sprint.workspace_id}`).emit('tasks:refresh');
+    }
 
     res.json(updated);
   } catch (err) {

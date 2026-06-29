@@ -14,4 +14,21 @@ const socket = process.env.NODE_ENV === 'test'
       }
     });
 
+let isInitialConnect = true;
+
+if (process.env.NODE_ENV !== 'test') {
+  socket.on('connect', () => {
+    console.info('[Socket] Connected to server.');
+    if (!isInitialConnect) {
+      console.info('[Socket] Reconnect detected. Dispatching targeted refetch...');
+      window.dispatchEvent(new Event('socket:reconnect-refetch'));
+    }
+    isInitialConnect = false;
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.warn('[Socket] Disconnected:', reason);
+  });
+}
+
 export default socket;

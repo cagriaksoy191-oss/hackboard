@@ -151,6 +151,7 @@ router.patch('/reorder', requireRole(['owner', 'admin']), async (req, res) => {
 router.delete('/:id', requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const { orgId } = req.tenant;
+    const { transfer_stage_id } = req.query;
 
     const stage = await prepare(`
       SELECT ws.* FROM workflow_stages ws
@@ -166,16 +167,60 @@ router.delete('/:id', requireRole(['owner', 'admin']), async (req, res) => {
     ).get(req.params.id);
 
     if (taskCount?.count > 0) {
-      return res.status(409).json({
-        error: 'Cannot delete stage with assigned tasks',
-        taskCount: taskCount.count
-      });
+      if (!transfer_stage_id) {
+        return res.status(409).json({
+          error: 'Cannot delete stage with assigned tasks',
+          taskCount: taskCount.count,
+          needsTransfer: true,
+        });
+      }
+
+      const targetStage = await prepare(
+        'SELECT * FROM workflow_stages WHERE id = ? AND workspace_id = ?'
+      ).get(transfer_stage_id, stage.workspace_id);
+
+      if (!targetStage) {
+        return res.status(400).json({ error: 'Invalid transfer_stage_id' });
+      }
+
+      // Determine task status matching target stage
+      let newStatus = 'in-progress';
+      if (targetStage.is_done_state === 1) {
+        newStatus = 'done';
+      } else {
+        const slug = targetStage.slug || '';
+        if (slug.includes('todo') || slug.includes('yapilacak')) {
+          newStatus = 'todo';
+        } else if (slug.includes('test')) {
+          newStatus = 'testing';
+        }
+      }
+
+      // Execute task updates and stage deletion inside a transaction
+      try {
+        await prepare('BEGIN TRANSACTION').run();
+
+        await prepare(
+          'UPDATE tasks SET workflow_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE workflow_stage_id = ?'
+        ).run(targetStage.id, newStatus, req.params.id);
+
+        await prepare('DELETE FROM workflow_stages WHERE id = ?').run(req.params.id);
+
+        await prepare('COMMIT').run();
+      } catch (txnErr) {
+        await prepare('ROLLBACK').run();
+        throw txnErr;
+      }
+    } else {
+      await prepare('DELETE FROM workflow_stages WHERE id = ?').run(req.params.id);
     }
 
-    await prepare('DELETE FROM workflow_stages WHERE id = ?').run(req.params.id);
-
     const io = req.app.get('io');
-    if (io) io.to(`workspace:${stage.workspace_id}`).emit('workflow:deleted', { id: req.params.id });
+    if (io) {
+      io.to(`workspace:${stage.workspace_id}`).emit('workflow:deleted', { id: req.params.id });
+      // Notify clients to refresh tasks because tasks' stage might have updated
+      io.to(`workspace:${stage.workspace_id}`).emit('tasks:refresh');
+    }
 
     res.json({ success: true });
   } catch (err) {

@@ -55,12 +55,14 @@ function KanbanBoard() {
   const columns = useMemo(() => {
     if (workflowStages && workflowStages.length > 0) {
       return workflowStages.map(s => ({
-        id: s.slug,
+        id: String(s.id),
         title: s.name,
         color: s.color || '#6366f1',
+        isCustom: true,
+        slug: s.slug,
       }));
     }
-    return DEFAULT_COLUMNS;
+    return DEFAULT_COLUMNS.map(col => ({ ...col, isCustom: false }));
   }, [workflowStages]);
 
   useEffect(() => {
@@ -74,12 +76,21 @@ function KanbanBoard() {
     const handleTaskUpdated = (updatedTask) => setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
     const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);
     const handleWorkflowReorder = (stages) => setWorkflowStages(stages);
+    const handleTasksRefresh = () => loadTasks();
 
     socket.on('task:moved', handleTaskMoved);
     socket.on('task:deleted', handleTaskDeleted);
     socket.on('task:updated', handleTaskUpdated);
     socket.on('task:created', handleTaskCreated);
     socket.on('workflow:reordered', handleWorkflowReorder);
+    socket.on('tasks:refresh', handleTasksRefresh);
+
+    const handleReconnectRefetch = () => {
+      console.info('[KanbanBoard] Socket reconnected. Triggering targeted refetch...');
+      loadTasks();
+      workflowsAPI.getAll().then((res) => setWorkflowStages(res.data)).catch(() => {});
+    };
+    window.addEventListener('socket:reconnect-refetch', handleReconnectRefetch);
 
     return () => {
       socket.off('task:moved', handleTaskMoved);
@@ -87,6 +98,8 @@ function KanbanBoard() {
       socket.off('task:updated', handleTaskUpdated);
       socket.off('task:created', handleTaskCreated);
       socket.off('workflow:reordered', handleWorkflowReorder);
+      socket.off('tasks:refresh', handleTasksRefresh);
+      window.removeEventListener('socket:reconnect-refetch', handleReconnectRefetch);
     };
   }, []);
 
@@ -106,11 +119,34 @@ function KanbanBoard() {
     setHighlightColumn(colId);
   };
 
-  const handleDrop = (e, status) => {
+  const handleDrop = (e, colId) => {
     e.preventDefault();
     setHighlightColumn(null);
     if (draggedTaskId) {
-      socket.emit('task:move', { id: draggedTaskId, status, user_id: user?.id || 1 });
+      const targetCol = columns.find(c => String(c.id) === String(colId));
+      if (targetCol) {
+        if (targetCol.isCustom) {
+          const stage = workflowStages.find(s => String(s.id) === String(colId));
+          if (stage) {
+            let statusStr = 'in-progress';
+            if (stage.is_done_state === 1) {
+              statusStr = 'done';
+            } else if (stage.slug.includes('todo') || stage.slug.includes('yapilacak')) {
+              statusStr = 'todo';
+            } else if (stage.slug.includes('test')) {
+              statusStr = 'testing';
+            }
+            socket.emit('task:move', { 
+              id: draggedTaskId, 
+              status: statusStr, 
+              workflow_stage_id: stage.id, 
+              user_id: user?.id || 1 
+            });
+          }
+        } else {
+          socket.emit('task:move', { id: draggedTaskId, status: colId, user_id: user?.id || 1 });
+        }
+      }
       setPulseTaskId(draggedTaskId);
       setDraggedTaskId(null);
       setTimeout(() => setPulseTaskId(null), 600);
@@ -259,7 +295,12 @@ function KanbanBoard() {
           id="kanban-board-container"
         >
           {columns.map((col) => {
-            const colTasks = filteredTasks.filter((t) => t.status === col.id);
+            const colTasks = filteredTasks.filter((t) => {
+              if (col.isCustom) {
+                return String(t.workflow_stage_id) === String(col.id);
+              }
+              return t.status === col.id;
+            });
             return (
               <div
                 id={`kanban-col-${col.id}`}

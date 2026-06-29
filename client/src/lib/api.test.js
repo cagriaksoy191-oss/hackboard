@@ -29,77 +29,77 @@ describe('API Client', () => {
   });
 
   describe('tasksAPI', () => {
-    test('getAll should call GET /tasks', async () => {
+    test('getAll should call GET /v1/tasks', async () => {
       await tasksAPI.getAll();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/tasks']);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/v1/tasks', { params: undefined }]);
     });
 
-    test('create should call POST /tasks with data', async () => {
+    test('create should call POST /v1/tasks with data', async () => {
       const data = { title: 'Test Task' };
       await tasksAPI.create(data);
       assert.equal(api.post.mock.calls.length, 1);
-      assert.deepEqual(api.post.mock.calls[0].arguments, ['/tasks', data]);
+      assert.deepEqual(api.post.mock.calls[0].arguments, ['/v1/tasks', data]);
     });
 
-    test('update should call PUT /tasks/:id with data', async () => {
+    test('update should call PUT /v1/tasks/:id with data', async () => {
       const id = 1;
       const data = { title: 'Updated Task' };
       await tasksAPI.update(id, data);
       assert.equal(api.put.mock.calls.length, 1);
-      assert.deepEqual(api.put.mock.calls[0].arguments, [`/tasks/${id}`, data]);
+      assert.deepEqual(api.put.mock.calls[0].arguments, [`/v1/tasks/${id}`, data]);
     });
 
-    test('delete should call DELETE /tasks/:id', async () => {
+    test('delete should call DELETE /v1/tasks/:id', async () => {
       const id = 1;
       await tasksAPI.delete(id);
       assert.equal(api.delete.mock.calls.length, 1);
-      assert.deepEqual(api.delete.mock.calls[0].arguments, [`/tasks/${id}`]);
+      assert.deepEqual(api.delete.mock.calls[0].arguments, [`/v1/tasks/${id}`]);
     });
 
-    test('updateStatus should call PATCH /tasks/:id/status with status', async () => {
+    test('updateStatus should call PATCH /v1/tasks/:id/status with status', async () => {
       const id = 1;
       const status = 'completed';
       await tasksAPI.updateStatus(id, status);
       assert.equal(api.patch.mock.calls.length, 1);
-      assert.deepEqual(api.patch.mock.calls[0].arguments, [`/tasks/${id}/status`, { status }]);
+      assert.deepEqual(api.patch.mock.calls[0].arguments, [`/v1/tasks/${id}/status`, { status, version: undefined }]);
     });
 
-    test('getSubtasks should call GET /tasks/:taskId/subtasks', async () => {
+    test('getSubtasks should call GET /v1/tasks/:taskId/subtasks', async () => {
       const taskId = 1;
       await tasksAPI.getSubtasks(taskId);
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, [`/tasks/${taskId}/subtasks`]);
+      assert.deepEqual(api.get.mock.calls[0].arguments, [`/v1/tasks/${taskId}/subtasks`]);
     });
 
-    test('createSubtask should call POST /tasks/:taskId/subtasks with data', async () => {
+    test('createSubtask should call POST /v1/tasks/:taskId/subtasks with data', async () => {
       const taskId = 1;
       const data = { title: 'Test Subtask' };
       await tasksAPI.createSubtask(taskId, data);
       assert.equal(api.post.mock.calls.length, 1);
-      assert.deepEqual(api.post.mock.calls[0].arguments, [`/tasks/${taskId}/subtasks`, data]);
+      assert.deepEqual(api.post.mock.calls[0].arguments, [`/v1/tasks/${taskId}/subtasks`, data]);
     });
 
-    test('toggleSubtask should call PATCH /subtasks/:subtaskId/toggle', async () => {
+    test('toggleSubtask should call PATCH /v1/tasks/subtasks/:subtaskId/toggle', async () => {
       const subtaskId = 2;
       await tasksAPI.toggleSubtask(subtaskId);
       assert.equal(api.patch.mock.calls.length, 1);
-      assert.deepEqual(api.patch.mock.calls[0].arguments, [`/subtasks/${subtaskId}/toggle`]);
+      assert.deepEqual(api.patch.mock.calls[0].arguments, [`/v1/tasks/subtasks/${subtaskId}/toggle`]);
     });
 
-    test('getComments should call GET /tasks/:taskId/comments', async () => {
+    test('getComments should call GET /v1/tasks/:taskId/comments', async () => {
       const taskId = 1;
       await tasksAPI.getComments(taskId);
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, [`/tasks/${taskId}/comments`]);
+      assert.deepEqual(api.get.mock.calls[0].arguments, [`/v1/tasks/${taskId}/comments`]);
     });
 
-    test('createComment should call POST /tasks/:taskId/comments with data', async () => {
+    test('createComment should call POST /v1/tasks/:taskId/comments with data', async () => {
       const taskId = 1;
       const data = { content: 'Test comment' };
       await tasksAPI.createComment(taskId, data);
       assert.equal(api.post.mock.calls.length, 1);
-      assert.deepEqual(api.post.mock.calls[0].arguments, [`/tasks/${taskId}/comments`, data]);
+      assert.deepEqual(api.post.mock.calls[0].arguments, [`/v1/tasks/${taskId}/comments`, data]);
     });
 
     test('getAll should propagate errors correctly', async () => {
@@ -117,72 +117,72 @@ describe('API Client', () => {
   });
 
   describe('usersAPI', () => {
-    test('getAll should call GET /users', async () => {
+    test('getAll should call GET /v1/users', async () => {
       await usersAPI.getAll();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/users']);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/v1/users']);
     });
 
-    test('updateStatus should call PATCH /users/:id/status with is_online', async () => {
+    test('updateStatus should call PATCH /v1/users/:id/status with is_online', async () => {
       const id = 1;
       const isOnline = true;
       await usersAPI.updateStatus(id, isOnline);
       assert.equal(api.patch.mock.calls.length, 1);
-      assert.deepEqual(api.patch.mock.calls[0].arguments, [`/users/${id}/status`, { is_online: isOnline }]);
+      assert.deepEqual(api.patch.mock.calls[0].arguments, [`/v1/users/${id}/status`, { is_online: isOnline }]);
     });
   });
 
   describe('messagesAPI', () => {
-    test('getAll should call GET /messages', async () => {
+    test('getAll should call GET /v1/messages', async () => {
       await messagesAPI.getAll();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/messages']);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/v1/messages', { params: undefined }]);
     });
 
-    test('create should call POST /messages with data', async () => {
+    test('create should call POST /v1/messages with data', async () => {
       const data = { content: 'Test Message' };
       await messagesAPI.create(data);
       assert.equal(api.post.mock.calls.length, 1);
-      assert.deepEqual(api.post.mock.calls[0].arguments, ['/messages', data]);
+      assert.deepEqual(api.post.mock.calls[0].arguments, ['/v1/messages', data]);
     });
   });
 
   describe('activitiesAPI', () => {
-    test('getAll should call GET /activities', async () => {
+    test('getAll should call GET /v1/activities', async () => {
       await activitiesAPI.getAll();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/activities']);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/v1/activities']);
     });
   });
 
   describe('analyticsAPI', () => {
-    test('get should call GET /analytics', async () => {
+    test('get should call GET /v1/analytics', async () => {
       await analyticsAPI.get();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/analytics']);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/v1/analytics']);
     });
   });
 
   describe('milestonesAPI', () => {
-    test('getAll should call GET /milestones', async () => {
+    test('getAll should call GET /v1/milestones', async () => {
       await milestonesAPI.getAll();
       assert.equal(api.get.mock.calls.length, 1);
-      assert.deepEqual(api.get.mock.calls[0].arguments, ['/milestones']);
+      assert.deepEqual(api.get.mock.calls[0].arguments, ['/v1/milestones']);
     });
 
-    test('create should call POST /milestones with data', async () => {
+    test('create should call POST /v1/milestones with data', async () => {
       const data = { title: 'Test Milestone' };
       await milestonesAPI.create(data);
       assert.equal(api.post.mock.calls.length, 1);
-      assert.deepEqual(api.post.mock.calls[0].arguments, ['/milestones', data]);
+      assert.deepEqual(api.post.mock.calls[0].arguments, ['/v1/milestones', data]);
     });
 
-    test('update should call PUT /milestones/:id with data', async () => {
+    test('update should call PUT /v1/milestones/:id with data', async () => {
       const id = 1;
       const data = { title: 'Updated Milestone' };
       await milestonesAPI.update(id, data);
       assert.equal(api.put.mock.calls.length, 1);
-      assert.deepEqual(api.put.mock.calls[0].arguments, [`/milestones/${id}`, data]);
+      assert.deepEqual(api.put.mock.calls[0].arguments, [`/v1/milestones/${id}`, data]);
     });
   });
 

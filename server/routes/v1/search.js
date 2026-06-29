@@ -30,124 +30,184 @@ router.get('/', async (req, res) => {
     }
 
     const query = q.trim();
+    const likeQuery = `%${query}%`;
+    const textResults = [];
 
-    if (mode === 'semantic') {
-      // ── Semantic (vector) search ──
-      const results = await semanticSearch(query, {
-        orgId,
-        workspaceId,
-        sourceType: type || undefined,
-        limit,
-      });
+    // 1. Execute SQL LIKE text search
+    // Search tasks
+    if (!type || type === 'task') {
+      const tasks = await prepare(`
+        SELECT t.id, t.title, t.description, t.status, t.priority, t.assigned_to, u.name as assignee_name
+        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
+        WHERE t.org_id = ? AND (t.title LIKE ? OR t.description LIKE ?)
+        LIMIT ?
+      `).all(orgId, likeQuery, likeQuery, limit);
 
-      // Enrich results with full entity data
-      const enriched = await Promise.all(
-        results.map(async (r) => {
-          let entity = null;
-
-          if (r.sourceType === 'task') {
-            entity = await prepare(`
-              SELECT t.id, t.title, t.description, t.status, t.priority, t.assigned_to, u.name as assignee_name
-              FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
-              WHERE t.id = ? AND t.org_id = ?
-            `).get(r.sourceId, orgId);
-          } else if (r.sourceType === 'message') {
-            entity = await prepare(`
-              SELECT m.id, m.content, m.user_id, m.channel_id, m.thread_id, m.created_at, u.name as user_name
-              FROM messages m JOIN users u ON m.user_id = u.id
-              WHERE m.id = ? AND m.org_id = ?
-            `).get(r.sourceId, orgId);
-          } else if (r.sourceType === 'comment') {
-            entity = await prepare(`
-              SELECT c.id, c.content, c.task_id, c.user_id, c.created_at, u.name as user_name
-              FROM comments c JOIN users u ON c.user_id = u.id
-              JOIN tasks t ON c.task_id = t.id
-              WHERE c.id = ? AND t.org_id = ?
-            `).get(r.sourceId, orgId);
-          } else if (r.sourceType === 'activity') {
-            entity = await prepare(`
-              SELECT a.id, a.action, a.details, a.entity_type, a.entity_id, a.metadata, a.created_at, u.name as user_name
-              FROM activities a LEFT JOIN users u ON a.user_id = u.id
-              WHERE a.id = ? AND a.org_id = ?
-            `).get(r.sourceId, orgId);
-          }
-
-          return {
-            type: r.sourceType,
-            score: Math.round(r.score * 100) / 100,
-            highlight: r.chunkText,
-            entity,
-          };
-        })
-      );
-
-      res.json({
-        query,
-        mode: 'semantic',
-        total: enriched.filter(r => r.entity).length,
-        results: enriched.filter(r => r.entity),
-      });
-    } else {
-      // ── Text (LIKE) search — fallback when embeddings not available ──
-      const results = [];
-      const likeQuery = `%${query}%`;
-
-      // Search tasks
-      if (!type || type === 'task') {
-        const tasks = await prepare(`
-          SELECT t.id, t.title, t.description, t.status, t.priority, t.assigned_to, u.name as assignee_name
-          FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
-          WHERE t.org_id = ? AND (t.title LIKE ? OR t.description LIKE ?)
-          ORDER BY t.created_at DESC LIMIT ?
-        `).all(orgId, likeQuery, likeQuery, limit);
-
-        tasks.forEach(t => results.push({ type: 'task', score: 1, entity: t }));
-      }
-
-      // Search messages
-      if (!type || type === 'message') {
-        const messages = await prepare(`
-          SELECT m.id, m.content, m.user_id, m.channel_id, m.created_at, u.name as user_name
-          FROM messages m JOIN users u ON m.user_id = u.id
-          WHERE m.org_id = ? AND m.content LIKE ?
-          ORDER BY m.created_at DESC LIMIT ?
-        `).all(orgId, likeQuery, limit);
-
-        messages.forEach(m => results.push({ type: 'message', score: 1, entity: m }));
-      }
-
-      // Search comments
-      if (!type || type === 'comment') {
-        const comments = await prepare(`
-          SELECT c.id, c.content, c.task_id, c.user_id, c.created_at, u.name as user_name
-          FROM comments c JOIN users u ON c.user_id = u.id
-          JOIN tasks t ON c.task_id = t.id
-          WHERE t.org_id = ? AND c.content LIKE ?
-          ORDER BY c.created_at DESC LIMIT ?
-        `).all(orgId, likeQuery, limit);
-
-        comments.forEach(c => results.push({ type: 'comment', score: 1, entity: c }));
-      }
-
-      // Search activities
-      if (!type || type === 'activity') {
-        const activities = await prepare(`
-          SELECT a.id, a.action, a.details, a.entity_type, a.entity_id, a.metadata, a.created_at, u.name as user_name
-          FROM activities a LEFT JOIN users u ON a.user_id = u.id
-          WHERE a.org_id = ? AND a.details LIKE ?
-          ORDER BY a.created_at DESC LIMIT ?
-        `).all(orgId, likeQuery, limit);
-
-        activities.forEach(a => results.push({ type: 'activity', score: 1, entity: a }));
-      }
-
-      res.json({
-        query,
-        mode: 'text',
-        total: results.length,
-        results: results.slice(0, limit),
+      tasks.forEach(t => {
+        let score = 0.75;
+        if (t.title.toLowerCase().includes(query.toLowerCase())) {
+          score *= 1.2;
+        }
+        textResults.push({
+          sourceType: 'task',
+          sourceId: t.id,
+          score,
+          chunkText: t.title + ': ' + (t.description || ''),
+          entity: t,
+        });
       });
     }
+
+    // Search messages
+    if (!type || type === 'message') {
+      const messages = await prepare(`
+        SELECT m.id, m.content, m.user_id, m.channel_id, m.created_at, u.name as user_name, c.name as channel_name
+        FROM messages m JOIN users u ON m.user_id = u.id
+        JOIN channels c ON m.channel_id = c.id
+        WHERE m.org_id = ? AND m.content LIKE ?
+        LIMIT ?
+      `).all(orgId, likeQuery, limit);
+
+      messages.forEach(m => {
+        let score = 0.75;
+        if (m.channel_name && m.channel_name.toLowerCase().includes(query.toLowerCase())) {
+          score *= 1.2;
+        }
+        textResults.push({
+          sourceType: 'message',
+          sourceId: m.id,
+          score,
+          chunkText: m.content,
+          entity: m,
+        });
+      });
+    }
+
+    // Search comments
+    if (!type || type === 'comment') {
+      const comments = await prepare(`
+        SELECT c.id, c.content, c.task_id, c.user_id, c.created_at, u.name as user_name
+        FROM comments c JOIN users u ON c.user_id = u.id
+        JOIN tasks t ON c.task_id = t.id
+        WHERE t.org_id = ? AND c.content LIKE ?
+        LIMIT ?
+      `).all(orgId, likeQuery, limit);
+
+      comments.forEach(c => {
+        textResults.push({
+          sourceType: 'comment',
+          sourceId: c.id,
+          score: 0.75,
+          chunkText: c.content,
+          entity: c,
+        });
+      });
+    }
+
+    // Search activities
+    if (!type || type === 'activity') {
+      const activities = await prepare(`
+        SELECT a.id, a.action, a.details, a.entity_type, a.entity_id, a.metadata, a.created_at, u.name as user_name
+        FROM activities a LEFT JOIN users u ON a.user_id = u.id
+        WHERE a.org_id = ? AND a.details LIKE ?
+        LIMIT ?
+      `).all(orgId, likeQuery, limit);
+
+      activities.forEach(a => {
+        textResults.push({
+          sourceType: 'activity',
+          sourceId: a.id,
+          score: 0.75,
+          chunkText: a.details,
+          entity: a,
+        });
+      });
+    }
+
+    // 2. Execute Vector Semantic Search if enabled
+    let vectorResults = [];
+    if (mode === 'semantic' || mode === 'hybrid') {
+      try {
+        vectorResults = await semanticSearch(query, {
+          orgId,
+          workspaceId,
+          sourceType: type || undefined,
+          limit,
+        });
+      } catch (err) {
+        console.warn('[Search] Vector search failed or unconfigured, relying on SQL LIKE:', err.message);
+      }
+    }
+
+    const enrichedVector = await Promise.all(
+      vectorResults.map(async (r) => {
+        let entity = null;
+        if (r.sourceType === 'task') {
+          entity = await prepare(`
+            SELECT t.id, t.title, t.description, t.status, t.priority, t.assigned_to, u.name as assignee_name
+            FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
+            WHERE t.id = ? AND t.org_id = ?
+          `).get(r.sourceId, orgId);
+        } else if (r.sourceType === 'message') {
+          entity = await prepare(`
+            SELECT m.id, m.content, m.user_id, m.channel_id, m.thread_id, m.created_at, u.name as user_name
+            FROM messages m JOIN users u ON m.user_id = u.id
+            WHERE m.id = ? AND m.org_id = ?
+          `).get(r.sourceId, orgId);
+        } else if (r.sourceType === 'comment') {
+          entity = await prepare(`
+            SELECT c.id, c.content, c.task_id, c.user_id, c.created_at, u.name as user_name
+            FROM comments c JOIN users u ON c.user_id = u.id
+            JOIN tasks t ON c.task_id = t.id
+            WHERE c.id = ? AND t.org_id = ?
+          `).get(r.sourceId, orgId);
+        } else if (r.sourceType === 'activity') {
+          entity = await prepare(`
+            SELECT a.id, a.action, a.details, a.entity_type, a.entity_id, a.metadata, a.created_at, u.name as user_name
+            FROM activities a LEFT JOIN users u ON a.user_id = u.id
+            WHERE a.id = ? AND a.org_id = ?
+          `).get(r.sourceId, orgId);
+        }
+        return {
+          sourceType: r.sourceType,
+          sourceId: r.sourceId,
+          score: r.score,
+          chunkText: r.chunkText,
+          entity,
+        };
+      })
+    );
+
+    // 3. Deduplicate and merge results based on normalized scores
+    const combinedMap = new Map();
+    const addResult = (res) => {
+      if (!res.entity) return;
+      const key = `${res.sourceType}:${res.sourceId}`;
+      const existing = combinedMap.get(key);
+      if (!existing || res.score > existing.score) {
+        combinedMap.set(key, res);
+      }
+    };
+
+    enrichedVector.forEach(addResult);
+    textResults.forEach(addResult);
+
+    const results = Array.from(combinedMap.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(r => ({
+        type: r.sourceType,
+        score: Math.round(r.score * 100) / 100,
+        highlight: r.chunkText,
+        entity: r.entity,
+      }));
+
+    res.json({
+      query,
+      mode: mode === 'text' ? 'text' : 'hybrid',
+      total: results.length,
+      results,
+    });
   } catch (err) {
     console.error('v1 Search error:', err);
     res.status(500).json({ error: 'Internal server error' });

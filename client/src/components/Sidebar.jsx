@@ -110,6 +110,18 @@ function Sidebar({ isOpen, toggle }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Lock body scrolling when sidebar is open on mobile
+  useEffect(() => {
+    if (isOpen && !isDesktop) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [isOpen, isDesktop]);
+
   const sidebarVisible = isDesktop || isOpen;
 
   return (

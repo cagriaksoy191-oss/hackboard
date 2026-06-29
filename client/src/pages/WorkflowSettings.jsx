@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { workflowsAPI } from '../lib/api';
 import { Button } from '../components/atoms';
@@ -7,7 +7,7 @@ import Spinner from '../components/atoms/Spinner';
 import socket from '../lib/socket';
 
 /* ──────────────────────────────────────────────
-   DEFAULT_COLORS — Workflow stage color palette
+   STAGE_COLORS — Workflow stage color palette
    ────────────────────────────────────────────── */
 const STAGE_COLORS = [
   '#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#22c55e',
@@ -87,6 +87,65 @@ function AddStageModal({ show, onClose, onCreate }) {
             <Button variant="accent" size="md" className="flex-1" type="submit">Ekle</Button>
           </div>
         </form>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   Delete Stage Modal
+   ────────────────────────────────────────────── */
+function DeleteStageModal({ show, onClose, onConfirm, stages, targetStageId }) {
+  const [transferId, setTransferId] = useState('');
+
+  const eligibleStages = useMemo(() => {
+    return stages.filter(s => String(s.id) !== String(targetStageId));
+  }, [stages, targetStageId]);
+
+  useEffect(() => {
+    if (show && eligibleStages.length > 0) {
+      setTransferId(eligibleStages[0].id);
+    }
+  }, [show, eligibleStages]);
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+        className="relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-5 w-full max-w-sm shadow-[var(--shadow-xl)]"
+      >
+        <h2 className="text-[15px] font-bold text-[var(--text-primary)] mb-2 tracking-tight">Aşamayı Sil</h2>
+        <p className="text-[12px] text-[var(--text-secondary)] mb-4">
+          Bu aşamada görevler bulunmaktadır. Silme işlemine devam etmek için bu görevlerin aktarılacağı hedef aşamayı seçin.
+        </p>
+        
+        <div className="mb-4">
+          <label className="block text-[11px] font-medium text-[var(--text-tertiary)] mb-1.5 uppercase tracking-wider">Hedef Aşama</label>
+          <select
+            value={transferId}
+            onChange={(e) => setTransferId(e.target.value)}
+            className="w-full px-3.5 py-2.5 rounded-lg text-[13px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
+          >
+            {eligibleStages.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex gap-2.5 pt-1">
+          <Button variant="secondary" size="md" onClick={onClose} className="flex-1">İptal</Button>
+          <Button variant="danger" size="md" onClick={() => onConfirm(Number(transferId))} className="flex-1">Sil ve Aktar</Button>
+        </div>
       </motion.div>
     </div>
   );
@@ -184,6 +243,8 @@ function WorkflowSettings() {
   const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteStageId, setDeleteStageId] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
   const fetchStages = useCallback(() => {
@@ -232,16 +293,19 @@ function WorkflowSettings() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, transferId = null) => {
     setDeleteError('');
     try {
-      await workflowsAPI.delete(id);
+      await workflowsAPI.delete(id, transferId);
+      setShowDeleteModal(false);
+      setDeleteStageId(null);
       fetchStages();
     } catch (err) {
-      if (err.response?.status === 409) {
-        setDeleteError(`Bu aşamada ${err.response.data.taskCount} görev var. Önce görevleri taşıyın.`);
+      if (err.response?.status === 409 && err.response.data.needsTransfer) {
+        setDeleteStageId(id);
+        setShowDeleteModal(true);
       } else {
-        console.error('Workflow delete error:', err);
+        setDeleteError(err.response?.data?.error || 'Aşama silinemedi.');
       }
     }
   };
@@ -346,11 +410,26 @@ function WorkflowSettings() {
 
       {/* ─── Add Modal ─── */}
       <AnimatePresence>
-        <AddStageModal
-          show={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onCreate={handleCreate}
-        />
+        {showAddModal && (
+          <AddStageModal
+            show={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onCreate={handleCreate}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ─── Delete Warning Modal ─── */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <DeleteStageModal
+            show={showDeleteModal}
+            stages={stages}
+            targetStageId={deleteStageId}
+            onClose={() => { setShowDeleteModal(false); setDeleteStageId(null); }}
+            onConfirm={(transferId) => handleDelete(deleteStageId, transferId)}
+          />
+        )}
       </AnimatePresence>
     </motion.div>
   );

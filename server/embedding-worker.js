@@ -166,18 +166,40 @@ async function generateOpenAIEmbedding(text) {
 }
 
 /**
+ * Exponential backoff retry wrapper for async operations
+ */
+async function retryWithBackoff(fn, retries = 3, initialDelay = 2000) {
+  let attempt = 0;
+  while (attempt < retries) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt++;
+      if (attempt >= retries) {
+        throw err;
+      }
+      const delay = initialDelay * Math.pow(2, attempt - 1);
+      console.warn(`[Embedding API] Attempt ${attempt} failed: ${err.message}. Retrying in ${delay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+/**
  * Generate embedding based on configured provider
  */
 async function generateEmbedding(text) {
-  switch (EMBEDDING_PROVIDER) {
-    case 'gemini':
-      return await generateGeminiEmbedding(text);
-    case 'openai':
-      return await generateOpenAIEmbedding(text);
-    case 'mock':
-    default:
-      return generateMockEmbedding(text);
-  }
+  return await retryWithBackoff(async () => {
+    switch (EMBEDDING_PROVIDER) {
+      case 'gemini':
+        return await generateGeminiEmbedding(text);
+      case 'openai':
+        return await generateOpenAIEmbedding(text);
+      case 'mock':
+      default:
+        return generateMockEmbedding(text);
+    }
+  });
 }
 
 /* ──────────────────────────────────────────────

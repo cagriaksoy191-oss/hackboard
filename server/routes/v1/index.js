@@ -21,6 +21,7 @@ import tagRoutes from './tags.js';
 import workflowRoutes from './workflows.js';
 import channelRoutes from './channels.js';
 import searchRoutes from './search.js';
+import userRoutes from './users.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ protectedRouter.use('/tags', tagRoutes);
 protectedRouter.use('/workflows', workflowRoutes);
 protectedRouter.use('/channels', channelRoutes);
 protectedRouter.use('/search', searchRoutes);
+protectedRouter.use('/users', userRoutes);
 
 router.use(protectedRouter);
 

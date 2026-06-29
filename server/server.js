@@ -329,11 +329,29 @@ io.on('connection', (socket) => {
         console.error(`Socket task:move error: Invalid status "${data.status}"`);
         return;
       }
-      await prepare('UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(data.status, data.id);
+
+      if (data.workflow_stage_id) {
+        await prepare(
+          'UPDATE tasks SET status = ?, workflow_stage_id = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        ).run(data.status, data.workflow_stage_id, data.id);
+      } else {
+        await prepare(
+          'UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        ).run(data.status, data.id);
+
+        const stageMatch = await prepare(
+          'SELECT id FROM workflow_stages WHERE workspace_id = (SELECT workspace_id FROM tasks WHERE id = ?) AND slug = ?'
+        ).get(data.id, data.status);
+        if (stageMatch) {
+          await prepare('UPDATE tasks SET workflow_stage_id = ? WHERE id = ?').run(stageMatch.id, data.id);
+        }
+      }
+
       const task = await prepare(`
         SELECT t.*, u.name as assigned_name, u.avatar_color
         FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
       `).get(data.id);
+
       await prepare('INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
         data.user_id || 1, 'moved', `Task "${task.title}" to ${data.status}`,
         socket.org_id || null, task?.workspace_id || null, 'task', task?.id
@@ -431,20 +449,28 @@ io.on('connection', (socket) => {
 
   // ── Typing Indicators ──
   socket.on('typing:start', (data) => {
-    const room = getTenantRoom();
-    if (room) {
-      socket.to(room).emit('typing:start', data);
+    if (data.channel_id) {
+      socket.to(`channel:${data.channel_id}`).emit('typing:start', data);
     } else {
-      socket.broadcast.emit('typing:start', data);
+      const room = getTenantRoom();
+      if (room) {
+        socket.to(room).emit('typing:start', data);
+      } else {
+        socket.broadcast.emit('typing:start', data);
+      }
     }
   });
 
   socket.on('typing:stop', (data) => {
-    const room = getTenantRoom();
-    if (room) {
-      socket.to(room).emit('typing:stop', data);
+    if (data.channel_id) {
+      socket.to(`channel:${data.channel_id}`).emit('typing:stop', data);
     } else {
-      socket.broadcast.emit('typing:stop', data);
+      const room = getTenantRoom();
+      if (room) {
+        socket.to(room).emit('typing:stop', data);
+      } else {
+        socket.broadcast.emit('typing:stop', data);
+      }
     }
   });
 
