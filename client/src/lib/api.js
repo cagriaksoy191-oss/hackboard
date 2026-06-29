@@ -149,6 +149,13 @@ export const usersAPI = {
   updateStatus: (id, isOnline) => api.patch(`/v1/users/${id}/status`, { is_online: isOnline }),
 };
 
+export const publicUsersAPI = {
+  getAll: () => api.get('/users'),
+  create: (data) => api.post('/users', data),
+  update: (id, data) => api.put(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
+};
+
 export const messagesAPI = {
   getAll: (params) => api.get('/v1/messages', { params }),
   create: (data) => api.post('/v1/messages', data),

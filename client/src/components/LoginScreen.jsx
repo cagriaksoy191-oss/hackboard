@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usersAPI } from '../lib/api';
+import { publicUsersAPI } from '../lib/api';
 import Avatar from './atoms/Avatar';
 import { Button } from './atoms';
 import Spinner from './atoms/Spinner';
@@ -27,7 +27,7 @@ function LoginScreen({ onLogin }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchUsers = () => {
-    usersAPI.getAll().then((res) => {
+    publicUsersAPI.getAll().then((res) => {
       const sortedUsers = res.data.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
       setUsers(sortedUsers);
       setLoading(false);
@@ -45,7 +45,7 @@ function LoginScreen({ onLogin }) {
       const availableColors = THEME_COLORS.filter(c => !usedColors.includes(c));
       colorToUse = availableColors.length > 0 ? availableColors[0] : THEME_COLORS[Math.floor(Math.random() * THEME_COLORS.length)];
     }
-    await usersAPI.create({ name: formName, role: formRole, avatar_color: colorToUse });
+    await publicUsersAPI.create({ name: formName, role: formRole, avatar_color: colorToUse });
     setShowAddModal(false); setFormName(''); setFormRole(''); setSelectedColor('');
     fetchUsers();
   };
@@ -60,7 +60,7 @@ function LoginScreen({ onLogin }) {
   const handleEditUser = async (e) => {
     if (e) e.preventDefault();
     if (!formName || !editingUser) return;
-    await usersAPI.update(editingUser.id, { name: formName });
+    await publicUsersAPI.update(editingUser.id, { name: formName });
     setShowEditModal(false); setEditingUser(null); setFormName('');
     fetchUsers();
   };
@@ -69,7 +69,7 @@ function LoginScreen({ onLogin }) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     if (!editingUser) return;
     try {
-      await usersAPI.delete(editingUser.id);
+      await publicUsersAPI.delete(editingUser.id);
       setShowDeleteConfirm(false); setShowEditModal(false); setEditingUser(null);
       if (selectedUser?.id === editingUser.id) setSelectedUser(null);
       fetchUsers();
