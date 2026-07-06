@@ -1213,6 +1213,16 @@ Migration 006'da `embeddings.source_type` CHECK constraint'i sadece `('task', 'c
 - [x] CORS konfigürasyonu (ALLOWED_ORIGINS env var)
 - [x] Health check endpoint (/api/v1/auth/health)
 - [x] Vector store pgvector adaptörü (graceful degradation)
-- [x] Seed data multi-tenant uyumlu
+- [x] Seed data multi-tenant uyumluluğu
 - [x] Embedding worker 24/24 entity sıfır hata
 - [x] Güvenlik testi: 401/403 tüm korumalı endpoint'lerde doğrulandı
+
+### 2026-07-06 — Chat Workspace Fallback Hotfix
+
+**Problem:**
+Arayüzde bir Çalışma Alanı Seçici (Workspace Switcher) bulunmadığı için tarayıcıda `X-Workspace-ID` başlığı saklanmıyordu. Bu durum `/api/v1/channels` endpoint'inin `400 Bad Request` dönmesine ve chat kanallarının yüklenmeyerek arayüzün kilitlenmesine neden oluyordu.
+
+**Çözüm:**
+- `server/routes/v1/channels.js` rotasındaki GET ve POST endpoint'leri, `workspace_id` eksik olduğunda kullanıcının organizasyonuna ait ilk/varsayılan çalışma alanına dinamik olarak geri dönecek (fallback) şekilde güncellendi.
+- Küresel `requireTenant` middleware'inin çalışması korunarak test uyumluluğu sağlandı.
+- Tüm 86 sunucu testinin sorunsuz geçtiği doğrulandı.
