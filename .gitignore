@@ -5,3 +5,13 @@ client/dist/
 .env
 .DS_Store
 *.log
+
+# Agent Workspace & Run Files
+.agents/
+worker_m2_backend_handoff.md
+worker_m2_frontend_handoff.md
+task_plan.md
+ORIGINAL_REQUEST.md
+PROJECT.md
+pr-description.md
+
