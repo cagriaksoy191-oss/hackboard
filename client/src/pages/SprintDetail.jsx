@@ -124,7 +124,7 @@ function SprintDetail() {
     const handleTaskMoved = () => loadData();
     const handleTasksRefresh = () => loadData();
     const handleSprintUpdated = (s) => {
-      if (String(s.id) === String(id)) setSprint(s);
+      if (String(s.id) === String(id)) loadData();
     };
 
     socket.on('task:created', handleTaskCreated);

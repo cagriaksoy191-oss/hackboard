@@ -67,7 +67,87 @@ test('Socket task:move - accepts valid status', async () => {
   assert.strictEqual(lastErrorMessage, '');
 });
 
+// Workspace Join handler simulated
+const workspaceJoinHandler = async (socket, data, mockPrepare) => {
+  try {
+    if (data.workspaceId) {
+      const ws = await mockPrepare('SELECT id FROM workspaces WHERE id = ? AND org_id = ?').get(data.workspaceId, socket.org_id);
+      if (!ws) return;
+    }
+    if (data.channelId) {
+      const ch = await mockPrepare('SELECT c.id FROM channels c JOIN workspaces w ON c.workspace_id = w.id WHERE c.id = ? AND w.org_id = ?').get(data.channelId, socket.org_id);
+      if (!ch) return;
+    }
+    if (data.workspaceId) {
+      socket.join(`workspace:${data.workspaceId}`);
+      socket.workspace_id = data.workspaceId;
+    }
+    if (data.channelId) {
+      socket.join(`channel:${data.channelId}`);
+    }
+  } catch (err) {
+    console.error('Socket workspace:join error:', err);
+  }
+};
+
+// Channel Join handler simulated
+const channelJoinHandler = async (socket, data, mockPrepare) => {
+  try {
+    if (data.channelId) {
+      const ch = await mockPrepare('SELECT c.id, c.workspace_id FROM channels c JOIN workspaces w ON c.workspace_id = w.id WHERE c.id = ? AND w.org_id = ?').get(data.channelId, socket.org_id);
+      if (!ch) return;
+      socket.join(`channel:${data.channelId}`);
+      socket.workspace_id = data.workspaceId || ch.workspace_id;
+    }
+  } catch (err) {
+    console.error('Socket channel:join error:', err);
+  }
+};
+
+test('Socket workspace:join - assigns workspace_id when valid', async () => {
+  const socket = {
+    id: 'test-socket-1',
+    org_id: 1,
+    rooms: new Set(),
+    join(room) { this.rooms.add(room); }
+  };
+  const mockPrepare = (sql) => {
+    return {
+      get: (wsId, orgId) => {
+        if (wsId === 42 && orgId === 1) return { id: 42 };
+        return null;
+      }
+    };
+  };
+
+  await workspaceJoinHandler(socket, { workspaceId: 42 }, mockPrepare);
+  assert.strictEqual(socket.workspace_id, 42);
+  assert.ok(socket.rooms.has('workspace:42'));
+});
+
+test('Socket channel:join - selects workspace_id and assigns workspace_id when valid', async () => {
+  const socket = {
+    id: 'test-socket-2',
+    org_id: 1,
+    rooms: new Set(),
+    join(room) { this.rooms.add(room); }
+  };
+  const mockPrepare = (sql) => {
+    return {
+      get: (channelId, orgId) => {
+        if (channelId === 101 && orgId === 1) return { id: 101, workspace_id: 99 };
+        return null;
+      }
+    };
+  };
+
+  await channelJoinHandler(socket, { channelId: 101 }, mockPrepare);
+  assert.strictEqual(socket.workspace_id, 99);
+  assert.ok(socket.rooms.has('channel:101'));
+});
+
 // Restore console.error
 test('cleanup', () => {
     console.error = originalConsoleError;
 });
+

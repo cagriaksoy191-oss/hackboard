@@ -21,6 +21,11 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'workspace_id is required' });
     }
 
+    const ws = await prepare('SELECT id FROM workspaces WHERE id = ? AND org_id = ?').get(wsId, orgId);
+    if (!ws) {
+      return res.status(403).json({ error: 'Workspace access denied' });
+    }
+
     const channels = await prepare(`
       SELECT c.*, 
         (SELECT COUNT(*) FROM messages m WHERE m.channel_id = c.id) as message_count,

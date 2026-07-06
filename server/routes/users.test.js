@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import express from 'express';
 import usersRouter from './users.js';
 import { initDB } from '../db.js';
+import { runMigrations } from '../migrate.js';
 import seed from '../seed.js';
 
 describe('Users API', () => {
@@ -12,6 +13,7 @@ describe('Users API', () => {
 
   before(async () => {
     await initDB();
+    await runMigrations();
     seed();
 
     app = express();

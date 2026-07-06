@@ -13,22 +13,104 @@ const emojis = ['😀', '😂', '🔥', '💪', '👍', '❤️', '🎉', '🚀'
 /* ──────────────────────────────────────────────
    ThreadPanel — Apple Messages-inspired slide panel
    ────────────────────────────────────────────── */
-function ThreadPanel({ parentMsg, onClose, currentUser, users, formatTime }) {
+function ThreadPanel({ isOpen, parentMsg, onClose, currentUser, users, formatTime }) {
+  const [localParentMsg, setLocalParentMsg] = useState(parentMsg);
   const [replies, setReplies] = useState([]);
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState(true);
   const repliesEndRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 380);
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setViewportWidth(window.innerWidth);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const container = panelRef.current;
+    if (!container) return;
+
+    const focusableSelector = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]';
+    let focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+
+    const isTopmost = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs.length === 0;
+    };
+
+    const timer = setTimeout(() => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      }
+    }, 100);
+
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Tab') return;
+      if (!isTopmost()) return;
+
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleFocus = (e) => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0 && !container.contains(e.target)) {
+        focusableElements[0].focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('focus', handleFocus, true);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('focus', handleFocus, true);
+    };
+  }, [isOpen]);
 
   const getUserById = useCallback((id) => users.find(u => u.id === id), [users]);
 
   useEffect(() => {
-    if (!parentMsg) return;
+    if (parentMsg) {
+      setLocalParentMsg(parentMsg);
+    }
+  }, [parentMsg]);
+
+  useEffect(() => {
+    if (!localParentMsg) return;
     setLoading(true);
-    messagesAPI.getThread(parentMsg.id).then(res => {
+    messagesAPI.getThread(localParentMsg.id).then(res => {
       setReplies(res.data.replies || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [parentMsg]);
+  }, [localParentMsg]);
 
   useEffect(() => {
     repliesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,146 +118,158 @@ function ThreadPanel({ parentMsg, onClose, currentUser, users, formatTime }) {
 
   // Live thread updates
   useEffect(() => {
-    if (!parentMsg) return;
+    if (!localParentMsg) return;
     const handleReply = (data) => {
-      if (data.threadId === parentMsg.id) {
+      if (data.threadId === localParentMsg.id) {
         setReplies(prev => [...prev, data.message]);
       }
     };
     socket.on('thread:reply', handleReply);
     return () => socket.off('thread:reply', handleReply);
-  }, [parentMsg]);
+  }, [localParentMsg]);
 
   const handleSendReply = (e) => {
     e.preventDefault();
-    if (!replyText.trim() || !parentMsg) return;
+    if (!replyText.trim() || !localParentMsg) return;
     socket.emit('message:send', {
       user_id: currentUser?.id || 1,
       content: replyText,
-      channel_id: parentMsg.channel_id,
-      thread_id: parentMsg.id,
+      channel_id: localParentMsg.channel_id,
+      thread_id: localParentMsg.id,
     });
     setReplyText('');
   };
 
-  if (!parentMsg) return null;
-
-  const parentUser = getUserById(parentMsg.user_id);
+  const parentUser = localParentMsg ? getUserById(localParentMsg.user_id) : null;
 
   return (
-    <motion.div
-      initial={{ x: '100%', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: '100%', opacity: 0 }}
-      transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-      className="absolute inset-y-0 right-0 w-full sm:w-[380px] bg-[var(--bg-surface)] border-l border-[var(--border-default)] flex flex-col z-20 shadow-[var(--shadow-xl)]"
-    >
-      {/* Thread Header */}
-      <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
-        <div>
-          <h3 className="text-[13px] font-bold text-[var(--text-primary)]">Konu Başlığı</h3>
-          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{replies.length} yanıt</p>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-[var(--interactive-hover)] text-[var(--text-tertiary)] transition-colors"
+    <AnimatePresence>
+      {isOpen && localParentMsg && (
+        <motion.div
+          ref={panelRef}
+          initial={{ x: '100%', opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: '100%', opacity: 0 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+          drag={isMobile ? "x" : false}
+          dragConstraints={{ left: 0, right: viewportWidth }}
+          dragElastic={0.1}
+          onDragEnd={(event, info) => {
+            if (info.offset.x > 80) {
+              onClose();
+            }
+          }}
+          style={{ touchAction: 'none' }}
+          className="absolute inset-y-0 right-0 w-full sm:w-[380px] bg-[var(--bg-surface)] border-l border-[var(--border-default)] flex flex-col z-20 shadow-[var(--shadow-xl)]"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Parent Message */}
-      <div className="px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-2)] shrink-0">
-        <div className="flex items-start gap-2.5">
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-            style={{ backgroundColor: parentUser?.avatar_color || parentMsg.avatar_color || '#6366f1' }}
-          >
-            {(parentUser?.name || parentMsg.name || '?').charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[11px] font-semibold text-[var(--text-primary)]">
-                {parentUser?.name || parentMsg.name || 'Anonim'}
-              </span>
-              <span className="text-[10px] text-[var(--text-muted)]">{formatTime(parentMsg.created_at)}</span>
+          {/* Thread Header */}
+          <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
+            <div>
+              <h3 className="text-[13px] font-bold text-[var(--text-primary)]">Konu Başlığı</h3>
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{replies.length} yanıt</p>
             </div>
-            <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words">
-              {parentMsg.content}
-            </p>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-[var(--interactive-hover)] text-[var(--text-tertiary)] transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        </div>
-      </div>
 
-      {/* Thread Replies */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : replies.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[11px] text-[var(--text-muted)]">Henüz yanıt yok. İlk yanıtı siz verin!</p>
-          </div>
-        ) : (
-          replies.map((reply, i) => {
-            const replyUser = getUserById(reply.user_id);
-            const isMe = reply.user_id === (currentUser?.id || 1);
-            return (
-              <motion.div
-                key={reply.id || i}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.02 }}
-                className="flex items-start gap-2"
+          {/* Parent Message */}
+          <div className="px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-2)] shrink-0">
+            <div className="flex items-start gap-2.5">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                style={{ backgroundColor: parentUser?.avatar_color || localParentMsg.avatar_color || '#6366f1' }}
               >
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 mt-0.5"
-                  style={{ backgroundColor: replyUser?.avatar_color || reply.avatar_color || '#6366f1' }}
-                >
-                  {(replyUser?.name || reply.name || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className={`flex-1 min-w-0 px-2.5 py-2 rounded-xl text-[12px] leading-relaxed ${
-                  isMe
-                    ? 'bg-[var(--accent-primary-subtle)] text-[var(--text-primary)]'
-                    : 'bg-[var(--interactive-muted)] text-[var(--text-primary)]'
-                }`}>
-                  <span className="font-semibold text-[10px] text-[var(--text-secondary)] block mb-0.5">
-                    {replyUser?.name || reply.name || 'Anonim'}
+                {(parentUser?.name || localParentMsg.name || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[11px] font-semibold text-[var(--text-primary)]">
+                    {parentUser?.name || localParentMsg.name || 'Anonim'}
                   </span>
-                  <span className="whitespace-pre-wrap break-words">{reply.content}</span>
-                  <span className="text-[9px] text-[var(--text-muted)] ml-1.5">{formatTime(reply.created_at)}</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">{formatTime(localParentMsg.created_at)}</span>
                 </div>
-              </motion.div>
-            );
-          })
-        )}
-        <div ref={repliesEndRef} />
-      </div>
+                <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words">
+                  {localParentMsg.content}
+                </p>
+              </div>
+            </div>
+          </div>
 
-      {/* Thread Reply Input */}
-      <div className="p-3 border-t border-[var(--border-subtle)] shrink-0">
-        <form onSubmit={handleSendReply} className="flex items-center gap-2">
-          <input
-            type="text"
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Yanıt yaz..."
-            className="flex-1 px-3 py-2 rounded-lg text-[12px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
-          />
-          <button
-            type="submit"
-            className="p-2 rounded-lg bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)] active:scale-95 transition-all duration-150 shadow-[var(--shadow-accent)]"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-            </svg>
-          </button>
-        </form>
-      </div>
-    </motion.div>
+          {/* Thread Replies */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : replies.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-[11px] text-[var(--text-muted)]">Henüz yanıt yok. İlk yanıtı siz verin!</p>
+              </div>
+            ) : (
+              replies.map((reply, i) => {
+                const replyUser = getUserById(reply.user_id);
+                const isMe = reply.user_id === (currentUser?.id || 1);
+                return (
+                  <motion.div
+                    key={reply.id || i}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.02 }}
+                    className="flex items-start gap-2"
+                  >
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 mt-0.5"
+                      style={{ backgroundColor: replyUser?.avatar_color || reply.avatar_color || '#6366f1' }}
+                    >
+                      {(replyUser?.name || reply.name || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className={`flex-1 min-w-0 px-2.5 py-2 rounded-xl text-[12px] leading-relaxed ${
+                      isMe
+                        ? 'bg-[var(--accent-primary-subtle)] text-[var(--text-primary)]'
+                        : 'bg-[var(--interactive-muted)] text-[var(--text-primary)]'
+                    }`}>
+                      <span className="font-semibold text-[10px] text-[var(--text-secondary)] block mb-0.5">
+                        {replyUser?.name || reply.name || 'Anonim'}
+                      </span>
+                      <span className="whitespace-pre-wrap break-words">{reply.content}</span>
+                      <span className="text-[9px] text-[var(--text-muted)] ml-1.5">{formatTime(reply.created_at)}</span>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+            <div ref={repliesEndRef} />
+          </div>
+
+          {/* Thread Reply Input */}
+          <div className="p-3 border-t border-[var(--border-subtle)] shrink-0">
+            <form onSubmit={handleSendReply} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Yanıt yaz..."
+                className="flex-1 px-3 py-2 rounded-lg text-[12px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
+              />
+              <button
+                type="submit"
+                className="p-2 rounded-lg bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)] active:scale-95 transition-all duration-150 shadow-[var(--shadow-accent)]"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+              </button>
+            </form>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -606,17 +700,14 @@ function Chat() {
         </div>
 
         {/* Thread Panel (Apple Messages slide-in) */}
-        <AnimatePresence>
-          {threadParent && (
-            <ThreadPanel
-              parentMsg={threadParent}
-              onClose={() => setThreadParent(null)}
-              currentUser={currentUser}
-              users={users}
-              formatTime={formatTime}
-            />
-          )}
-        </AnimatePresence>
+        <ThreadPanel
+          isOpen={!!threadParent}
+          parentMsg={threadParent}
+          onClose={() => setThreadParent(null)}
+          currentUser={currentUser}
+          users={users}
+          formatTime={formatTime}
+        />
       </div>
     </motion.div>
   );

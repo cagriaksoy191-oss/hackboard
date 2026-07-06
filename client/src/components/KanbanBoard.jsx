@@ -297,7 +297,15 @@ function KanbanBoard() {
           {columns.map((col) => {
             const colTasks = filteredTasks.filter((t) => {
               if (col.isCustom) {
-                return String(t.workflow_stage_id) === String(col.id);
+                if (String(t.workflow_stage_id) === String(col.id)) return true;
+                if (!t.workflow_stage_id) {
+                  if (col.slug === t.status) return true;
+                  if (t.status === 'done' && (col.slug === 'completed' || col.slug === 'finish' || col.slug === 'biten' || col.slug === 'tamamlandi')) return true;
+                  if (t.status === 'in-progress' && (col.slug === 'active' || col.slug === 'progress' || col.slug === 'devam-ediyor' || col.slug === 'calisiliyor')) return true;
+                  if (t.status === 'todo' && (col.slug === 'backlog' || col.slug === 'yapilacak' || col.slug === 'yapilacaklar')) return true;
+                  if (t.status === 'testing' && (col.slug === 'test' || col.slug === 'control' || col.slug === 'kontrol')) return true;
+                }
+                return false;
               }
               return t.status === col.id;
             });
@@ -338,14 +346,11 @@ function KanbanBoard() {
       )}
 
       {/* ─── Create Task Modal ─── */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <CreateTaskModal
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => { setShowCreateModal(false); loadTasks(); }}
-          />
-        )}
-      </AnimatePresence>
+      <CreateTaskModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => { setShowCreateModal(false); loadTasks(); }}
+      />
     </div>
   );
 }

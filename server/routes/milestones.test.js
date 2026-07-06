@@ -13,7 +13,9 @@ describe('Milestones API Integration Tests', () => {
   before(async () => {
     // Note: Database initialization and seeding are required for integration tests
     await initDB();
-    seed();
+    const { runMigrations } = await import('../migrate.js');
+    await runMigrations();
+    await seed();
 
     app = express();
     app.use(express.json());

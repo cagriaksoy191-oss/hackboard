@@ -34,7 +34,8 @@ export const MAX_ID_QUERY_BY_TABLE = Object.freeze({
 });
 
 
-const DB_PATH = path.join(process.cwd(), 'hackboard.db');
+const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'hackboard.db');
+const isTest = !process.env.DATABASE_PATH && !!(process.env.NODE_ENV === 'test' || process.env.NODE_TEST_CONTEXT || process.argv.some(arg => arg.includes('test')));
 
 let db = null;
 let SQL = null;
@@ -43,7 +44,7 @@ export async function initDB() {
   SQL = await initSqlJs();
 
   let data = null;
-  if (fs.existsSync(DB_PATH)) {
+  if (!isTest && fs.existsSync(DB_PATH)) {
     try {
       data = fs.readFileSync(DB_PATH);
     } catch (e) {
@@ -63,7 +64,16 @@ export async function initDB() {
 
   createSchema(db);
 
-  saveDB();
+  try {
+    const { runMigrations } = await import('./migrate.js');
+    await runMigrations();
+  } catch (err) {
+    console.error('Failed to run migrations inside initDB:', err);
+  }
+
+  if (!isTest) {
+    saveDB();
+  }
 }
 
 
@@ -72,6 +82,7 @@ let isWriting = false;
 let pendingWrite = false;
 
 export async function flushSave() {
+  if (isTest) return;
   if (!db) return;
   if (isWriting) {
     pendingWrite = true;
@@ -96,6 +107,7 @@ export async function flushSave() {
 }
 
 function scheduleSave(delay = 50) {
+  if (isTest) return;
   if (writeTimeout) {
     clearTimeout(writeTimeout);
   }
@@ -105,6 +117,7 @@ function scheduleSave(delay = 50) {
 }
 
 function saveDB() {
+  if (isTest) return;
   scheduleSave();
 }
 
@@ -120,10 +133,11 @@ export function prepare(sql) {
     run(...params) {
       const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
       database.run(sql, flatParams);
+      const changes = database.getRowsModified();
       const result = database.exec('SELECT last_insert_rowid()');
       const lastInsertRowid = result.length > 0 && result[0].values.length > 0 ? result[0].values[0][0] : 0;
       saveDB();
-      return { lastInsertRowid };
+      return { lastInsertRowid, changes };
     },
     get(...params) {
       const flatParams = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
@@ -254,6 +268,7 @@ function createTables(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
       content TEXT NOT NULL,
+      embedding_status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);

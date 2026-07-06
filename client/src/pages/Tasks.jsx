@@ -115,32 +115,26 @@ function Tasks() {
         handleDeleteClick={handleDeleteClick}
       />
 
-      <AnimatePresence>
-        {showCreateModal && (
-          <CreateTaskModal
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              setShowCreateModal(false);
-              tasksAPI.getAll().then((res) => setTasks(res.data));
-              addToast('Task created successfully', 'success');
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <CreateTaskModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          tasksAPI.getAll().then((res) => setTasks(res.data));
+          addToast('Task created successfully', 'success');
+        }}
+      />
 
-      <AnimatePresence>
-        {editingTask && (
-          <EditTaskModal
-            task={editingTask}
-            onClose={() => setEditingTask(null)}
-            onSuccess={() => {
-              tasksAPI.getAll().then((res) => setTasks(res.data));
-              setEditingTask(null);
-              addToast('Task updated successfully', 'success');
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <EditTaskModal
+        isOpen={!!editingTask}
+        task={editingTask}
+        onClose={() => setEditingTask(null)}
+        onSuccess={() => {
+          tasksAPI.getAll().then((res) => setTasks(res.data));
+          setEditingTask(null);
+          addToast('Task updated successfully', 'success');
+        }}
+      />
 
       <ConfirmModal
         isOpen={!!deletingTaskId}

@@ -12,7 +12,9 @@ describe('Messages API', () => {
 
   before(async () => {
     await initDB();
-    seed();
+    const { runMigrations } = await import('../migrate.js');
+    await runMigrations();
+    await seed();
 
     app = express();
     app.use(express.json());

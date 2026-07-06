@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import { prepare } from '../../db-adapter.js';
 import { semanticSearch } from '../../embedding-worker.js';
+import { requireRole } from '../../auth/guards.js';
 
 const router = Router();
 
@@ -36,12 +37,20 @@ router.get('/', async (req, res) => {
     // 1. Execute SQL LIKE text search
     // Search tasks
     if (!type || type === 'task') {
-      const tasks = await prepare(`
+      let tasksSql = `
         SELECT t.id, t.title, t.description, t.status, t.priority, t.assigned_to, u.name as assignee_name
         FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
         WHERE t.org_id = ? AND (t.title LIKE ? OR t.description LIKE ?)
-        LIMIT ?
-      `).all(orgId, likeQuery, likeQuery, limit);
+      `;
+      const params = [orgId, likeQuery, likeQuery];
+      if (workspaceId) {
+        tasksSql += ' AND t.workspace_id = ?';
+        params.push(workspaceId);
+      }
+      tasksSql += ' LIMIT ?';
+      params.push(limit);
+
+      const tasks = await prepare(tasksSql).all(...params);
 
       tasks.forEach(t => {
         let score = 0.75;
@@ -60,13 +69,21 @@ router.get('/', async (req, res) => {
 
     // Search messages
     if (!type || type === 'message') {
-      const messages = await prepare(`
+      let messagesSql = `
         SELECT m.id, m.content, m.user_id, m.channel_id, m.created_at, u.name as user_name, c.name as channel_name
         FROM messages m JOIN users u ON m.user_id = u.id
-        JOIN channels c ON m.channel_id = c.id
+        LEFT JOIN channels c ON m.channel_id = c.id
         WHERE m.org_id = ? AND m.content LIKE ?
-        LIMIT ?
-      `).all(orgId, likeQuery, limit);
+      `;
+      const params = [orgId, likeQuery];
+      if (workspaceId) {
+        messagesSql += ' AND m.workspace_id = ?';
+        params.push(workspaceId);
+      }
+      messagesSql += ' LIMIT ?';
+      params.push(limit);
+
+      const messages = await prepare(messagesSql).all(...params);
 
       messages.forEach(m => {
         let score = 0.75;
@@ -85,13 +102,21 @@ router.get('/', async (req, res) => {
 
     // Search comments
     if (!type || type === 'comment') {
-      const comments = await prepare(`
+      let commentsSql = `
         SELECT c.id, c.content, c.task_id, c.user_id, c.created_at, u.name as user_name
         FROM comments c JOIN users u ON c.user_id = u.id
         JOIN tasks t ON c.task_id = t.id
         WHERE t.org_id = ? AND c.content LIKE ?
-        LIMIT ?
-      `).all(orgId, likeQuery, limit);
+      `;
+      const params = [orgId, likeQuery];
+      if (workspaceId) {
+        commentsSql += ' AND t.workspace_id = ?';
+        params.push(workspaceId);
+      }
+      commentsSql += ' LIMIT ?';
+      params.push(limit);
+
+      const comments = await prepare(commentsSql).all(...params);
 
       comments.forEach(c => {
         textResults.push({
@@ -106,12 +131,20 @@ router.get('/', async (req, res) => {
 
     // Search activities
     if (!type || type === 'activity') {
-      const activities = await prepare(`
+      let activitiesSql = `
         SELECT a.id, a.action, a.details, a.entity_type, a.entity_id, a.metadata, a.created_at, u.name as user_name
         FROM activities a LEFT JOIN users u ON a.user_id = u.id
         WHERE a.org_id = ? AND a.details LIKE ?
-        LIMIT ?
-      `).all(orgId, likeQuery, limit);
+      `;
+      const params = [orgId, likeQuery];
+      if (workspaceId) {
+        activitiesSql += ' AND a.workspace_id = ?';
+        params.push(workspaceId);
+      }
+      activitiesSql += ' LIMIT ?';
+      params.push(limit);
+
+      const activities = await prepare(activitiesSql).all(...params);
 
       activities.forEach(a => {
         textResults.push({
@@ -143,30 +176,54 @@ router.get('/', async (req, res) => {
       vectorResults.map(async (r) => {
         let entity = null;
         if (r.sourceType === 'task') {
-          entity = await prepare(`
+          let sql = `
             SELECT t.id, t.title, t.description, t.status, t.priority, t.assigned_to, u.name as assignee_name
             FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
             WHERE t.id = ? AND t.org_id = ?
-          `).get(r.sourceId, orgId);
+          `;
+          const params = [r.sourceId, orgId];
+          if (workspaceId) {
+            sql += ' AND t.workspace_id = ?';
+            params.push(workspaceId);
+          }
+          entity = await prepare(sql).get(...params);
         } else if (r.sourceType === 'message') {
-          entity = await prepare(`
+          let sql = `
             SELECT m.id, m.content, m.user_id, m.channel_id, m.thread_id, m.created_at, u.name as user_name
             FROM messages m JOIN users u ON m.user_id = u.id
             WHERE m.id = ? AND m.org_id = ?
-          `).get(r.sourceId, orgId);
+          `;
+          const params = [r.sourceId, orgId];
+          if (workspaceId) {
+            sql += ' AND m.workspace_id = ?';
+            params.push(workspaceId);
+          }
+          entity = await prepare(sql).get(...params);
         } else if (r.sourceType === 'comment') {
-          entity = await prepare(`
+          let sql = `
             SELECT c.id, c.content, c.task_id, c.user_id, c.created_at, u.name as user_name
             FROM comments c JOIN users u ON c.user_id = u.id
             JOIN tasks t ON c.task_id = t.id
             WHERE c.id = ? AND t.org_id = ?
-          `).get(r.sourceId, orgId);
+          `;
+          const params = [r.sourceId, orgId];
+          if (workspaceId) {
+            sql += ' AND t.workspace_id = ?';
+            params.push(workspaceId);
+          }
+          entity = await prepare(sql).get(...params);
         } else if (r.sourceType === 'activity') {
-          entity = await prepare(`
+          let sql = `
             SELECT a.id, a.action, a.details, a.entity_type, a.entity_id, a.metadata, a.created_at, u.name as user_name
             FROM activities a LEFT JOIN users u ON a.user_id = u.id
             WHERE a.id = ? AND a.org_id = ?
-          `).get(r.sourceId, orgId);
+          `;
+          const params = [r.sourceId, orgId];
+          if (workspaceId) {
+            sql += ' AND a.workspace_id = ?';
+            params.push(workspaceId);
+          }
+          entity = await prepare(sql).get(...params);
         }
         return {
           sourceType: r.sourceType,
@@ -178,27 +235,62 @@ router.get('/', async (req, res) => {
       })
     );
 
-    // 3. Deduplicate and merge results based on normalized scores
-    const combinedMap = new Map();
-    const addResult = (res) => {
+    // 3. Deduplicate and merge results using Reciprocal Rank Fusion (RRF)
+    const K_CONSTANT = 60;
+
+    // Sort both result lists to establish ranks
+    const sortedTextResults = [...textResults].sort((a, b) => b.score - a.score);
+    const sortedSemanticResults = [...enrichedVector].sort((a, b) => b.score - a.score);
+
+    const textRanks = new Map();
+    sortedTextResults.forEach((res, index) => {
+      textRanks.set(`${res.sourceType}:${res.sourceId}`, index + 1);
+    });
+
+    const semanticRanks = new Map();
+    sortedSemanticResults.forEach((res, index) => {
+      semanticRanks.set(`${res.sourceType}:${res.sourceId}`, index + 1);
+    });
+
+    const detailsMap = new Map();
+    const addDetails = (res) => {
       if (!res.entity) return;
       const key = `${res.sourceType}:${res.sourceId}`;
-      const existing = combinedMap.get(key);
-      if (!existing || res.score > existing.score) {
-        combinedMap.set(key, res);
+      if (!detailsMap.has(key)) {
+        detailsMap.set(key, res);
+      } else if (res.score > detailsMap.get(key).score) {
+        detailsMap.set(key, res);
       }
     };
 
-    enrichedVector.forEach(addResult);
-    textResults.forEach(addResult);
+    sortedSemanticResults.forEach(addDetails);
+    sortedTextResults.forEach(addDetails);
 
-    const results = Array.from(combinedMap.values())
+    const rrfResults = [];
+    for (const [key, details] of detailsMap.entries()) {
+      let score = 0;
+      if (textRanks.has(key)) {
+        score += 1.0 / (K_CONSTANT + textRanks.get(key));
+      }
+      if (semanticRanks.has(key)) {
+        score += 1.0 / (K_CONSTANT + semanticRanks.get(key));
+      }
+
+      rrfResults.push({
+        type: details.sourceType,
+        score: score,
+        highlight: details.chunkText,
+        entity: details.entity,
+      });
+    }
+
+    const results = rrfResults
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map(r => ({
-        type: r.sourceType,
-        score: Math.round(r.score * 100) / 100,
-        highlight: r.chunkText,
+        type: r.type,
+        score: Math.round(r.score * 1000) / 1000,
+        highlight: r.highlight,
         entity: r.entity,
       }));
 
@@ -218,7 +310,7 @@ router.get('/', async (req, res) => {
  * POST /api/v1/search/reindex
  * Trigger re-indexing of all entities (admin only)
  */
-router.post('/reindex', async (req, res) => {
+router.post('/reindex', requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const { orgId } = req.tenant;
 
@@ -237,12 +329,18 @@ router.post('/reindex', async (req, res) => {
       "UPDATE activities SET embedding_status = 'pending' WHERE org_id = ?"
     ).run(orgId);
 
+    // Reset all message embedding statuses to pending
+    const messageResult = await prepare(
+      "UPDATE messages SET embedding_status = 'pending' WHERE org_id = ?"
+    ).run(orgId);
+
     res.json({
       success: true,
       queued: {
         tasks: taskResult.changes || 0,
         comments: commentResult.changes || 0,
         activities: activityResult.changes || 0,
+        messages: messageResult.changes || 0,
       },
       message: 'Re-indexing queued. Background worker will process entities.',
     });

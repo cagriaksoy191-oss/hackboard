@@ -7,12 +7,13 @@ let restoreLock = false;
 
 
 const requireAdmin = async (req, res, next) => {
-  if (!req.user_id) {
+  const userId = req.user_id || req.user?.id;
+  if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-    const user = await prepare('SELECT role FROM users WHERE id = ?').get(req.user_id);
+    const user = await prepare('SELECT role FROM users WHERE id = ?').get(userId);
     if (!user || user.role !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: Admin access required' });
     }

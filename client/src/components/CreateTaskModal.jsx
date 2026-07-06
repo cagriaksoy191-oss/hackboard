@@ -4,7 +4,7 @@ import { useUser } from '../context/UserContext';
 import TaskForm from './TaskForm';
 import Modal from './common/Modal';
 
-function CreateTaskModal({ onClose, onSuccess }) {
+function CreateTaskModal({ onClose, onSuccess, isOpen }) {
   const { user } = useUser();
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({
@@ -20,6 +20,19 @@ function CreateTaskModal({ onClose, onSuccess }) {
     usersAPI.getAll().then((res) => setUsers(res.data));
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        title: '',
+        description: '',
+        priority: 'medium',
+        assigned_to: '',
+        estimated_hours: '',
+        status: 'todo',
+      });
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     await tasksAPI.create({
@@ -32,7 +45,7 @@ function CreateTaskModal({ onClose, onSuccess }) {
   };
 
   return (
-    <Modal title="Yeni Gorev Olustur" onClose={onClose}>
+    <Modal title="Yeni Gorev Olustur" onClose={onClose} isOpen={isOpen}>
       <TaskForm
         form={form}
         setForm={setForm}

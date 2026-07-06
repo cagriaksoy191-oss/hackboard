@@ -1,7 +1,10 @@
 import pg from 'pg';
 import crypto from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 
 const { Pool } = pg;
+
+const txStorage = new AsyncLocalStorage();
 
 // ─────────────────────────────────────────────
 // Placeholder conversion:  ?  →  $1, $2, $3 …
@@ -129,7 +132,8 @@ export function prepare(sql) {
         finalSql = pgSql.replace(/;?\s*$/, ' RETURNING id');
       }
 
-      const result = await pool.query(finalSql, flatParams);
+      const client = txStorage.getStore() || pool;
+      const result = await client.query(finalSql, flatParams);
       const lastInsertRowid =
         result.rows && result.rows.length > 0 && result.rows[0].id != null
           ? result.rows[0].id
@@ -142,7 +146,8 @@ export function prepare(sql) {
         params.length === 1 && Array.isArray(params[0])
           ? params[0]
           : params;
-      const result = await pool.query(pgSql, flatParams);
+      const client = txStorage.getStore() || pool;
+      const result = await client.query(pgSql, flatParams);
       return result.rows[0] || null;
     },
 
@@ -151,7 +156,8 @@ export function prepare(sql) {
         params.length === 1 && Array.isArray(params[0])
           ? params[0]
           : params;
-      const result = await pool.query(pgSql, flatParams);
+      const client = txStorage.getStore() || pool;
+      const result = await client.query(pgSql, flatParams);
       return result.rows;
     },
   };
@@ -162,7 +168,8 @@ export function prepare(sql) {
  * Returns array of row objects.
  */
 export async function execRaw(sql) {
-  const result = await pool.query(sql);
+  const client = txStorage.getStore() || pool;
+  const result = await client.query(sql);
   return result.rows;
 }
 
@@ -177,7 +184,7 @@ export function transaction(fn) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const result = await fn(...args);
+      const result = await txStorage.run(client, () => fn(...args));
       await client.query('COMMIT');
       return result;
     } catch (err) {

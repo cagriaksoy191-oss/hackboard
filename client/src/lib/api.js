@@ -41,9 +41,6 @@ api.interceptors.request.use((config) => {
       const activeWorkspaceId = localStorage.getItem('hackboard-active-workspace-id');
       if (activeWorkspaceId) {
         config.headers['X-Workspace-ID'] = String(activeWorkspaceId);
-      } else {
-        // Default to workspace 1 if not explicitly set
-        config.headers['X-Workspace-ID'] = '1';
       }
     } catch (e) {
       // Ignore JSON parse errors

@@ -149,18 +149,15 @@ function TaskCard({ task, onDragStart, onDelete, onEdit }) {
         message="Bu gorevi silmek istediginize emin misiniz? Bu islem geri alinamaz."
       />
 
-      <AnimatePresence>
-        {showEditModal && (
-          <EditTaskModal
-            task={task}
-            onClose={() => setShowEditModal(false)}
-            onSuccess={() => {
-              setShowEditModal(false);
-              if (onEdit) onEdit();
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <EditTaskModal
+        task={task}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={() => {
+          setShowEditModal(false);
+          if (onEdit) onEdit();
+        }}
+      />
     </>
   );
 }

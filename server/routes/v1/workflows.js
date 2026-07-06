@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { prepare } from '../../db-adapter.js';
+import { prepare, transaction } from '../../db-adapter.js';
 import { requireRole } from '../../auth/guards.js';
 
 const router = Router();
@@ -197,20 +197,13 @@ router.delete('/:id', requireRole(['owner', 'admin']), async (req, res) => {
       }
 
       // Execute task updates and stage deletion inside a transaction
-      try {
-        await prepare('BEGIN TRANSACTION').run();
-
+      await transaction(async () => {
         await prepare(
           'UPDATE tasks SET workflow_stage_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE workflow_stage_id = ?'
         ).run(targetStage.id, newStatus, req.params.id);
 
         await prepare('DELETE FROM workflow_stages WHERE id = ?').run(req.params.id);
-
-        await prepare('COMMIT').run();
-      } catch (txnErr) {
-        await prepare('ROLLBACK').run();
-        throw txnErr;
-      }
+      })();
     } else {
       await prepare('DELETE FROM workflow_stages WHERE id = ?').run(req.params.id);
     }

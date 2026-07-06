@@ -178,13 +178,26 @@ io.on('connection', (socket) => {
   console.info('Client connected:', socket.id, `[tenant:${socket.org_id || 'none'}]`);
 
   // ── Workspace Room Management ──
-  socket.on('workspace:join', (data) => {
-    if (data.workspaceId) {
-      socket.join(`workspace:${data.workspaceId}`);
-      console.info(`Socket ${socket.id} joined workspace:${data.workspaceId}`);
-    }
-    if (data.channelId) {
-      socket.join(`channel:${data.channelId}`);
+  socket.on('workspace:join', async (data) => {
+    try {
+      if (data.workspaceId) {
+        const ws = await prepare('SELECT id FROM workspaces WHERE id = ? AND org_id = ?').get(data.workspaceId, socket.org_id);
+        if (!ws) return;
+      }
+      if (data.channelId) {
+        const ch = await prepare('SELECT c.id FROM channels c JOIN workspaces w ON c.workspace_id = w.id WHERE c.id = ? AND w.org_id = ?').get(data.channelId, socket.org_id);
+        if (!ch) return;
+      }
+      if (data.workspaceId) {
+        socket.join(`workspace:${data.workspaceId}`);
+        socket.workspace_id = data.workspaceId;
+        console.info(`Socket ${socket.id} joined workspace:${data.workspaceId}`);
+      }
+      if (data.channelId) {
+        socket.join(`channel:${data.channelId}`);
+      }
+    } catch (err) {
+      console.error('Socket workspace:join error:', err);
     }
   });
 
@@ -198,9 +211,16 @@ io.on('connection', (socket) => {
   });
 
   // ── Channel Room Management ──
-  socket.on('channel:join', (data) => {
-    if (data.channelId) {
-      socket.join(`channel:${data.channelId}`);
+  socket.on('channel:join', async (data) => {
+    try {
+      if (data.channelId) {
+        const ch = await prepare('SELECT c.id, c.workspace_id FROM channels c JOIN workspaces w ON c.workspace_id = w.id WHERE c.id = ? AND w.org_id = ?').get(data.channelId, socket.org_id);
+        if (!ch) return;
+        socket.join(`channel:${data.channelId}`);
+        socket.workspace_id = data.workspaceId || ch.workspace_id;
+      }
+    } catch (err) {
+      console.error('Socket channel:join error:', err);
     }
   });
 
@@ -222,6 +242,12 @@ io.on('connection', (socket) => {
       const threadId = data.thread_id || null;
       const workspaceId = socket.workspace_id || null;
 
+      // Verify that the channel belongs to the organization if channelId is provided
+      if (channelId) {
+        const ch = await prepare('SELECT c.id FROM channels c JOIN workspaces w ON c.workspace_id = w.id WHERE c.id = ? AND w.org_id = ?').get(channelId, socket.org_id);
+        if (!ch) return;
+      }
+
       // If replying to a thread, verify parent exists
       if (threadId) {
         const parent = await prepare('SELECT id FROM messages WHERE id = ?').get(threadId);
@@ -230,7 +256,7 @@ io.on('connection', (socket) => {
 
       const result = await prepare(
         'INSERT INTO messages (user_id, content, org_id, workspace_id, channel_id, thread_id) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(data.user_id, data.content, socket.org_id || null, workspaceId, channelId, threadId);
+      ).run(socket.user_id, data.content, socket.org_id || null, workspaceId, channelId, threadId);
 
       const message = await prepare(`
         SELECT m.*, u.name, u.avatar_color
@@ -259,7 +285,7 @@ io.on('connection', (socket) => {
       }
 
       // Notification
-      const user = await prepare('SELECT name FROM users WHERE id = ?').get(data.user_id);
+      const user = await prepare('SELECT name FROM users WHERE id = ?').get(socket.user_id);
       const userName = user?.name || 'Unknown';
       const truncatedContent = data.content.length > 50
         ? `${data.content.substring(0, 50)}...`
@@ -270,7 +296,7 @@ io.on('connection', (socket) => {
         type: threadId ? 'thread_reply' : 'message',
         title: threadId ? 'Thread Reply' : 'New Message',
         message: `${userName}: ${truncatedContent}`,
-        senderId: data.user_id,
+        senderId: socket.user_id,
         channelId,
         threadId,
         read: false,
@@ -299,12 +325,16 @@ io.on('connection', (socket) => {
         return;
       }
       await prepare(
-        'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-      ).run(data.title, data.description, data.priority, data.assigned_to, data.estimated_hours, data.id);
+        'UPDATE tasks SET title = COALESCE(?, title), description = COALESCE(?, description), priority = COALESCE(?, priority), assigned_to = COALESCE(?, assigned_to), estimated_hours = COALESCE(?, estimated_hours), version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND org_id = ?'
+      ).run(data.title, data.description, data.priority, data.assigned_to, data.estimated_hours, data.id, socket.org_id);
       const task = await prepare(`
         SELECT t.*, u.name as assigned_name, u.avatar_color
-        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
-      `).get(data.id);
+        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ? AND t.org_id = ?
+      `).get(data.id, socket.org_id);
+
+      if (!task) {
+        return;
+      }
 
       const room = task?.workspace_id ? `workspace:${task.workspace_id}` : getTenantRoom();
       if (room) {
@@ -331,26 +361,62 @@ io.on('connection', (socket) => {
       }
 
       if (data.workflow_stage_id) {
+        const stage = await prepare('SELECT s.id FROM workflow_stages s JOIN workspaces w ON s.workspace_id = w.id WHERE s.id = ? AND w.org_id = ?').get(data.workflow_stage_id, socket.org_id);
+        if (!stage) return;
+      }
+
+      const existingTask = await prepare('SELECT * FROM tasks WHERE id = ? AND org_id = ?').get(data.id, socket.org_id);
+      if (!existingTask) {
+        return;
+      }
+
+      if (data.workflow_stage_id) {
         await prepare(
-          'UPDATE tasks SET status = ?, workflow_stage_id = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-        ).run(data.status, data.workflow_stage_id, data.id);
+          'UPDATE tasks SET status = ?, workflow_stage_id = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND org_id = ?'
+        ).run(data.status, data.workflow_stage_id, data.id, socket.org_id);
       } else {
         await prepare(
-          'UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-        ).run(data.status, data.id);
+          'UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND org_id = ?'
+        ).run(data.status, data.id, socket.org_id);
 
-        const stageMatch = await prepare(
-          'SELECT id FROM workflow_stages WHERE workspace_id = (SELECT workspace_id FROM tasks WHERE id = ?) AND slug = ?'
-        ).get(data.id, data.status);
+        let stageMatch = await prepare(
+          'SELECT id FROM workflow_stages WHERE workspace_id = ? AND slug = ?'
+        ).get(existingTask.workspace_id, data.status);
+
+        if (!stageMatch) {
+          const workspaceId = existingTask.workspace_id;
+          if (data.status === 'done') {
+            stageMatch = await prepare(
+              'SELECT id FROM workflow_stages WHERE workspace_id = ? AND is_done_state = 1 ORDER BY position LIMIT 1'
+            ).get(workspaceId);
+          } else if (data.status === 'todo') {
+            stageMatch = await prepare(
+              `SELECT id FROM workflow_stages WHERE workspace_id = ? AND (slug LIKE '%todo%' OR slug LIKE '%yapilacak%' OR slug LIKE '%yapilacaklar%') ORDER BY position LIMIT 1`
+            ).get(workspaceId);
+          } else if (data.status === 'testing') {
+            stageMatch = await prepare(
+              `SELECT id FROM workflow_stages WHERE workspace_id = ? AND (slug LIKE '%test%' OR slug LIKE '%deneme%') ORDER BY position LIMIT 1`
+            ).get(workspaceId);
+          } else if (data.status === 'in-progress') {
+            stageMatch = await prepare(
+              `SELECT id FROM workflow_stages WHERE workspace_id = ? AND (slug LIKE '%progress%' OR slug LIKE '%devam%' OR slug LIKE '%surec%' OR slug LIKE '%calisil%' OR slug LIKE '%active%') ORDER BY position LIMIT 1`
+            ).get(workspaceId);
+          }
+        }
+
         if (stageMatch) {
-          await prepare('UPDATE tasks SET workflow_stage_id = ? WHERE id = ?').run(stageMatch.id, data.id);
+          await prepare('UPDATE tasks SET workflow_stage_id = ? WHERE id = ? AND org_id = ?').run(stageMatch.id, data.id, socket.org_id);
         }
       }
 
       const task = await prepare(`
         SELECT t.*, u.name as assigned_name, u.avatar_color
-        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ?
-      `).get(data.id);
+        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.id = ? AND t.org_id = ?
+      `).get(data.id, socket.org_id);
+
+      if (!task) {
+        return;
+      }
 
       await prepare('INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
         data.user_id || 1, 'moved', `Task "${task.title}" to ${data.status}`,
@@ -386,12 +452,15 @@ io.on('connection', (socket) => {
   // ── Task Delete ──
   socket.on('task:delete', async (data) => {
     try {
-      const task = await prepare('SELECT * FROM tasks WHERE id = ?').get(data.id);
+      const task = await prepare('SELECT * FROM tasks WHERE id = ? AND org_id = ?').get(data.id, socket.org_id);
+      if (!task) {
+        return;
+      }
       // Manual CASCADE for SQLite compat
       await prepare('DELETE FROM subtasks WHERE task_id = ?').run(data.id);
       await prepare('DELETE FROM comments WHERE task_id = ?').run(data.id);
       await prepare('DELETE FROM task_tags WHERE task_id = ?').run(data.id);
-      await prepare('DELETE FROM tasks WHERE id = ?').run(data.id);
+      await prepare('DELETE FROM tasks WHERE id = ? AND org_id = ?').run(data.id, socket.org_id);
       await prepare('INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
         data.user_id || 1, 'deleted', `Task deleted (id: ${data.id})`,
         socket.org_id || null, task?.workspace_id || null, 'task', data.id
@@ -409,18 +478,28 @@ io.on('connection', (socket) => {
   });
 
   // ── Timer Events ──
-  socket.on('timer:start', (data) => {
-    const room = getTenantRoom();
-    if (room) {
-      socket.to(room).emit('timer:start', data);
-    } else {
-      socket.broadcast.emit('timer:start', data);
+  socket.on('timer:start', async (data) => {
+    try {
+      if (data.taskId) {
+        const task = await prepare('SELECT id FROM tasks WHERE id = ? AND org_id = ?').get(data.taskId, socket.org_id);
+        if (!task) return;
+      }
+      const room = getTenantRoom();
+      if (room) {
+        socket.to(room).emit('timer:start', data);
+      } else {
+        socket.broadcast.emit('timer:start', data);
+      }
+    } catch (err) {
+      console.error('Socket timer:start error:', err);
     }
   });
 
   socket.on('timer:stop', async (data) => {
     try {
-      await prepare('UPDATE tasks SET actual_hours = ? WHERE id = ?').run(data.actualHours, data.taskId);
+      const task = await prepare('SELECT id FROM tasks WHERE id = ? AND org_id = ?').get(data.taskId, socket.org_id);
+      if (!task) return;
+      await prepare('UPDATE tasks SET actual_hours = ? WHERE id = ? AND org_id = ?').run(data.actualHours, data.taskId, socket.org_id);
       const room = getTenantRoom();
       if (room) {
         socket.to(room).emit('timer:stop', data);
@@ -435,12 +514,13 @@ io.on('connection', (socket) => {
   // ── User Status ──
   socket.on('user:status', async (data) => {
     try {
-      await prepare('UPDATE users SET is_online = ? WHERE id = ?').run(data.is_online ? 1 : 0, data.user_id);
+      await prepare('UPDATE users SET is_online = ? WHERE id = ?').run(data.is_online ? 1 : 0, socket.user_id);
+      const broadcastPayload = { user_id: socket.user_id, is_online: data.is_online };
       const room = getTenantRoom();
       if (room) {
-        io.to(room).emit('user:status', data);
+        io.to(room).emit('user:status', broadcastPayload);
       } else {
-        io.emit('user:status', data);
+        io.emit('user:status', broadcastPayload);
       }
     } catch (err) {
       console.error('Socket user:status error:', err);

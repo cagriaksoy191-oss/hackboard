@@ -149,6 +149,7 @@ function SpotlightSearch({ isOpen, onClose }) {
   const [activeFilter, setActiveFilter] = useState(null); // null = all
   const [searchMode, setSearchMode] = useState('semantic');
   const inputRef = useRef(null);
+  const containerRef = useRef(null);
   const debounceRef = useRef(null);
   const navigate = useNavigate();
 
@@ -163,17 +164,76 @@ function SpotlightSearch({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  // Focus trapping
+  useEffect(() => {
+    if (!isOpen) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const focusableSelector = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]';
+    let focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+
+    const isTopmost = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs.length === 0 || dialogs[dialogs.length - 1] === container;
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Tab') return;
+      if (!isTopmost()) return;
+
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleFocus = (e) => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0 && !container.contains(e.target)) {
+        focusableElements[0].focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('focus', handleFocus, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('focus', handleFocus, true);
+    };
+  }, [isOpen]);
+
   // Keyboard shortcut: Escape to close
   useEffect(() => {
     const handleKey = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        e.preventDefault();
-        onClose();
+      if (e.key === 'Escape') {
+        const dialogs = document.querySelectorAll('[role="dialog"]');
+        const container = containerRef.current;
+        const isTop = !container || dialogs.length === 0 || dialogs[dialogs.length - 1] === container;
+        if (isTop) {
+          e.preventDefault();
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
   // Debounced search
   const performSearch = useCallback(async (q, overrideFilter, overrideMode) => {
@@ -249,10 +309,8 @@ function SpotlightSearch({ isOpen, onClose }) {
     { key: 'activity', label: 'Aktiviteler' },
   ];
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
+    isOpen && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -266,6 +324,9 @@ function SpotlightSearch({ isOpen, onClose }) {
 
         {/* Modal */}
         <motion.div
+          ref={containerRef}
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0, y: -20, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.98 }}
@@ -418,7 +479,7 @@ function SpotlightSearch({ isOpen, onClose }) {
           )}
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    )
   );
 }
 

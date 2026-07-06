@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { workflowsAPI } from '../lib/api';
 import { Button } from '../components/atoms';
 import Badge from '../components/atoms/Badge';
 import Spinner from '../components/atoms/Spinner';
 import socket from '../lib/socket';
+import ConfirmModal from '../components/ConfirmModal';
 
 /* ──────────────────────────────────────────────
    STAGE_COLORS — Workflow stage color palette
@@ -246,6 +247,9 @@ function WorkflowSettings() {
   const [deleteStageId, setDeleteStageId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [stageIdToDelete, setStageIdToDelete] = useState(null);
+  const reorderTimeoutRef = useRef(null);
 
   const fetchStages = useCallback(() => {
     workflowsAPI.getAll().then((res) => {
@@ -271,6 +275,9 @@ function WorkflowSettings() {
       socket.off('workflow:updated', handleUpdated);
       socket.off('workflow:reordered', handleReordered);
       socket.off('workflow:deleted', handleDeleted);
+      if (reorderTimeoutRef.current) {
+        clearTimeout(reorderTimeoutRef.current);
+      }
     };
   }, [fetchStages]);
 
@@ -310,18 +317,28 @@ function WorkflowSettings() {
     }
   };
 
-  const handleReorder = async (newOrder) => {
+  const handleDeleteClick = (id) => {
+    setStageIdToDelete(id);
+    setShowConfirmModal(true);
+  };
+
+  const handleReorder = (newOrder) => {
     setStages(newOrder);
-    const order = newOrder.map((stage, i) => ({ id: stage.id, position: i }));
-    const wsId = newOrder[0]?.workspace_id;
-    if (wsId) {
-      try {
-        await workflowsAPI.reorder({ workspace_id: wsId, order });
-      } catch (err) {
-        console.error('Workflow reorder error:', err);
-        fetchStages(); // Rollback
-      }
+    if (reorderTimeoutRef.current) {
+      clearTimeout(reorderTimeoutRef.current);
     }
+    reorderTimeoutRef.current = setTimeout(async () => {
+      const order = newOrder.map((stage, i) => ({ id: stage.id, position: i }));
+      const wsId = newOrder[0]?.workspace_id;
+      if (wsId) {
+        try {
+          await workflowsAPI.reorder({ workspace_id: wsId, order });
+        } catch (err) {
+          console.error('Workflow reorder error:', err);
+          fetchStages(); // Rollback
+        }
+      }
+    }, 500);
   };
 
   if (loading) {
@@ -394,7 +411,7 @@ function WorkflowSettings() {
               key={stage.id}
               stage={stage}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={handleDeleteClick}
               isDeleting={false}
             />
           ))}
@@ -431,6 +448,14 @@ function WorkflowSettings() {
           />
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title="Aşamayı Sil"
+        message="Bu iş akışı aşamasını silmek istediğinizden emin misiniz?"
+        onClose={() => { setShowConfirmModal(false); setStageIdToDelete(null); }}
+        onConfirm={() => handleDelete(stageIdToDelete)}
+      />
     </motion.div>
   );
 }

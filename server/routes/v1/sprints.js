@@ -150,9 +150,18 @@ router.patch('/:id/status', async (req, res) => {
       }
 
       // Bulk move tasks that are NOT done
-      await prepare(
-        'UPDATE tasks SET sprint_id = ?, updated_at = CURRENT_TIMESTAMP WHERE sprint_id = ? AND status != ?'
-      ).run(targetSprintId, req.params.id, 'done');
+      await prepare(`
+        UPDATE tasks
+        SET sprint_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE sprint_id = ?
+          AND (
+            (workflow_stage_id IS NOT NULL AND workflow_stage_id NOT IN (
+              SELECT id FROM workflow_stages WHERE workspace_id = ? AND is_done_state = 1
+            ))
+            OR
+            (workflow_stage_id IS NULL AND status != 'done')
+          )
+      `).run(targetSprintId, sprint.id, sprint.workspace_id);
 
       // Log activity
       const destName = targetSprintId ? `Sprint #${targetSprintId}` : 'backlog';

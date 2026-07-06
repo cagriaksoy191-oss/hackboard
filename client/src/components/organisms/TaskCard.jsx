@@ -183,18 +183,15 @@ export default function TaskCard({ task, onDragStart, onDelete, onEdit, tags = [
         message="Bu görevi silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
       />
 
-      <AnimatePresence>
-        {showEditModal && (
-          <EditTaskModal
-            task={task}
-            onClose={() => setShowEditModal(false)}
-            onSuccess={() => {
-              setShowEditModal(false);
-              if (onEdit) onEdit();
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <EditTaskModal
+        task={task}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={() => {
+          setShowEditModal(false);
+          if (onEdit) onEdit();
+        }}
+      />
     </>
   );
 }

@@ -103,6 +103,24 @@ router.post('/', async (req, res) => {
     if (priority && !VALID_PRIORITIES.includes(priority)) {
       return res.status(400).json({ error: 'Invalid priority' });
     }
+    if (req.body.workspace_id) {
+      const ws = await prepare('SELECT id FROM workspaces WHERE id = ? AND org_id = ?').get(req.body.workspace_id, orgId);
+      if (!ws) {
+        return res.status(403).json({ error: 'Workspace not found or unauthorized' });
+      }
+    }
+    if (sprint_id) {
+      const sprint = await prepare('SELECT s.id FROM sprints s JOIN workspaces w ON s.workspace_id = w.id WHERE s.id = ? AND w.org_id = ?').get(sprint_id, orgId);
+      if (!sprint) {
+        return res.status(403).json({ error: 'Sprint not found or unauthorized' });
+      }
+    }
+    if (workflow_stage_id) {
+      const stage = await prepare('SELECT ws.id FROM workflow_stages ws JOIN workspaces w ON ws.workspace_id = w.id WHERE ws.id = ? AND w.org_id = ?').get(workflow_stage_id, orgId);
+      if (!stage) {
+        return res.status(403).json({ error: 'Workflow stage not found or unauthorized' });
+      }
+    }
 
     const wsId = workspaceId || req.body.workspace_id;
 
@@ -166,8 +184,12 @@ router.put('/:id', async (req, res) => {
     const { orgId } = req.tenant;
     const {
       title, description, status, priority, assigned_to,
-      estimated_hours, sprint_id, workflow_stage_id, content_type, version
+      estimated_hours, sprint_id, workflow_stage_id, content_type, version, workspace_id
     } = req.body;
+
+    if (version === undefined || version === null || typeof version !== 'number') {
+      return res.status(400).json({ error: 'version is required' });
+    }
 
     if (status && !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -176,47 +198,83 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid priority' });
     }
 
-    // Tenant check
-    const existing = await prepare(
-      'SELECT id, version FROM tasks WHERE id = ? AND org_id = ?'
-    ).get(req.params.id, orgId);
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Task not found' });
+    if (workspace_id) {
+      const ws = await prepare('SELECT id FROM workspaces WHERE id = ? AND org_id = ?').get(workspace_id, orgId);
+      if (!ws) {
+        return res.status(403).json({ error: 'Workspace not found or unauthorized' });
+      }
+    }
+    if (sprint_id) {
+      const sprint = await prepare('SELECT s.id FROM sprints s JOIN workspaces w ON s.workspace_id = w.id WHERE s.id = ? AND w.org_id = ?').get(sprint_id, orgId);
+      if (!sprint) {
+        return res.status(403).json({ error: 'Sprint not found or unauthorized' });
+      }
+    }
+    if (workflow_stage_id) {
+      const stage = await prepare('SELECT ws.id FROM workflow_stages ws JOIN workspaces w ON ws.workspace_id = w.id WHERE ws.id = ? AND w.org_id = ?').get(workflow_stage_id, orgId);
+      if (!stage) {
+        return res.status(403).json({ error: 'Workflow stage not found or unauthorized' });
+      }
     }
 
-    // Optimistic lock check
-    if (version !== undefined && version !== null && existing.version !== version) {
+    const fieldsToUpdate = [];
+    const params = [];
+
+    const allowedFields = [
+      'title',
+      'description',
+      'status',
+      'priority',
+      'assigned_to',
+      'estimated_hours',
+      'sprint_id',
+      'workflow_stage_id',
+      'content_type',
+      'workspace_id'
+    ];
+
+    for (const field of allowedFields) {
+      if (field in req.body) {
+        fieldsToUpdate.push(`${field} = ?`);
+        let val = req.body[field];
+        if (field === 'assigned_to' || field === 'sprint_id' || field === 'workflow_stage_id' || field === 'workspace_id') {
+          params.push(val === null || val === undefined ? null : Number(val));
+        } else if (field === 'estimated_hours') {
+          params.push(val === null || val === undefined ? 0 : Number(val));
+        } else if (field === 'title') {
+          params.push(val === null || val === undefined ? '' : String(val).trim());
+        } else {
+          params.push(val === null || val === undefined ? null : val);
+        }
+      }
+    }
+
+    fieldsToUpdate.push('version = version + 1');
+    fieldsToUpdate.push('updated_at = CURRENT_TIMESTAMP');
+
+    const sql = `
+      UPDATE tasks SET
+        ${fieldsToUpdate.join(', ')}
+      WHERE id = ? AND org_id = ? AND version = ?
+    `;
+    params.push(req.params.id, orgId, version);
+
+    const result = await prepare(sql).run(...params);
+
+    if (result.changes === 0) {
+      const exists = await prepare('SELECT id FROM tasks WHERE id = ? AND org_id = ?').get(req.params.id, orgId);
+      if (!exists) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
       const current = await prepare(`${TASK_SELECT} WHERE t.id = ?`).get(req.params.id);
       return res.status(409).json({
         conflict: true,
         message: 'Task was modified by another user',
         currentTask: current,
         yourVersion: version,
-        currentVersion: existing.version
+        currentVersion: current ? current.version : undefined
       });
     }
-
-    await prepare(`
-      UPDATE tasks SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        status = COALESCE(?, status),
-        priority = COALESCE(?, priority),
-        assigned_to = COALESCE(?, assigned_to),
-        estimated_hours = COALESCE(?, estimated_hours),
-        sprint_id = COALESCE(?, sprint_id),
-        workflow_stage_id = COALESCE(?, workflow_stage_id),
-        content_type = COALESCE(?, content_type),
-        version = version + 1,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND org_id = ?
-    `).run(
-      title ?? null, description ?? null, status ?? null, priority ?? null,
-      assigned_to ?? null, estimated_hours ?? null,
-      sprint_id ?? null, workflow_stage_id ?? null, content_type ?? null,
-      req.params.id, orgId
-    );
 
     const task = await prepare(`${TASK_SELECT} WHERE t.id = ?`).get(req.params.id);
 
@@ -245,29 +303,59 @@ router.patch('/:id/status', async (req, res) => {
     const { orgId } = req.tenant;
     const { status, version } = req.body;
 
+    if (version === undefined || version === null || typeof version !== 'number') {
+      return res.status(400).json({ error: 'version is required' });
+    }
+
     if (!status || !VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: 'Valid status is required' });
     }
 
-    const existing = await prepare(
-      'SELECT id, version, title FROM tasks WHERE id = ? AND org_id = ?'
-    ).get(req.params.id, orgId);
+    const result = await prepare(
+      'UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND org_id = ? AND version = ?'
+    ).run(status, req.params.id, orgId, version);
 
-    if (!existing) return res.status(404).json({ error: 'Task not found' });
-
-    if (version !== undefined && version !== null && existing.version !== version) {
+    if (result.changes === 0) {
+      const exists = await prepare('SELECT id FROM tasks WHERE id = ? AND org_id = ?').get(req.params.id, orgId);
+      if (!exists) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
       const current = await prepare(`${TASK_SELECT} WHERE t.id = ?`).get(req.params.id);
-      return res.status(409).json({ conflict: true, currentTask: current });
+      return res.status(409).json({
+        conflict: true,
+        message: 'Task was modified by another user',
+        currentTask: current,
+        yourVersion: version,
+        currentVersion: current ? current.version : undefined
+      });
     }
 
-    await prepare(
-      'UPDATE tasks SET status = ?, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND org_id = ?'
-    ).run(status, req.params.id, orgId);
-
     // Sync workflow_stage_id if mapping exists
-    const stageMatch = await prepare(
+    let stageMatch = await prepare(
       'SELECT id FROM workflow_stages WHERE workspace_id = (SELECT workspace_id FROM tasks WHERE id = ?) AND slug = ?'
     ).get(req.params.id, status);
+
+    if (!stageMatch) {
+      const wsSub = '(SELECT workspace_id FROM tasks WHERE id = ?)';
+      if (status === 'done') {
+        stageMatch = await prepare(
+          `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND is_done_state = 1 ORDER BY position LIMIT 1`
+        ).get(req.params.id);
+      } else if (status === 'todo') {
+        stageMatch = await prepare(
+          `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND (slug LIKE '%todo%' OR slug LIKE '%yapilacak%' OR slug LIKE '%yapilacaklar%') ORDER BY position LIMIT 1`
+        ).get(req.params.id);
+      } else if (status === 'testing') {
+        stageMatch = await prepare(
+          `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND (slug LIKE '%test%' OR slug LIKE '%deneme%') ORDER BY position LIMIT 1`
+        ).get(req.params.id);
+      } else if (status === 'in-progress') {
+        stageMatch = await prepare(
+          `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND (slug LIKE '%progress%' OR slug LIKE '%devam%' OR slug LIKE '%surec%' OR slug LIKE '%calisil%' OR slug LIKE '%active%') ORDER BY position LIMIT 1`
+        ).get(req.params.id);
+      }
+    }
+
     if (stageMatch) {
       await prepare('UPDATE tasks SET workflow_stage_id = ? WHERE id = ?').run(stageMatch.id, req.params.id);
     }
@@ -277,7 +365,7 @@ router.patch('/:id/status', async (req, res) => {
     // Log activity
     await prepare(
       'INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(req.user.id, 'moved', `Task "${existing.title}" → ${status}`, orgId, task.workspace_id, 'task', task.id);
+    ).run(req.user.id, 'moved', `Task "${task.title}" → ${status}`, orgId, task.workspace_id, 'task', task.id);
 
     const io = req.app.get('io');
     if (io) {

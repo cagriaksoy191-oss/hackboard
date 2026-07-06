@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../context/UserContext';
 import Avatar from './atoms/Avatar';
 import Tooltip from './atoms/Tooltip';
@@ -127,22 +127,57 @@ function Sidebar({ isOpen, toggle }) {
   return (
     <>
       {/* Overlay — mobile only */}
-      {isOpen && !isDesktop && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-[var(--bg-overlay)] z-40 lg:hidden"
-          onClick={toggle}
+      <AnimatePresence>
+        {isOpen && !isDesktop && (
+          <motion.div
+            key="sidebar-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[var(--bg-overlay)] z-40 lg:hidden"
+            onClick={toggle}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Edge Swipe / Swipe-to-Open Gesture Detection Strip */}
+      {!isOpen && !isDesktop && (
+        <div
+          data-testid="edge-swipe-detector"
+          className="fixed left-0 top-0 bottom-0 w-6 z-40 lg:hidden swipe-to-open edge-swipe"
+          style={{ touchAction: 'none' }}
+          onTouchStart={(e) => {
+            const touchStartX = e.touches[0].clientX;
+            const handleTouchMove = (moveEvent) => {
+              const touchCurrentX = moveEvent.touches[0].clientX;
+              if (touchCurrentX - touchStartX > 40) {
+                toggle();
+                document.removeEventListener('touchmove', handleTouchMove);
+              }
+            };
+            document.addEventListener('touchmove', handleTouchMove);
+            document.addEventListener('touchend', () => {
+              document.removeEventListener('touchmove', handleTouchMove);
+            }, { once: true });
+          }}
         />
       )}
 
       {/* Sidebar */}
       <motion.aside
         initial={false}
-        animate={{ x: sidebarVisible ? 0 : -280 }}
+        animate={{ x: sidebarVisible ? 0 : -260 }}
         transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-        className="fixed left-0 top-0 h-full w-[260px] z-50 flex flex-col
+        drag={isDesktop ? false : "x"}
+        dragConstraints={{ left: -260, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={(event, info) => {
+          if (info.offset.x < -80 || info.velocity.x < -200) {
+            toggle();
+          }
+        }}
+        style={{ touchAction: 'y' }}
+        className="fixed left-0 top-0 h-[100dvh] max-h-[100dvh] lg:h-full w-[260px] z-50 flex flex-col
           bg-[var(--bg-surface)] border-r border-[var(--border-subtle)]"
       >
         {/* ─── Logo & Brand ─── */}

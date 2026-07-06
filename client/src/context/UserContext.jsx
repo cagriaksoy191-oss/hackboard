@@ -108,8 +108,11 @@ export function UserProvider({ children }) {
     // Check on mount as well
     checkAndRefreshProactively();
 
+    const intervalId = setInterval(checkAndRefreshProactively, 60000);
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalId);
     };
   }, [user]);
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import Avatar from './atoms/Avatar';
@@ -134,7 +135,11 @@ function Header({ toggleSidebar }) {
       </header>
 
       {/* Spotlight Search Modal */}
-      <SpotlightSearch isOpen={searchOpen} onClose={closeSearch} />
+      <AnimatePresence>
+        {searchOpen && (
+          <SpotlightSearch isOpen={searchOpen} onClose={closeSearch} />
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -14,7 +14,7 @@
  *   queueEmbedding('task', taskId);    // Mark entity for re-indexing
  */
 
-import { prepare } from './db-adapter.js';
+import { prepare, transaction, DB_MODE } from './db-adapter.js';
 import { vectorStore, cosineSimilarity } from './lib/vector-store.js';
 
 /* ──────────────────────────────────────────────
@@ -363,6 +363,8 @@ async function processEntity(sourceType, sourceId) {
       await prepare("UPDATE comments SET embedding_status = 'indexed' WHERE id = ?").run(sourceId);
     } else if (sourceType === 'activity') {
       await prepare("UPDATE activities SET embedding_status = 'indexed' WHERE id = ?").run(sourceId);
+    } else if (sourceType === 'message') {
+      await prepare("UPDATE messages SET embedding_status = 'indexed' WHERE id = ?").run(sourceId);
     }
 
     console.info(`[Embedding] Indexed ${sourceType}:${sourceId} (${chunks.length} chunks)`);
@@ -377,8 +379,46 @@ async function processEntity(sourceType, sourceId) {
       await prepare("UPDATE comments SET embedding_status = 'failed' WHERE id = ?").run(sourceId);
     } else if (sourceType === 'activity') {
       await prepare("UPDATE activities SET embedding_status = 'failed' WHERE id = ?").run(sourceId);
+    } else if (sourceType === 'message') {
+      await prepare("UPDATE messages SET embedding_status = 'failed' WHERE id = ?").run(sourceId);
     }
     return false;
+  }
+}
+
+/**
+ * Claim pending entities by changing status to 'processing' to avoid parallel overlaps.
+ */
+async function claimPendingEntities(table, limit) {
+  if (DB_MODE === 'postgresql') {
+    const query = `
+      UPDATE ${table}
+      SET embedding_status = 'processing'
+      WHERE id IN (
+        SELECT id FROM ${table}
+        WHERE embedding_status = 'pending'
+        LIMIT ?
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id;
+    `;
+    const rows = await prepare(query).all(limit);
+    return rows.map(r => r.id);
+  } else {
+    return await transaction(async () => {
+      const rows = await prepare(
+        `SELECT id FROM ${table} WHERE embedding_status = 'pending' LIMIT ?`
+      ).all(limit);
+      if (rows.length > 0) {
+        const ids = rows.map(r => r.id);
+        const placeholders = ids.map(() => '?').join(',');
+        await prepare(
+          `UPDATE ${table} SET embedding_status = 'processing' WHERE id IN (${placeholders})`
+        ).run(ids);
+        return ids;
+      }
+      return [];
+    })();
   }
 }
 
@@ -389,36 +429,30 @@ async function pollPendingEntities() {
   if (!workerRunning) return;
 
   try {
-    // Find pending tasks
-    const pendingTasks = await prepare(
-      "SELECT id FROM tasks WHERE embedding_status = 'pending' LIMIT ?"
-    ).all(BATCH_SIZE);
+    const taskIds = await claimPendingEntities('tasks', BATCH_SIZE);
+    const commentIds = await claimPendingEntities('comments', BATCH_SIZE);
+    const activityIds = await claimPendingEntities('activities', BATCH_SIZE);
+    const messageIds = await claimPendingEntities('messages', BATCH_SIZE);
 
-    // Find pending comments
-    const pendingComments = await prepare(
-      "SELECT id FROM comments WHERE embedding_status = 'pending' LIMIT ?"
-    ).all(BATCH_SIZE);
-
-    // Find pending activities
-    const pendingActivities = await prepare(
-      "SELECT id FROM activities WHERE embedding_status = 'pending' LIMIT ?"
-    ).all(BATCH_SIZE);
-
-    const total = pendingTasks.length + pendingComments.length + pendingActivities.length;
+    const total = taskIds.length + commentIds.length + activityIds.length + messageIds.length;
     if (total > 0) {
       console.info(`[Embedding] Processing ${total} pending entities...`);
     }
 
-    for (const task of pendingTasks) {
-      await processEntity('task', task.id);
+    for (const id of taskIds) {
+      await processEntity('task', id);
     }
 
-    for (const comment of pendingComments) {
-      await processEntity('comment', comment.id);
+    for (const id of commentIds) {
+      await processEntity('comment', id);
     }
 
-    for (const activity of pendingActivities) {
-      await processEntity('activity', activity.id);
+    for (const id of activityIds) {
+      await processEntity('activity', id);
+    }
+
+    for (const id of messageIds) {
+      await processEntity('message', id);
     }
   } catch (err) {
     console.error('[Embedding] Poll error:', err.message);
@@ -462,8 +496,20 @@ export async function queueEmbedding(sourceType, sourceId) {
   } else if (sourceType === 'activity') {
     await prepare("UPDATE activities SET embedding_status = 'pending' WHERE id = ?").run(sourceId);
   } else if (sourceType === 'message') {
-    // Messages don't have embedding_status column — process directly
-    await processEntity('message', sourceId);
+    await prepare("UPDATE messages SET embedding_status = 'pending' WHERE id = ?").run(sourceId);
+  }
+}
+
+async function runLoop(intervalMs) {
+  if (!workerRunning) return;
+  try {
+    await pollPendingEntities();
+  } catch (err) {
+    console.error('[Embedding] Worker loop execution failed:', err);
+  } finally {
+    if (workerRunning) {
+      workerTimer = setTimeout(() => runLoop(intervalMs), intervalMs);
+    }
   }
 }
 
@@ -482,11 +528,8 @@ export async function startEmbeddingWorker(intervalMs = POLL_INTERVAL) {
   workerRunning = true;
   console.info(`[Embedding] Worker started (provider: ${EMBEDDING_PROVIDER}, interval: ${intervalMs}ms)`);
 
-  // Initial poll
-  pollPendingEntities();
-
-  // Recurring poll
-  workerTimer = setInterval(pollPendingEntities, intervalMs);
+  // Start execution immediately
+  workerTimer = setTimeout(() => runLoop(intervalMs), 0);
 }
 
 /**
@@ -495,7 +538,7 @@ export async function startEmbeddingWorker(intervalMs = POLL_INTERVAL) {
 export function stopEmbeddingWorker() {
   workerRunning = false;
   if (workerTimer) {
-    clearInterval(workerTimer);
+    clearTimeout(workerTimer);
     workerTimer = null;
   }
   console.info('[Embedding] Worker stopped');

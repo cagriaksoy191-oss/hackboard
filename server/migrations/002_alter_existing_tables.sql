@@ -4,7 +4,10 @@
 -- so constraints are documented but enforced at application level.
 
 -- ─── users: Auth columns ───
+-- @pg-only
 ALTER TABLE users ADD COLUMN email           TEXT UNIQUE;
+-- @sqlite-only
+ALTER TABLE users ADD COLUMN email           TEXT;
 ALTER TABLE users ADD COLUMN password_hash   TEXT;
 ALTER TABLE users ADD COLUMN email_verified  INTEGER NOT NULL DEFAULT 0;
 

@@ -77,6 +77,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
+    if (channel_id) {
+      const ch = await prepare('SELECT c.id FROM channels c JOIN workspaces w ON c.workspace_id = w.id WHERE c.id = ? AND w.org_id = ?').get(channel_id, orgId);
+      if (!ch) {
+        return res.status(403).json({ error: 'Channel access denied' });
+      }
+    }
+
     // Resolve default channel if none specified
     let resolvedChannelId = channel_id;
     if (!resolvedChannelId && workspaceId) {
@@ -111,6 +118,10 @@ router.post('/', async (req, res) => {
         ? `channel:${resolvedChannelId}`
         : (workspaceId ? `workspace:${workspaceId}` : `tenant:${orgId}`);
       io.to(room).emit('message:new', message);
+
+      if (thread_id) {
+        io.to(room).emit('thread:reply', { threadId: thread_id, message });
+      }
 
       // Notification to others
       const user = await prepare('SELECT name FROM users WHERE id = ?').get(req.user.id);

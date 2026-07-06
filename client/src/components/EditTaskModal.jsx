@@ -6,7 +6,7 @@ import Modal from './common/Modal';
 import { Button } from './atoms';
 import Badge from './atoms/Badge';
 
-function EditTaskModal({ task, onClose, onSuccess }) {
+function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({
     title: '',
@@ -30,6 +30,8 @@ function EditTaskModal({ task, onClose, onSuccess }) {
         estimated_hours: task.estimated_hours || '',
       });
     }
+    setConflictData(null);
+    setIsDeletedConflict(false);
   }, [task]);
 
   const handleSubmit = async (e) => {
@@ -41,7 +43,6 @@ function EditTaskModal({ task, onClose, onSuccess }) {
         estimated_hours: parseFloat(form.estimated_hours) || 0,
         version: task.version, // Pass version for optimistic locking
       });
-      socket.emit('task:update', { id: task.id, ...form });
       onSuccess();
     } catch (err) {
       if (err.response && err.response.status === 409) {
@@ -62,7 +63,6 @@ function EditTaskModal({ task, onClose, onSuccess }) {
         estimated_hours: parseFloat(form.estimated_hours) || 0,
         version: conflictData.version, // Overwrite with server version
       });
-      socket.emit('task:update', { id: task.id, ...form });
       onSuccess();
     } catch (err) {
       if (err.response && err.response.status === 409) {
@@ -132,7 +132,7 @@ function EditTaskModal({ task, onClose, onSuccess }) {
   // Render Deleted Warning State
   if (isDeletedConflict) {
     return (
-      <Modal title="Görev Silinmiş" onClose={handleDiscard}>
+      <Modal title="Görev Silinmiş" onClose={handleDiscard} isOpen={isOpen}>
         <div className="space-y-4">
           <div className="rounded-xl bg-[var(--accent-danger-muted)] border border-[var(--accent-danger)]/15 p-4 flex items-start gap-3">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-danger)" strokeWidth="2" className="shrink-0 mt-0.5">
@@ -163,7 +163,7 @@ function EditTaskModal({ task, onClose, onSuccess }) {
   // Render Merge Conflict State
   if (conflictData) {
     return (
-      <Modal title="Çakışma Algılandı" onClose={onClose}>
+      <Modal title="Çakışma Algılandı" onClose={onClose} isOpen={isOpen}>
         <div className="space-y-4">
           <div className="rounded-xl bg-[var(--accent-warning-muted)] border border-[var(--accent-warning)]/15 p-4 flex items-start gap-3">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-warning)" strokeWidth="2" className="shrink-0 mt-0.5">
@@ -233,7 +233,7 @@ function EditTaskModal({ task, onClose, onSuccess }) {
   }
 
   return (
-    <Modal title="Görevi Düzenle" onClose={onClose}>
+    <Modal title="Görevi Düzenle" onClose={onClose} isOpen={isOpen}>
       <TaskForm
         form={form}
         setForm={setForm}

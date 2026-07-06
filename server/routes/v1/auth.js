@@ -80,31 +80,32 @@ router.post('/register', async (req, res) => {
       orgId = orgResult.lastInsertRowid;
 
       // Create default workspace
-      await prepare(
+      const wsResult = await prepare(
         'INSERT INTO workspaces (org_id, name, slug) VALUES (?, ?, ?)'
       ).run(orgId, 'Default Workspace', 'default');
+      const workspaceId = wsResult.lastInsertRowid;
 
       // Add user as owner
       await prepare('INSERT INTO org_memberships (org_id, user_id, role) VALUES (?, ?, ?)').run(orgId, user.id, 'owner');
 
       // Create default workflow stages
       await prepare(
-        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (1, 'To Do', 'todo', 0, '#94a3b8', 0)"
-      ).run();
+        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (?, 'To Do', 'todo', 0, '#94a3b8', 0)"
+      ).run(workspaceId);
       await prepare(
-        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (1, 'In Progress', 'in-progress', 1, '#3b82f6', 0)"
-      ).run();
+        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (?, 'In Progress', 'in-progress', 1, '#3b82f6', 0)"
+      ).run(workspaceId);
       await prepare(
-        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (1, 'Testing', 'testing', 2, '#f59e0b', 0)"
-      ).run();
+        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (?, 'Testing', 'testing', 2, '#f59e0b', 0)"
+      ).run(workspaceId);
       await prepare(
-        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (1, 'Done', 'done', 3, '#22c55e', 1)"
-      ).run();
+        "INSERT INTO workflow_stages (workspace_id, name, slug, position, color, is_done_state) VALUES (?, 'Done', 'done', 3, '#22c55e', 1)"
+      ).run(workspaceId);
 
       // Create default channel
       await prepare(
-        "INSERT INTO channels (workspace_id, name, slug, is_default) VALUES (1, 'General', 'general', 1)"
-      ).run();
+        "INSERT INTO channels (workspace_id, name, slug, is_default) VALUES (?, 'General', 'general', 1)"
+      ).run(workspaceId);
     }
 
     // Generate tokens
