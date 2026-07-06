@@ -7,26 +7,30 @@
 
 ## Features
 
-- **Dashboard**: Stat cards, Kanban board (drag & drop), live activity feed
-- **Task Management**: CRUD operations, filtering, subtasks, comments, task timer
-- **Team Members**: Online/offline status, productivity charts, per-user task lists
-- **Timeline**: Interactive timeline, live time indicator, milestone tracking
-- **Chat**: Real-time messaging, emoji support, typing indicators
-- **Analytics**: Doughnut, Bar and Line charts, overall progress tracking
-- **Notifications**: Real-time notification bell with unread badge
-- **Dark/Light Mode**: Theme toggle with localStorage persistence
-- **User Login**: Simple user selection screen on startup
-- **Export**: Download reports as JSON or CSV
+- **Dashboard**: Live interactive stat cards, dynamic Kanban board (drag & drop), live activity feed
+- **Task Management & Versioning**: CRUD operations, filtering, subtasks, comments, task timer, and optimistic locking conflict resolver with UI diff-merging screen
+- **Team Members**: Online/offline status, productivity charts, role-based access control (RBAC), and per-user task lists
+- **Timeline & Milestones**: Interactive timeline, live time indicator, and milestone tracking linked to active sprints
+- **Chat & Threads**: Real-time channel messaging, nested threaded replies (Apple-style ThreadPanel), emoji support, and isolated typing indicators
+- **RAG Search & Spotlight**: Semantic + fuzzy text hybrid Spotlight search modal (Cmd+K) using Reciprocal Rank Fusion (RRF) and background message vector indexing
+- **Analytics & Sprints**: Workspace-scoped sprints, live Burndown and Velocity charts, backlog drag-and-drop allocation, and reports export (JSON/CSV)
+- **Notifications**: Real-time notification bell with unread badge and route-aware smart suppression
+- **Premium Apple-style UI**: Responsive app shell with dark/light mode toggle, modal focus trapping, Escape-to-close behavior, and swipe gestures
+- **Secured Authentication**: JWT-based access/refresh token rotation and session expiration redirects
+- **Data Safety & Recovery**: JSON export/import, automated local snapshotting, atomic transactional restore, and client auto-reload
+- **Test Automation**: Robust test suites covering APIs, socket isolation, UI focus trapping, gestures, and locking models
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18 + Vite + TailwindCSS + Framer Motion |
-| Backend | Node.js + Express.js |
-| Database | SQLite (sql.js) |
+| Backend | Node.js + Express.js (ES Modules) |
+| Database | **Dual-Mode Adapter:** PostgreSQL (Supabase/Render) in Production / SQLite (`sql.js`) for Local Fallback |
 | Real-time | Socket.IO |
 | Charts | Recharts |
+| Tests | Node.js Test Runner (server) + JSDOM unit tests (client) |
+
 
 ## Local Setup
 

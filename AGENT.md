@@ -363,12 +363,13 @@ Hackathon/
 
 1. ~~**SQLite data loss on restart**~~ — **RESOLVED** (2026-05-03). Production now uses Supabase PostgreSQL. Data persists across Render.com restarts, deploys, and sleep cycles.
 2. ~~**No concurrent write safety**~~ — **RESOLVED** (2026-05-03). PostgreSQL provides full ACID transaction support. `ON DELETE CASCADE` and `CHECK` constraints enforce data integrity at the database level.
-3. **No authentication** - User selection is client-side only. No password or token-based auth.
+3. ~~**No authentication**~~ — **RESOLVED**. Fully secured via JWT token authentication with proactive refresh token rotation and session expiration redirects.
 4. **Timer is per-client** - Timer state syncs on start/stop but does not show live countdown to other users.
 5. **Notifications from activities table** - Notifications are derived from the activities log, not a dedicated notifications table. Read state is client-side only.
-6. **No pagination** - All tasks, messages, and activities are loaded at once.
+6. ~~**No pagination**~~ — **PARTIALLY RESOLVED**. Infinite scroll pagination is implemented for chat messages.
 7. **No file attachments** - Tasks and comments are text-only.
-8. **No automated test suite** - Validation currently relies on successful builds plus manual smoke testing instead of automated integration/end-to-end coverage.
+8. ~~**No automated test suite**~~ — **RESOLVED**. Complete automated test suite containing 86 backend tests and 62 frontend tests covering APIs, sockets, gestures, focus trapping, and locking.
+
 
 ## Environment Variables
 
