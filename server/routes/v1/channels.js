@@ -15,10 +15,18 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const { orgId, workspaceId } = req.tenant;
-    const wsId = req.query.workspace_id || workspaceId;
+    let wsId = req.query.workspace_id || workspaceId;
 
     if (!wsId) {
-      return res.status(400).json({ error: 'workspace_id is required' });
+      // Fallback to first workspace of the organization
+      const defaultWorkspace = await prepare(
+        'SELECT id FROM workspaces WHERE org_id = ? ORDER BY id LIMIT 1'
+      ).get(orgId);
+      if (defaultWorkspace) {
+        wsId = defaultWorkspace.id;
+      } else {
+        return res.status(400).json({ error: 'workspace_id is required' });
+      }
     }
 
     const ws = await prepare('SELECT id FROM workspaces WHERE id = ? AND org_id = ?').get(wsId, orgId);
@@ -50,7 +58,17 @@ router.post('/', requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const { orgId, workspaceId } = req.tenant;
     const { name, description, workspace_id: bodyWsId } = req.body;
-    const wsId = bodyWsId || workspaceId;
+    let wsId = bodyWsId || workspaceId;
+
+    if (!wsId) {
+      // Fallback to first workspace of the organization
+      const defaultWorkspace = await prepare(
+        'SELECT id FROM workspaces WHERE org_id = ? ORDER BY id LIMIT 1'
+      ).get(orgId);
+      if (defaultWorkspace) {
+        wsId = defaultWorkspace.id;
+      }
+    }
 
     if (!name || !wsId) {
       return res.status(400).json({ error: 'name and workspace_id are required' });
