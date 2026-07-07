@@ -25,7 +25,7 @@ function TaskFilters({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Gorev ara..."
+              placeholder="Görev ara..."
               className="w-full pl-10 pr-4 py-2 input-surface border rounded-xl text-sm focus:outline-none focus:border-accent transition-all duration-200"
             />
           </div>
@@ -39,15 +39,15 @@ function TaskFilters({
               filterStatus !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
-            <option value="all" className="option-surface">Tumu</option>
-            <option value="todo" className="option-surface">Yapilacak</option>
+            <option value="all" className="option-surface">Tümü</option>
+            <option value="todo" className="option-surface">Yapılacak</option>
             <option value="in-progress" className="option-surface">Devam Ediyor</option>
             <option value="testing" className="option-surface">Test</option>
-            <option value="done" className="option-surface">Tamamlandi</option>
+            <option value="done" className="option-surface">Tamamlandı</option>
           </select>
         </div>
         <div>
-          <label className="block text-xs text-secondary mb-1">Oncelik</label>
+          <label className="block text-xs text-secondary mb-1">Öncelik</label>
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
@@ -55,15 +55,15 @@ function TaskFilters({
               filterPriority !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
-            <option value="all" className="option-surface">Tumu</option>
+            <option value="all" className="option-surface">Tümü</option>
             <option value="critical" className="option-surface">Kritik</option>
-            <option value="high" className="option-surface">Yuksek</option>
+            <option value="high" className="option-surface">Yüksek</option>
             <option value="medium" className="option-surface">Orta</option>
-            <option value="low" className="option-surface">Dusuk</option>
+            <option value="low" className="option-surface">Düşük</option>
           </select>
         </div>
         <div>
-          <label className="block text-xs text-secondary mb-1">Kisi</label>
+          <label className="block text-xs text-secondary mb-1">Kişi</label>
           <select
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
@@ -71,7 +71,7 @@ function TaskFilters({
               filterUser !== 'all' ? 'border-accent bg-accent/10' : ''
             }`}
           >
-            <option value="all" className="option-surface">Tumu</option>
+            <option value="all" className="option-surface">Tümü</option>
             {users.map((u) => (
               <option key={u.id} value={u.id} className="option-surface">{u.name}</option>
             ))}

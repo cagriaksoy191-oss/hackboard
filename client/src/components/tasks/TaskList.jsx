@@ -33,7 +33,7 @@ function TaskList({
   if (filteredTasks.length === 0) {
     return (
       <EmptyState
-        message={hasActiveFilters ? 'Filtreye uygun gorev bulunamadi' : 'Henuz gorev yok, hadi ekleyelim!'}
+        message={hasActiveFilters ? 'Filtreye uygun görev bulunamadı' : 'Henüz görev yok, hadi ekleyelim!'}
         icon={hasActiveFilters ? 'search' : 'task'}
       />
     );
@@ -109,7 +109,7 @@ function TaskList({
                   onClick={() => setEditingTask(task)}
                   className="text-xs text-accent hover:underline transition-all duration-200 hover:scale-110"
                 >
-                  Duzenle
+                  Düzenle
                 </button>
                 <button
                   onClick={() => handleDeleteClick(task.id)}

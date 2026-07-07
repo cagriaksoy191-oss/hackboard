@@ -33,13 +33,14 @@ function Tasks() {
   const { addToast } = useToast();
 
   useEffect(() => {
-    Promise.all([tasksAPI.getAll(), usersAPI.getAll(), sprintsAPI.getAll()]).then(([taskRes, userRes, sprintRes]) => {
+    Promise.all([
+      tasksAPI.getAll().catch((err) => { console.error('Failed to load tasks:', err); return { data: [] }; }),
+      usersAPI.getAll().catch((err) => { console.error('Failed to load users:', err); return { data: [] }; }),
+      sprintsAPI.getAll().catch((err) => { console.error('Failed to load sprints:', err); return { data: [] }; })
+    ]).then(([taskRes, userRes, sprintRes]) => {
       setTasks(taskRes.data);
       setUsers(userRes.data);
       setSprints(sprintRes.data);
-      setLoading(false);
-    }).catch((err) => {
-      console.error('Failed to load data in Tasks:', err);
       setLoading(false);
     });
 
@@ -105,7 +106,7 @@ function Tasks() {
         setTasks((prev) => prev.filter((t) => t.id !== deletingTaskId));
         setDeletingTaskId(null);
         setIsDeleting(null);
-        addToast('Task deleted successfully', 'success');
+        addToast('Görev başarıyla silindi', 'success');
       }, 300);
     }
   };
@@ -178,7 +179,7 @@ function Tasks() {
         onSuccess={() => {
           setShowCreateModal(false);
           tasksAPI.getAll().then((res) => setTasks(res.data));
-          addToast('Task created successfully', 'success');
+          addToast('Görev başarıyla oluşturuldu', 'success');
         }}
       />
 
@@ -189,7 +190,7 @@ function Tasks() {
         onSuccess={() => {
           tasksAPI.getAll().then((res) => setTasks(res.data));
           setEditingTask(null);
-          addToast('Task updated successfully', 'success');
+          addToast('Görev başarıyla güncellendi', 'success');
         }}
       />
 
@@ -197,8 +198,8 @@ function Tasks() {
         isOpen={!!deletingTaskId}
         onClose={() => setDeletingTaskId(null)}
         onConfirm={handleConfirmDelete}
-        title="Gorevi Sil"
-        message="Bu gorevi silmek istediginize emin misiniz? Bu islem geri alinamaz."
+        title="Görevi Sil"
+        message="Bu görevi silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
       />
     </motion.div>
   );
