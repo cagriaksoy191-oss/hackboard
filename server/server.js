@@ -307,8 +307,6 @@ io.on('connection', (socket) => {
       const notifRoom = getTenantRoom();
       if (notifRoom) {
         socket.to(notifRoom).emit('notification:new', notifPayload);
-      } else {
-        socket.broadcast.emit('notification:new', notifPayload);
       }
 
       // Queue message for RAG vector indexing
@@ -488,8 +486,6 @@ io.on('connection', (socket) => {
       const room = getTenantRoom();
       if (room) {
         socket.to(room).emit('timer:start', data);
-      } else {
-        socket.broadcast.emit('timer:start', data);
       }
     } catch (err) {
       console.error('Socket timer:start error:', err);
@@ -504,8 +500,6 @@ io.on('connection', (socket) => {
       const room = getTenantRoom();
       if (room) {
         socket.to(room).emit('timer:stop', data);
-      } else {
-        socket.broadcast.emit('timer:stop', data);
       }
     } catch (err) {
       console.error('Socket timer:stop error:', err);
@@ -520,8 +514,6 @@ io.on('connection', (socket) => {
       const room = getTenantRoom();
       if (room) {
         io.to(room).emit('user:status', broadcastPayload);
-      } else {
-        io.emit('user:status', broadcastPayload);
       }
     } catch (err) {
       console.error('Socket user:status error:', err);
@@ -536,8 +528,6 @@ io.on('connection', (socket) => {
       const room = getTenantRoom();
       if (room) {
         socket.to(room).emit('typing:start', data);
-      } else {
-        socket.broadcast.emit('typing:start', data);
       }
     }
   });
@@ -549,8 +539,6 @@ io.on('connection', (socket) => {
       const room = getTenantRoom();
       if (room) {
         socket.to(room).emit('typing:stop', data);
-      } else {
-        socket.broadcast.emit('typing:stop', data);
       }
     }
   });

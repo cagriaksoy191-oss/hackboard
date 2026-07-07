@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { workflowsAPI } from '../lib/api';
 import { Button } from '../components/atoms';
@@ -23,6 +24,7 @@ function AddStageModal({ show, onClose, onCreate }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#6366f1');
   const [isDone, setIsDone] = useState(false);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (show) { setName(''); setColor('#6366f1'); setIsDone(false); }
@@ -34,16 +36,85 @@ function AddStageModal({ show, onClose, onCreate }) {
     onCreate({ name: name.trim(), color, is_done_state: isDone });
   };
 
-  if (!show) return null;
+  useEffect(() => {
+    const container = modalRef.current;
+    if (!container) return;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    const focusableSelector = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]';
+    let focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+
+    const isTopmost = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs.length === 0 || dialogs[dialogs.length - 1] === container;
+    };
+
+    const timer = setTimeout(() => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      }
+    }, 100);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isTopmost()) onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+      if (!isTopmost()) return;
+
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleFocus = (e) => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0 && !container.contains(e.target)) {
+        focusableElements[0].focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('focus', handleFocus, true);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('focus', handleFocus, true);
+    };
+  }, [show, onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <motion.div
+        key="add-stage-overlay"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        key="add-stage-modal"
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -89,7 +160,8 @@ function AddStageModal({ show, onClose, onCreate }) {
           </div>
         </form>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -98,6 +170,7 @@ function AddStageModal({ show, onClose, onCreate }) {
    ────────────────────────────────────────────── */
 function DeleteStageModal({ show, onClose, onConfirm, stages, targetStageId }) {
   const [transferId, setTransferId] = useState('');
+  const modalRef = useRef(null);
 
   const eligibleStages = useMemo(() => {
     return stages.filter(s => String(s.id) !== String(targetStageId));
@@ -109,16 +182,85 @@ function DeleteStageModal({ show, onClose, onConfirm, stages, targetStageId }) {
     }
   }, [show, eligibleStages]);
 
-  if (!show) return null;
+  useEffect(() => {
+    const container = modalRef.current;
+    if (!container) return;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    const focusableSelector = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]';
+    let focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+
+    const isTopmost = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs.length === 0 || dialogs[dialogs.length - 1] === container;
+    };
+
+    const timer = setTimeout(() => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      }
+    }, 100);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isTopmost()) onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+      if (!isTopmost()) return;
+
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleFocus = (e) => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0 && !container.contains(e.target)) {
+        focusableElements[0].focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('focus', handleFocus, true);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('focus', handleFocus, true);
+    };
+  }, [show, onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <motion.div
+        key="delete-stage-overlay"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        key="delete-stage-modal"
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -148,7 +290,8 @@ function DeleteStageModal({ show, onClose, onConfirm, stages, targetStageId }) {
           <Button variant="danger" size="md" onClick={() => onConfirm(Number(transferId))} className="flex-1">Sil ve Aktar</Button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -170,6 +313,7 @@ function StageRow({ stage, onEdit, onDelete, isDeleting }) {
     <Reorder.Item
       value={stage}
       className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] cursor-grab active:cursor-grabbing hover:border-[var(--border-strong)] transition-all duration-150"
+      style={{ touchAction: 'none' }}
     >
       {/* Drag handle */}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-[var(--text-muted)] shrink-0">

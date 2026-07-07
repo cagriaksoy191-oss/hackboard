@@ -141,6 +141,26 @@ function LoginScreen({ onLogin }) {
               Yeniden Dene
             </Button>
           </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-10 px-6 rounded-2xl glass border border-[var(--border-default)] bg-[var(--bg-card)] max-w-sm mx-auto space-y-4 shadow-[var(--shadow-md)]">
+            <div className="w-12 h-12 rounded-full bg-[var(--accent-primary-subtle)] border border-[var(--accent-primary)]/15 flex items-center justify-center mx-auto text-[var(--accent-primary)]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <line x1="19" y1="8" x2="19" y2="14" />
+                <line x1="16" y1="11" x2="22" y2="11" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Profil Bulunmuyor</h3>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-1.5 leading-relaxed">
+                HackBoard'a hoş geldiniz! Devam etmek için lütfen ilk kullanıcı profilini oluşturun.
+              </p>
+            </div>
+            <Button variant="accent" size="md" onClick={openAddModal} className="w-full">
+              İlk Kullanıcıyı Oluştur
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
             {users.map((user, i) => {
@@ -248,30 +268,39 @@ function LoginScreen({ onLogin }) {
       </motion.div>
 
       {/* Modals */}
-      <AddUserModal
-        show={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdd={() => handleAddUser()}
-        formName={formName}
-        setFormName={setFormName}
-        formRole={formRole}
-        setFormRole={setFormRole}
-        selectedColor={selectedColor}
-        setSelectedColor={setSelectedColor}
-        THEME_COLORS={THEME_COLORS}
-        users={users}
-      />
-      <EditUserModal
-        show={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onEdit={() => handleEditUser()}
-        onDelete={handleDeleteUser}
-        editingUser={editingUser}
-        formName={formName}
-        setFormName={setFormName}
-        showDeleteConfirm={showDeleteConfirm}
-        setShowDeleteConfirm={setShowDeleteConfirm}
-      />
+      <AnimatePresence>
+        {showAddModal && (
+          <AddUserModal
+            show={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onAdd={() => handleAddUser()}
+            formName={formName}
+            setFormName={setFormName}
+            formRole={formRole}
+            setFormRole={setFormRole}
+            selectedColor={selectedColor}
+            setSelectedColor={setSelectedColor}
+            THEME_COLORS={THEME_COLORS}
+            users={users}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <EditUserModal
+            show={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            onEdit={() => handleEditUser()}
+            onDelete={handleDeleteUser}
+            editingUser={editingUser}
+            formName={formName}
+            setFormName={setFormName}
+            showDeleteConfirm={showDeleteConfirm}
+            setShowDeleteConfirm={setShowDeleteConfirm}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
