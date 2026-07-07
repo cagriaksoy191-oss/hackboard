@@ -52,9 +52,9 @@ function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="h-screen overflow-hidden bg-[var(--bg-app)]">
       <Sidebar isOpen={sidebarOpen} toggle={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="lg:ml-64 min-h-screen flex flex-col">
+      <div className="lg:ml-64 h-screen flex flex-col overflow-hidden">
         <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <AnimatePresence>
           {showRecovery && (
@@ -65,7 +65,7 @@ function Layout({ children }) {
             />
           )}
         </AnimatePresence>
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0">
           {children}
         </main>
       </div>

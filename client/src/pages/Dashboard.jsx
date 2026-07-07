@@ -140,10 +140,10 @@ function Dashboard() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="space-y-6"
+      className="h-full flex flex-col overflow-hidden space-y-6"
     >
       {/* ─── Stat Cards ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
         {STAT_CARDS.map((config, i) => (
           <DashboardStatCard
             key={config.id}
@@ -156,11 +156,11 @@ function Dashboard() {
       </div>
 
       {/* ─── Kanban + Activity ─── */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[78fr_22fr] gap-6 flex-1 min-h-0 overflow-hidden">
+        <div className="h-full flex flex-col min-h-0 overflow-hidden">
           <KanbanBoard />
         </div>
-        <div className="xl:col-span-1">
+        <div className="h-full flex flex-col min-h-0 overflow-hidden">
           <ActivityFeed />
         </div>
       </div>

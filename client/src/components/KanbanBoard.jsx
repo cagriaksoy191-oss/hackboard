@@ -210,9 +210,9 @@ function KanbanBoard() {
   );
 
   return (
-    <div className="relative">
+    <div className="relative h-full flex flex-col overflow-hidden min-h-0">
       {/* ─── Header ─── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 shrink-0">
         <h3 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Kanban Board</h3>
         <Button
           variant="accent"
@@ -229,7 +229,7 @@ function KanbanBoard() {
       </div>
 
       {/* ─── Filters ─── */}
-      <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-3 mb-4">
+      <div className="rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-3 mb-4 shrink-0">
         <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="flex-1">
             <SearchBar
@@ -283,10 +283,10 @@ function KanbanBoard() {
         />
       ) : (
         <div
-          className={`grid gap-3 ${
+          className={`grid gap-3 flex-1 min-h-0 ${
             columns.length <= 4
-              ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
-              : 'overflow-x-auto'
+              ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 h-full'
+              : 'overflow-x-auto h-full'
           }`}
           style={columns.length > 4 ? {
             display: 'grid',
@@ -313,7 +313,7 @@ function KanbanBoard() {
               <div
                 id={`kanban-col-${col.id}`}
                 key={col.id}
-                className="scroll-mt-[100px]"
+                className="scroll-mt-[100px] h-full flex flex-col min-h-0"
               >
                 <KanbanColumn
                   title={col.title}
@@ -321,6 +321,7 @@ function KanbanBoard() {
                   count={colTasks.length}
                   onDragOver={(e) => handleDragOver(e, col.id)}
                   onDrop={(e) => handleDrop(e, col.id)}
+                  className="h-full"
                 >
                   <AnimatePresence>
                     {colTasks.map((task) => (
