@@ -14,6 +14,8 @@ function TaskList({
   navigate,
   setEditingTask,
   handleDeleteClick,
+  sprints = [],
+  onAssignSprint,
 }) {
   if (loading) {
     return (
@@ -70,7 +72,29 @@ function TaskList({
                 )}
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Sprint Selector */}
+                {sprints && sprints.length > 0 && onAssignSprint && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted hidden md:inline">Sprint:</span>
+                    <select
+                      value={task.sprint_id || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        onAssignSprint(task.id, val ? Number(val) : null);
+                      }}
+                      className="px-2 py-1 rounded-lg text-xs bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors cursor-pointer"
+                    >
+                      <option value="" className="option-surface">Backlog</option>
+                      {sprints.filter(s => s.status === 'planning' || s.status === 'active').map(s => (
+                        <option key={s.id} value={s.id} className="option-surface">
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"

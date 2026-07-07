@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { tasksAPI, usersAPI } from '../lib/api';
+import { tasksAPI, usersAPI, sprintsAPI } from '../lib/api';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Toast';
 import socket from '../lib/socket';
@@ -16,7 +16,9 @@ import { priorityColors, statusLabels, statusColors } from '../components/tasks/
 function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [sprints, setSprints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'sprints' | 'backlog'
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterUser, setFilterUser] = useState('all');
@@ -31,9 +33,13 @@ function Tasks() {
   const { addToast } = useToast();
 
   useEffect(() => {
-    Promise.all([tasksAPI.getAll(), usersAPI.getAll()]).then(([taskRes, userRes]) => {
+    Promise.all([tasksAPI.getAll(), usersAPI.getAll(), sprintsAPI.getAll()]).then(([taskRes, userRes, sprintRes]) => {
       setTasks(taskRes.data);
       setUsers(userRes.data);
+      setSprints(sprintRes.data);
+      setLoading(false);
+    }).catch((err) => {
+      console.error('Failed to load data in Tasks:', err);
       setLoading(false);
     });
 
@@ -58,6 +64,8 @@ function Tasks() {
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
+      if (activeTab === 'backlog' && t.sprint_id) return false;
+      if (activeTab === 'sprints' && !t.sprint_id) return false;
       if (filterStatus !== 'all' && t.status !== filterStatus) return false;
       if (filterPriority !== 'all' && t.priority !== filterPriority) return false;
       if (filterUser !== 'all' && t.assigned_to !== parseInt(filterUser)) return false;
@@ -65,7 +73,26 @@ function Tasks() {
           !(t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))) return false;
       return true;
     });
-  }, [tasks, filterStatus, filterPriority, filterUser, searchQuery]);
+  }, [tasks, filterStatus, filterPriority, filterUser, searchQuery, activeTab]);
+
+  const handleAssignSprint = async (taskId, sprintId) => {
+    try {
+      const taskToUpdate = tasks.find(t => t.id === taskId);
+      if (taskToUpdate) {
+        await tasksAPI.update(taskId, {
+          ...taskToUpdate,
+          sprint_id: sprintId,
+        });
+        addToast(sprintId ? 'Görev sprint\'e atandı' : 'Görev backlog\'a taşındı', 'success');
+        // Update local state to trigger rerender immediately
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, sprint_id: sprintId } : t));
+        socket.emit('task:update', { id: taskId, sprint_id: sprintId, user_id: user?.id || 1 });
+      }
+    } catch (err) {
+      console.error('Failed to assign sprint:', err);
+      addToast('Görev güncellenirken hata oluştu', 'error');
+    }
+  };
 
   const handleDeleteClick = (id) => setDeletingTaskId(id);
 
@@ -88,6 +115,34 @@ function Tasks() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <TasksHeader setShowCreateModal={setShowCreateModal} />
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-[var(--border-subtle)] pb-1">
+        {[
+          { id: 'all', label: 'Tüm Görevler' },
+          { id: 'sprints', label: 'Sprint Görevleri' },
+          { id: 'backlog', label: 'Backlog' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all relative ${
+              activeTab === tab.id
+                ? 'text-[var(--accent-primary)] bg-[var(--accent-primary-subtle)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]'
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="activeTaskTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent-primary)]"
+                transition={{ type: 'spring', damping: 30, stiffness: 500 }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
 
       <TaskFilters
         searchQuery={searchQuery}
@@ -113,6 +168,8 @@ function Tasks() {
         navigate={navigate}
         setEditingTask={setEditingTask}
         handleDeleteClick={handleDeleteClick}
+        sprints={sprints}
+        onAssignSprint={handleAssignSprint}
       />
 
       <CreateTaskModal

@@ -15,6 +15,7 @@
 -- to allow graceful fallback when pgvector is not installed.
 
 -- Add embedding_vec as TEXT for SQLite (pgvector will override type at runtime in PG mode)
+-- @sqlite-only
 ALTER TABLE embeddings ADD COLUMN embedding_vec TEXT;
 
 -- Add search performance index on source + org for filtered vector search

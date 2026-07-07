@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sprintsAPI, tasksAPI } from '../lib/api';
@@ -20,6 +21,7 @@ const STATUS_LABELS = {
    ────────────────────────────────────────────── */
 function CompleteSprintModal({ show, onClose, onConfirm, sprints, currentSprintId }) {
   const [transferId, setTransferId] = useState('');
+  const modalRef = useRef(null);
 
   const eligibleSprints = useMemo(() => {
     return sprints.filter(
@@ -27,18 +29,87 @@ function CompleteSprintModal({ show, onClose, onConfirm, sprints, currentSprintI
     );
   }, [sprints, currentSprintId]);
 
+  useEffect(() => {
+    const container = modalRef.current;
+    if (!container) return;
+
+    const focusableSelector = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex]:not([tabindex="-1"]), [contenteditable]';
+    let focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+
+    const isTopmost = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs.length === 0 || dialogs[dialogs.length - 1] === container;
+    };
+
+    const timer = setTimeout(() => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      }
+    }, 100);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isTopmost()) onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+      if (!isTopmost()) return;
+
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleFocus = (e) => {
+      if (!isTopmost()) return;
+      focusableElements = Array.from(container.querySelectorAll(focusableSelector));
+      if (focusableElements.length > 0 && !container.contains(e.target)) {
+        focusableElements[0].focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('focus', handleFocus, true);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('focus', handleFocus, true);
+    };
+  }, [show, onClose]);
+
   if (!show) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -77,7 +148,8 @@ function CompleteSprintModal({ show, onClose, onConfirm, sprints, currentSprintI
           </Button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -168,8 +240,14 @@ function SprintDetail() {
 
   const handleAssignTask = async (taskId) => {
     try {
-      await tasksAPI.update(taskId, { sprint_id: Number(id) });
-      await loadData();
+      const taskToUpdate = allTasks.find(t => t.id === taskId);
+      if (taskToUpdate) {
+        await tasksAPI.update(taskId, {
+          sprint_id: Number(id),
+          version: taskToUpdate.version,
+        });
+        await loadData();
+      }
     } catch (err) {
       console.error('Task assign error:', err);
     }
@@ -177,8 +255,14 @@ function SprintDetail() {
 
   const handleRemoveTask = async (taskId) => {
     try {
-      await tasksAPI.update(taskId, { sprint_id: null });
-      await loadData();
+      const taskToUpdate = tasks.find(t => t.id === taskId);
+      if (taskToUpdate) {
+        await tasksAPI.update(taskId, {
+          sprint_id: null,
+          version: taskToUpdate.version,
+        });
+        await loadData();
+      }
     } catch (err) {
       console.error('Task remove error:', err);
     }

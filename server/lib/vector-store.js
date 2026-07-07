@@ -162,16 +162,25 @@ const pgvectorStore = {
 
     // Step 2: Add native vector column if pgvector is available
     try {
-      await execRaw(`
-        ALTER TABLE embeddings
-        ADD COLUMN IF NOT EXISTS embedding_vec vector(${this._dimensions})
+      const { getPool } = await import('../db-pg.js');
+      const pool = getPool();
+      const colCheck = await pool.query(`
+        SELECT data_type FROM information_schema.columns
+        WHERE table_name = 'embeddings' AND column_name = 'embedding_vec'
       `);
+      if (colCheck.rows.length > 0) {
+        const type = colCheck.rows[0].data_type;
+        if (type !== 'USER-DEFINED') {
+          console.warn(`[VectorStore] embedding_vec column has invalid type '${type}', recreating as vector...`);
+          await execRaw('ALTER TABLE embeddings DROP COLUMN embedding_vec');
+          await execRaw(`ALTER TABLE embeddings ADD COLUMN embedding_vec vector(${this._dimensions})`);
+        }
+      } else {
+        await execRaw(`ALTER TABLE embeddings ADD COLUMN embedding_vec vector(${this._dimensions})`);
+      }
       console.info(`[VectorStore] embedding_vec column ready (${this._dimensions} dimensions)`);
     } catch (err) {
-      // Column might already exist or different dimension — log and continue
-      if (!err.message.includes('already exists')) {
-        console.warn(`[VectorStore] embedding_vec column setup: ${err.message}`);
-      }
+      console.warn(`[VectorStore] embedding_vec column setup error: ${err.message}`);
     }
 
     // Step 3: Create IVFFlat index for cosine distance (ANN)

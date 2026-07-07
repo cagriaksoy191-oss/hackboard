@@ -206,10 +206,13 @@ async function generateEmbedding(text) {
    Source Text Extractors
    ────────────────────────────────────────────── */
 async function extractTaskText(taskId) {
+  const tagConcat = DB_MODE === 'postgresql'
+    ? "string_agg(tg.name, ', ')"
+    : "GROUP_CONCAT(tg.name, ', ')";
   const task = await prepare(`
     SELECT t.title, t.description, t.priority, t.status,
            t.org_id, t.workspace_id,
-           GROUP_CONCAT(tg.name, ', ') as tag_names
+           ${tagConcat} as tag_names
     FROM tasks t
     LEFT JOIN task_tags tt ON t.id = tt.task_id
     LEFT JOIN tags tg ON tt.tag_id = tg.id

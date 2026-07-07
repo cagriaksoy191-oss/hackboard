@@ -1204,7 +1204,7 @@ Migration 006'da `embeddings.source_type` CHECK constraint'i sadece `('task', 'c
 
 ### Canlıya Geçiş Kontrol Listesi
 
-- [x] 9 migration dosyası SQLite + PostgreSQL uyumlu
+- [x] 10 migration dosyası SQLite + PostgreSQL uyumlu
 - [x] render.yaml production-ready (env vars, health check)
 - [x] JWT auth + tenant isolation tüm v1 rotalarında aktif
 - [x] Rate limiting (100 req/15min) API prefix'inde
@@ -1226,3 +1226,19 @@ Arayüzde bir Çalışma Alanı Seçici (Workspace Switcher) bulunmadığı içi
 - `server/routes/v1/channels.js` rotasındaki GET ve POST endpoint'leri, `workspace_id` eksik olduğunda kullanıcının organizasyonuna ait ilk/varsayılan çalışma alanına dinamik olarak geri dönecek (fallback) şekilde güncellendi.
 - Küresel `requireTenant` middleware'inin çalışması korunarak test uyumluluğu sağlandı.
 - Tüm 86 sunucu testinin sorunsuz geçtiği doğrulandı.
+
+### 2026-07-07 — Database Dialect Fixes, Auth Hardening, and Sprint/Backlog Management
+
+**Problem:**
+1. SQLite ve PostgreSQL arasındaki veritabanı farklılıkları (ör. `GROUP_CONCAT` vs `string_agg`, `INSERT OR IGNORE` uyumsuzlukları ve pgvector type-lock) göçler ve embedding worker üzerinde çalışma zamanı hatalarına yol açıyordu.
+2. Token yenileme (RTR) esnasında paralel istek tamponlama kuyruğunda eksikler bulunuyordu ve istemci oturum sonlandırmalarında Socket.IO bağlantıları temizlenmiyordu.
+3. Görev yönetiminde aktif sprint'e atanmamış (backlog) işler için görsel bir sekme ve sprint kapatıldığında kalan işleri devredecek işlemsel (transactional) bir arka uç akışı eksikti.
+
+**Çözüm:**
+- `server/embedding-worker.js` içinde `string_agg` ve `GROUP_CONCAT` seçimleri dinamikleştirildi.
+- `005_seed_default_channels.sql` ve `008_pgvector_support.sql` göç dosyaları veritabanı türüne göre ayrıştırıldı.
+- `client/src/lib/api.js` içinde Axios hata tamponlama kuyruğu doğrulandı; `UserContext.jsx` üzerinde token geçersizliğinde Socket.IO bağlantı kesme tetikleyicisi eklendi.
+- `client/src/pages/Tasks.jsx` üzerinde **Backlog** sekmeli arayüzü ve sürükle-bırak/seçim bazlı sprint atama akışı geliştirildi.
+- `server/routes/v1/sprints.js` rotasında `PATCH /api/v1/sprints/:id/status` tamamlanarak yarım kalan işlerin devri veritabanı işlemi (`transaction`) kapsamına alındı.
+- `client/src/pages/SprintDetail.jsx` üzerindeki tamamlama modalı `ReactDOM.createPortal` ile yeniden yazıldı ve klavye odak koruması (focus trap) eklendi.
+- Gerçek zamanlı Soket sinyalleri ile Burndown grafiğinin otomatik yenilenmesi sağlandı.

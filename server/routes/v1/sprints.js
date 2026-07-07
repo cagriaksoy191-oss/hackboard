@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { prepare } from '../../db-adapter.js';
+import { prepare, transaction } from '../../db-adapter.js';
 
 const router = Router();
 
@@ -149,36 +149,42 @@ router.patch('/:id/status', async (req, res) => {
         }
       }
 
-      // Bulk move tasks that are NOT done
-      await prepare(`
-        UPDATE tasks
-        SET sprint_id = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE sprint_id = ?
-          AND (
-            (workflow_stage_id IS NOT NULL AND workflow_stage_id NOT IN (
-              SELECT id FROM workflow_stages WHERE workspace_id = ? AND is_done_state = 1
-            ))
-            OR
-            (workflow_stage_id IS NULL AND status != 'done')
-          )
-      `).run(targetSprintId, sprint.id, sprint.workspace_id);
+      await transaction(async () => {
+        // Bulk move tasks that are NOT done
+        await prepare(`
+          UPDATE tasks
+          SET sprint_id = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE sprint_id = ?
+            AND (
+              (workflow_stage_id IS NOT NULL AND workflow_stage_id NOT IN (
+                SELECT id FROM workflow_stages WHERE workspace_id = ? AND is_done_state = 1
+              ))
+              OR
+              (workflow_stage_id IS NULL AND status != 'done')
+            )
+        `).run(targetSprintId, sprint.id, sprint.workspace_id);
 
-      // Log activity
-      const destName = targetSprintId ? `Sprint #${targetSprintId}` : 'backlog';
-      await prepare(
-        'INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(
-        req.user.id,
-        'completed',
-        `Sprint "${sprint.name}" completed. Incomplete tasks moved to ${destName}.`,
-        orgId,
-        sprint.workspace_id,
-        'sprint',
-        sprint.id
-      );
+        // Log activity
+        const destName = targetSprintId ? `Sprint #${targetSprintId}` : 'backlog';
+        await prepare(
+          'INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+          req.user.id,
+          'completed',
+          `Sprint "${sprint.name}" completed. Incomplete tasks moved to ${destName}.`,
+          orgId,
+          sprint.workspace_id,
+          'sprint',
+          sprint.id
+        );
+
+        // Update sprint status
+        await prepare('UPDATE sprints SET status = ? WHERE id = ?').run(status, req.params.id);
+      })();
+    } else {
+      await prepare('UPDATE sprints SET status = ? WHERE id = ?').run(status, req.params.id);
     }
 
-    await prepare('UPDATE sprints SET status = ? WHERE id = ?').run(status, req.params.id);
     const updated = await prepare('SELECT * FROM sprints WHERE id = ?').get(req.params.id);
 
     const io = req.app.get('io');

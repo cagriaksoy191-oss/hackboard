@@ -32,6 +32,13 @@ export function UserProvider({ children }) {
   useEffect(() => {
     const handleUnauthorized = () => {
       setUser(null);
+      localStorage.removeItem('hackboard-user');
+      localStorage.removeItem('hackboard-token');
+      localStorage.removeItem('hackboard-refresh-token');
+      import('../lib/socket').then(({ default: socket }) => {
+        socket.auth = {};
+        socket.disconnect();
+      });
     };
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
