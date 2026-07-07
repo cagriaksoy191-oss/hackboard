@@ -1242,3 +1242,7 @@ Arayüzde bir Çalışma Alanı Seçici (Workspace Switcher) bulunmadığı içi
 - `server/routes/v1/sprints.js` rotasında `PATCH /api/v1/sprints/:id/status` tamamlanarak yarım kalan işlerin devri veritabanı işlemi (`transaction`) kapsamına alındı.
 - `client/src/pages/SprintDetail.jsx` üzerindeki tamamlama modalı `ReactDOM.createPortal` ile yeniden yazıldı ve klavye odak koruması (focus trap) eklendi.
 - Gerçek zamanlı Soket sinyalleri ile Burndown grafiğinin otomatik yenilenmesi sağlandı.
+
+**Hotfix - Development Rate Limiter bypass and Login Screen Error Handling:**
+- Geliştirme (development) ortamında sık sık `429 Too Many Requests` kilitlenmesini engellemek için `server/server.js` dosyasındaki rate limiter `max` limiti dinamik hale getirildi. Üretim ortamında `100` istek limiti korunurken, yerel geliştirme modunda `10000` limitine çıkartıldı.
+- `client/src/components/LoginScreen.jsx` içinde kullanıcı profili getirme hatası yakalanarak sonsuz yükleme (infinite loading spinner) döngüsü giderildi. Hata durumunda (429 rate limit, db cold start vb.) kullanıcının görebileceği premium tasarımlı bir hata uyarı kartı ve **"Yeniden Dene" (Retry)** butonu entegre edildi.

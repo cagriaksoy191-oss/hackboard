@@ -18,6 +18,7 @@ function LoginScreen({ onLogin }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -27,9 +28,15 @@ function LoginScreen({ onLogin }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fetchUsers = () => {
+    setLoading(true);
+    setError(null);
     publicUsersAPI.getAll().then((res) => {
       const sortedUsers = res.data.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
       setUsers(sortedUsers);
+      setLoading(false);
+    }).catch((err) => {
+      console.error('Fetch users error:', err);
+      setError('Kullanıcı profilleri yüklenemedi. Sunucu bağlantısı veya veritabanı başlatma hatası.');
       setLoading(false);
     });
   };
@@ -116,6 +123,23 @@ function LoginScreen({ onLogin }) {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Spinner size="lg" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-8 px-6 rounded-2xl glass border border-[var(--border-default)] bg-[var(--bg-card)] max-w-sm mx-auto space-y-4 shadow-[var(--shadow-lg)]">
+            <div className="w-12 h-12 rounded-full bg-[var(--accent-danger-muted)] border border-[var(--accent-danger)]/15 flex items-center justify-center mx-auto text-[var(--accent-danger)]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Bağlantı Hatası</h3>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-1.5 leading-relaxed">{error}</p>
+            </div>
+            <Button variant="accent" size="md" onClick={fetchUsers} className="w-full">
+              Yeniden Dene
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
