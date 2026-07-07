@@ -306,3 +306,17 @@ body {
   background: var(--accent-primary-muted);
   color: var(--text-primary);
 }
+
+/* Date Input Calendar Icon Refinement */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.8);
+  opacity: 0.65;
+  transition: opacity var(--duration-fast);
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+.light input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}

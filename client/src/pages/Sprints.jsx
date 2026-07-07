@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { sprintsAPI } from '../lib/api';
@@ -16,6 +17,7 @@ function CreateSprintModal({ show, onClose, onCreate }) {
   const [goal, setGoal] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (show) {
@@ -25,8 +27,48 @@ function CreateSprintModal({ show, onClose, onCreate }) {
       setStartDate(today.toISOString().split('T')[0]);
       setEndDate(twoWeeks.toISOString().split('T')[0]);
       setName(''); setGoal('');
+
+      setTimeout(() => {
+        const firstInput = modalRef.current?.querySelector('input');
+        if (firstInput) firstInput.focus();
+      }, 50);
     }
   }, [show]);
+
+  useEffect(() => {
+    if (!show) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        if (!modalRef.current) return;
+        const focusableElements = modalRef.current.querySelectorAll(
+          'input, textarea, button, select, [tabindex="0"]'
+        );
+        if (focusableElements.length === 0) return;
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [show, onClose]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -36,8 +78,8 @@ function CreateSprintModal({ show, onClose, onCreate }) {
 
   if (!show) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" ref={modalRef}>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
@@ -56,7 +98,7 @@ function CreateSprintModal({ show, onClose, onCreate }) {
             <label className="block text-[11px] font-medium text-[var(--text-tertiary)] mb-1.5 uppercase tracking-wider">Sprint Adı</label>
             <input
               type="text" required value={name} onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg text-[13px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
+              className="w-full px-3.5 py-2.5 rounded-lg text-[13px] input-surface border border-[var(--border-input)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
               placeholder="Sprint 1"
             />
           </div>
@@ -64,7 +106,7 @@ function CreateSprintModal({ show, onClose, onCreate }) {
             <label className="block text-[11px] font-medium text-[var(--text-tertiary)] mb-1.5 uppercase tracking-wider">Hedef (Opsiyonel)</label>
             <textarea
               value={goal} onChange={(e) => setGoal(e.target.value)} rows={2}
-              className="w-full px-3.5 py-2.5 rounded-lg text-[13px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150 resize-none"
+              className="w-full px-3.5 py-2.5 rounded-lg text-[13px] input-surface border border-[var(--border-input)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150 resize-none"
               placeholder="Bu sprint'in hedefi..."
             />
           </div>
@@ -73,14 +115,14 @@ function CreateSprintModal({ show, onClose, onCreate }) {
               <label className="block text-[11px] font-medium text-[var(--text-tertiary)] mb-1.5 uppercase tracking-wider">Başlangıç</label>
               <input
                 type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg text-[13px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
+                className="w-full px-3.5 py-2.5 rounded-lg text-[13px] input-surface border border-[var(--border-input)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
               />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-[var(--text-tertiary)] mb-1.5 uppercase tracking-wider">Bitiş</label>
               <input
                 type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg text-[13px] bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
+                className="w-full px-3.5 py-2.5 rounded-lg text-[13px] input-surface border border-[var(--border-input)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary-muted)] transition-all duration-150"
               />
             </div>
           </div>
@@ -90,7 +132,8 @@ function CreateSprintModal({ show, onClose, onCreate }) {
           </div>
         </form>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -210,11 +253,9 @@ function Sprints() {
             `.trim().replace(/\s+/g, ' ')}
           >
             {tab.label}
-            {tab.key !== 'all' && (
-              <span className="ml-1.5 text-[10px] opacity-60">
-                {sprints.filter(s => s.status === tab.key).length}
-              </span>
-            )}
+            <span className="ml-1.5 text-[10px] opacity-60">
+              {tab.key === 'all' ? sprints.length : sprints.filter(s => s.status === tab.key).length}
+            </span>
           </button>
         ))}
       </div>
