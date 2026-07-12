@@ -35,7 +35,17 @@ function LoginScreen({ onLogin }) {
       setUsers(sortedUsers);
       setLoading(false);
     }).catch((err) => {
-      console.error('Fetch users error:', err);
+      console.error('==== SYSTEM CONNECTION ERROR REPORT ====');
+      if (err.code === 'ERR_NETWORK' || !err.response) {
+        console.error('Network Error / CORS Issue Detected:');
+        console.error('- Sunucu kapalı olabilir (PORT 5000) veya CORS yapılandırması yanlış.');
+        console.error('- Lütfen backend servisinin çalıştığından emin olun (npm run server).');
+      } else {
+        console.error('Server responded with status:', err.response?.status);
+        console.error('Error Details:', err.response?.data);
+      }
+      console.error('Full Error Object:', err);
+      console.error('========================================');
       setError('Kullanıcı profilleri yüklenemedi. Sunucu bağlantısı veya veritabanı başlatma hatası.');
       setLoading(false);
     });
