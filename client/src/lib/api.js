@@ -182,6 +182,7 @@ export const milestonesAPI = {
   getAll: () => api.get('/v1/milestones'),
   create: (data) => api.post('/v1/milestones', data),
   update: (id, data) => api.put(`/v1/milestones/${id}`, data),
+  delete: (id) => api.delete(`/v1/milestones/${id}`),
 };
 
 export const sprintsAPI = {

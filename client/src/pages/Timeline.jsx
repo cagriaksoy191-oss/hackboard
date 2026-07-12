@@ -33,13 +33,36 @@ const getTimelineTicks = (start, totalRange) => {
   return ticks;
 };
 
-// Modal for Creating a new Milestone with task association dropdown
-function CreateMilestoneModal({ isOpen, onClose, tasks, sprints, onSave }) {
+// Modal for Creating/Editing a Milestone with task association dropdown
+function MilestoneModal({ isOpen, onClose, tasks, sprints, onSave, milestone }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [targetTime, setTargetTime] = useState('');
   const [taskId, setTaskId] = useState('');
   const [sprintId, setSprintId] = useState('');
+
+  useEffect(() => {
+    if (milestone) {
+      setTitle(milestone.title || '');
+      setDescription(milestone.description || '');
+      setTaskId(milestone.task_id ? String(milestone.task_id) : '');
+      setSprintId(milestone.sprint_id ? String(milestone.sprint_id) : '');
+      if (milestone.target_time) {
+        const d = new Date(milestone.target_time);
+        const pad = (n) => String(n).padStart(2, '0');
+        const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        setTargetTime(formatted);
+      } else {
+        setTargetTime('');
+      }
+    } else {
+      setTitle('');
+      setDescription('');
+      setTargetTime('');
+      setTaskId('');
+      setSprintId('');
+    }
+  }, [milestone, isOpen]);
 
   if (!isOpen) return null;
 
@@ -53,12 +76,6 @@ function CreateMilestoneModal({ isOpen, onClose, tasks, sprints, onSave }) {
       task_id: taskId ? parseInt(taskId) : null,
       sprint_id: sprintId ? parseInt(sprintId) : null,
     });
-    // Reset
-    setTitle('');
-    setDescription('');
-    setTargetTime('');
-    setTaskId('');
-    setSprintId('');
     onClose();
   };
 
@@ -70,7 +87,9 @@ function CreateMilestoneModal({ isOpen, onClose, tasks, sprints, onSave }) {
       {/* Container */}
       <div className="relative w-full max-w-md bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 shadow-[var(--shadow-xl)] space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
-          <h3 className="text-[13px] font-bold text-[var(--text-primary)]">Yeni Kilometre Taşı</h3>
+          <h3 className="text-[13px] font-bold text-[var(--text-primary)]">
+            {milestone ? 'Kilometre Taşını Düzenle' : 'Yeni Kilometre Taşı'}
+          </h3>
           <button onClick={onClose} className="p-1 rounded-md hover:bg-[var(--interactive-hover)] text-[var(--text-tertiary)]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
@@ -150,7 +169,7 @@ function CreateMilestoneModal({ isOpen, onClose, tasks, sprints, onSave }) {
               type="submit"
               className="px-4 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-xs font-semibold"
             >
-              Kaydet
+              {milestone ? 'Güncelle' : 'Kaydet'}
             </button>
           </div>
         </form>
@@ -169,6 +188,7 @@ function Timeline() {
   const [workspace, setWorkspace] = useState(null);
   const [timerHours, setTimerHours] = useState(24);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedMilestone, setSelectedMilestone] = useState(null);
   const activeWorkspaceId = localStorage.getItem('hackboard-active-workspace-id');
 
   const fetchWorkspaceAndTasks = () => {
@@ -307,12 +327,30 @@ function Timeline() {
     return `${base} bg-[var(--bg-surface)] border-[var(--border-strong)]`;
   };
 
-  const handleCreateMilestone = async (milestoneData) => {
+  const handleSaveMilestone = async (milestoneData) => {
     try {
-      await milestonesAPI.create(milestoneData);
+      if (selectedMilestone) {
+        await milestonesAPI.update(selectedMilestone.id, milestoneData);
+      } else {
+        await milestonesAPI.create(milestoneData);
+      }
       loadMilestonesData();
     } catch (err) {
-      console.error('Error creating milestone:', err);
+      console.error('Error saving milestone:', err);
+    }
+  };
+
+  const handleDeleteMilestone = async (id) => {
+    if (window.confirm('Bu kilometre taşını silmek istediğinize emin misiniz?')) {
+      try {
+        await milestonesAPI.delete(id);
+        import('../lib/socket').then(({ default: socket }) => {
+          socket.emit('milestone:delete', { id });
+        });
+        loadMilestonesData();
+      } catch (err) {
+        console.error('Error deleting milestone:', err);
+      }
     }
   };
 
@@ -326,7 +364,7 @@ function Timeline() {
       <div className="flex items-center justify-between">
         <h2 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Zaman Çizelgesi</h2>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => { setSelectedMilestone(null); setShowAddModal(true); }}
           className="px-3.5 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-[11px] font-semibold transition-all duration-150 shadow-[var(--shadow-sm)]"
         >
           Yeni Kilometre Taşı
@@ -482,20 +520,45 @@ function Timeline() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, duration: 0.2 }}
               className={`
-                rounded-xl p-4 border-l-[3px] transition-all duration-200 ease-[var(--ease-apple)]
+                group rounded-xl p-4 border-l-[3px] transition-all duration-200 ease-[var(--ease-apple)]
                 bg-[var(--bg-card)] border border-[var(--border-default)]
                 hover:shadow-[var(--shadow-md)] hover:border-[var(--border-strong)]
                 ${isCompleted ? 'border-l-[var(--accent-success)]' : isPast ? 'border-l-[var(--accent-warning)]' : 'border-l-[var(--accent-primary)]'}
               `.trim().replace(/\s+/g, ' ')}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[13px] font-semibold text-[var(--text-primary)]">{ms.title}</h4>
-                {isCompleted === 1 && (
-                  <Badge variant="success" size="xs" dot>Tamamlandı</Badge>
-                )}
-                {isCompleted === 0 && isPast && (
-                  <Badge variant="warning" size="xs" dot>Gecikmiş</Badge>
-                )}
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{ms.title}</h4>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {isCompleted === 1 ? (
+                      <Badge variant="success" size="xs" dot>Tamamlandı</Badge>
+                    ) : isPast ? (
+                      <Badge variant="warning" size="xs" dot>Gecikmiş</Badge>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Actions: Edit & Delete buttons */}
+                <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                  <button
+                    onClick={() => { setSelectedMilestone(ms); setShowAddModal(true); }}
+                    className="p-1 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors duration-150"
+                    title="Düzenle"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteMilestone(ms.id)}
+                    className="p-1 rounded hover:bg-[var(--accent-danger-muted)] text-[var(--text-tertiary)] hover:text-[var(--accent-danger)] transition-colors duration-150"
+                    title="Sil"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] text-[var(--text-tertiary)] mb-3 line-clamp-2">{ms.description}</p>
               <div className="flex items-center justify-between mt-auto">
@@ -512,13 +575,14 @@ function Timeline() {
         })}
       </div>
 
-      {/* CreateMilestoneModal portal */}
-      <CreateMilestoneModal
+      {/* MilestoneModal portal */}
+      <MilestoneModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         tasks={tasks}
         sprints={sprints}
-        onSave={handleCreateMilestone}
+        onSave={handleSaveMilestone}
+        milestone={selectedMilestone}
       />
     </motion.div>
   );
