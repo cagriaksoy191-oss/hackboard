@@ -13,6 +13,24 @@ import { queueEmbedding } from '../../embedding-worker.js';
 
 const router = Router();
 
+// Helper: Sync Milestone status when a task is completed or moved
+async function syncMilestoneStatus(taskId, status, orgId, io) {
+  try {
+    const isCompletedVal = status === 'done' ? 1 : 0;
+    const milestone = await prepare('SELECT id, workspace_id FROM milestones WHERE task_id = ? AND org_id = ?').get(taskId, orgId);
+    if (milestone) {
+      await prepare('UPDATE milestones SET is_completed = ?, notified_overdue = 0 WHERE task_id = ? AND org_id = ?').run(isCompletedVal, taskId, orgId);
+      if (io) {
+        const room = milestone.workspace_id ? `workspace:${milestone.workspace_id}` : `tenant:${orgId}`;
+        const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(milestone.workspace_id, orgId);
+        io.to(room).emit('milestone:updated', updatedMilestones);
+      }
+    }
+  } catch (err) {
+    console.error('Error syncing milestone status:', err);
+  }
+}
+
 // Helper: get tenant-scoped task with joins
 const TASK_SELECT = `
   SELECT t.*, u.name as assigned_name, u.avatar_color,
@@ -284,6 +302,11 @@ router.put('/:id', async (req, res) => {
       io.to(room).emit('task:updated', task);
     }
 
+    // Sync Milestone status if linked
+    if (task.status) {
+      await syncMilestoneStatus(task.id, task.status, orgId, io);
+    }
+
     // Queue for RAG re-indexing
     queueEmbedding('task', task.id).catch(() => {});
 
@@ -371,6 +394,11 @@ router.patch('/:id/status', async (req, res) => {
     if (io) {
       const room = task.workspace_id ? `workspace:${task.workspace_id}` : `tenant:${orgId}`;
       io.to(room).emit('task:moved', task);
+    }
+
+    // Sync Milestone status if linked
+    if (task.status) {
+      await syncMilestoneStatus(task.id, task.status, orgId, io);
     }
 
     // Queue for RAG re-indexing (status change affects search metadata)

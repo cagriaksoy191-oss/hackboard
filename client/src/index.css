@@ -320,3 +320,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .light input[type="date"]::-webkit-calendar-picker-indicator {
   filter: none;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   KANBAN OVERDUE ALERT ANIMATION
+   ═══════════════════════════════════════════════════════════ */
+@keyframes pulse-red {
+  0%, 100% { border-color: var(--border-default); box-shadow: none; }
+  50% { border-color: var(--accent-danger); box-shadow: 0 0 12px var(--accent-danger-muted); }
+}
+.animate-pulse-red {
+  animation: pulse-red 2s infinite ease-in-out;
+  border-width: 1.5px !important;
+}

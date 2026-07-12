@@ -573,6 +573,48 @@ async function gracefulShutdown(signal) {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
+// Background Overdue Milestone Checker (runs every 30 seconds)
+setInterval(async () => {
+  try {
+    const overdue = await prepare(`
+      SELECT * FROM milestones 
+      WHERE is_completed = 0 
+        AND notified_overdue = 0 
+        AND target_time < ?
+    `).all(new Date().toISOString());
+
+    for (const ms of overdue) {
+      // Mark as notified in DB
+      await prepare('UPDATE milestones SET notified_overdue = 1 WHERE id = ?').run(ms.id);
+
+      // Create activity record
+      await prepare(`
+        INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(1, 'overdue', `Kilometre taşı "${ms.title}" çok gecikti!`, ms.org_id, ms.workspace_id, 'milestone', ms.id);
+
+      // Send to Socket.IO room
+      const room = ms.workspace_id ? `workspace:${ms.workspace_id}` : `tenant:${ms.org_id}`;
+      io.to(room).emit('milestone:overdue', {
+        id: ms.id,
+        title: ms.title,
+        message: `Kilometre taşı "${ms.title}" süresi doldu ve tamamlanmadı!`
+      });
+      io.to(room).emit('notification:new', {
+        id: Date.now(),
+        type: 'milestone_overdue',
+        title: 'Kilometre Taşı Gecikti',
+        message: `Gecikmiş kilometre taşı: ${ms.title}`,
+        senderId: 1,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.error('Overdue milestone checker error:', err);
+  }
+}, 30000);
+
 server.listen(PORT, () => {
   console.info(`HackBoard server running on port ${PORT} [${DB_MODE}]`);
 });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { milestonesAPI } from '../lib/api';
 import { EmptyState } from '../components/molecules';
@@ -18,6 +19,7 @@ const calculateRange = (milestones) => {
 };
 
 const calculatePosition = (dateStr, start, totalRange) => {
+  if (totalRange === 0) return 50;
   const pct = ((new Date(dateStr) - start) / totalRange) * 100;
   return 6 + (Math.max(0, Math.min(100, pct)) * 0.88);
 };
@@ -31,12 +33,165 @@ const getTimelineTicks = (start, totalRange) => {
   return ticks;
 };
 
+// Modal for Creating a new Milestone with task association dropdown
+function CreateMilestoneModal({ isOpen, onClose, tasks, sprints, onSave }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [targetTime, setTargetTime] = useState('');
+  const [taskId, setTaskId] = useState('');
+  const [sprintId, setSprintId] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim() || !targetTime) return;
+    onSave({
+      title: title.trim(),
+      description,
+      target_time: new Date(targetTime).toISOString(),
+      task_id: taskId ? parseInt(taskId) : null,
+      sprint_id: sprintId ? parseInt(sprintId) : null,
+    });
+    // Reset
+    setTitle('');
+    setDescription('');
+    setTargetTime('');
+    setTaskId('');
+    setSprintId('');
+    onClose();
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm" onClick={onClose} />
+      
+      {/* Container */}
+      <div className="relative w-full max-w-md bg-[var(--bg-card)] border border-[var(--border-default)] rounded-xl p-5 shadow-[var(--shadow-xl)] space-y-4">
+        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+          <h3 className="text-[13px] font-bold text-[var(--text-primary)]">Yeni Kilometre Taşı</h3>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-[var(--interactive-hover)] text-[var(--text-tertiary)]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div className="space-y-1">
+            <label className="text-[11px] text-[var(--text-secondary)] font-medium">Başlık</label>
+            <input
+              type="text"
+              required
+              placeholder="Örn: Planlama Toplantısı"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] text-[var(--text-secondary)] font-medium">Açıklama</label>
+            <textarea
+              placeholder="Detaylı açıklama..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] focus:outline-none h-16 resize-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] text-[var(--text-secondary)] font-medium">Hedef Zaman</label>
+            <input
+              type="datetime-local"
+              required
+              value={targetTime}
+              onChange={(e) => setTargetTime(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] text-[var(--text-secondary)] font-medium">İlişkili Görev (Task)</label>
+            <select
+              value={taskId}
+              onChange={(e) => setTaskId(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] focus:outline-none"
+            >
+              <option value="">Seçilmedi</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>{task.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] text-[var(--text-secondary)] font-medium">İlişkili Sprint</label>
+            <select
+              value={sprintId}
+              onChange={(e) => setSprintId(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] focus:outline-none"
+            >
+              <option value="">Seçilmedi</option>
+              {sprints.map((sprint) => (
+                <option key={sprint.id} value={sprint.id}>{sprint.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3 mt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-lg bg-[var(--interactive-muted)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--interactive-hover)] text-xs font-semibold"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-xs font-semibold"
+            >
+              Kaydet
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function Timeline() {
   const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
+  const [tasks, setTasks] = useState([]);
+  const [sprints, setSprints] = useState([]);
+  const [workspace, setWorkspace] = useState(null);
+  const [timerHours, setTimerHours] = useState(24);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const activeWorkspaceId = localStorage.getItem('hackboard-active-workspace-id');
 
-  useEffect(() => {
+  const fetchWorkspaceAndTasks = () => {
+    if (!activeWorkspaceId) return;
+    import('../lib/api').then(({ workspacesAPI, tasksAPI, sprintsAPI }) => {
+      workspacesAPI.getById(activeWorkspaceId).then((res) => {
+        setWorkspace(res.data);
+        if (res.data?.settings?.timer?.duration_hours) {
+          setTimerHours(res.data.settings.timer.duration_hours);
+        }
+      }).catch(() => {});
+
+      tasksAPI.getAll().then((res) => {
+        setTasks(res.data);
+      }).catch(() => {});
+
+      sprintsAPI.getAll().then((res) => {
+        setSprints(res.data);
+      }).catch(() => {});
+    });
+  };
+
+  const loadMilestonesData = () => {
     milestonesAPI.getAll().then((res) => {
       const dbMilestones = res.data;
       if (dbMilestones.length === 0) {
@@ -75,10 +230,47 @@ function Timeline() {
       }
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    loadMilestonesData();
+    fetchWorkspaceAndTasks();
 
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [activeWorkspaceId]);
+
+  // Sync with sockets for timer and milestones update
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    import('../lib/socket').then(({ default: socket }) => {
+      const handleTimerUpdate = (newTimerState) => {
+        setWorkspace(prev => prev ? {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            timer: newTimerState
+          }
+        } : null);
+      };
+      
+      const handleMilestonesUpdate = () => {
+        loadMilestonesData();
+      };
+
+      socket.on('timer:update', handleTimerUpdate);
+      socket.on('milestone:created', handleMilestonesUpdate);
+      socket.on('milestone:updated', handleMilestonesUpdate);
+      socket.on('milestone:deleted', handleMilestonesUpdate);
+
+      return () => {
+        socket.off('timer:update', handleTimerUpdate);
+        socket.off('milestone:created', handleMilestonesUpdate);
+        socket.off('milestone:updated', handleMilestonesUpdate);
+        socket.off('milestone:deleted', handleMilestonesUpdate);
+      };
+    });
+  }, [activeWorkspaceId]);
 
   if (loading) {
     return (
@@ -115,6 +307,15 @@ function Timeline() {
     return `${base} bg-[var(--bg-surface)] border-[var(--border-strong)]`;
   };
 
+  const handleCreateMilestone = async (milestoneData) => {
+    try {
+      await milestonesAPI.create(milestoneData);
+      loadMilestonesData();
+    } catch (err) {
+      console.error('Error creating milestone:', err);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -122,7 +323,82 @@ function Timeline() {
       transition={{ duration: 0.25 }}
       className="space-y-6"
     >
-      <h2 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Zaman Çizelgesi</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-[15px] font-bold text-[var(--text-primary)] tracking-tight">Zaman Çizelgesi</h2>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="px-3.5 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-[11px] font-semibold transition-all duration-150 shadow-[var(--shadow-sm)]"
+        >
+          Yeni Kilometre Taşı
+        </button>
+      </div>
+
+      {/* ─── Global Countdown Timer Controls ─── */}
+      {workspace && (
+        <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight">Küresel Sayaç Kontrolü</h3>
+              <p className="text-[11px] text-[var(--text-tertiary)]">Hackathon genel geri sayım sayacını tüm katılımcılar için yönetin.</p>
+            </div>
+            <div className="px-3 py-1 rounded-md bg-[var(--interactive-muted)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-secondary)]">
+              Durum: <span className="font-semibold text-[var(--accent-primary)]">{workspace.settings?.timer?.status === 'active' ? 'Aktif' : workspace.settings?.timer?.status === 'paused' ? 'Durduruldu' : 'Hazır'}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] text-[var(--text-secondary)] font-medium">Süre (Saat):</label>
+              <input
+                type="number"
+                min="1"
+                max="168"
+                value={timerHours}
+                onChange={(e) => setTimerHours(Math.max(1, parseInt(e.target.value) || 24))}
+                disabled={workspace.settings?.timer?.status === 'active'}
+                className="w-16 px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent-primary-muted)] focus:outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              {workspace.settings?.timer?.status !== 'active' ? (
+                <button
+                  onClick={async () => {
+                    const { workspacesAPI } = await import('../lib/api');
+                    await workspacesAPI.startTimer(activeWorkspaceId, { duration_hours: timerHours });
+                    fetchWorkspaceAndTasks();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-[11px] font-semibold transition-all duration-150"
+                >
+                  {workspace.settings?.timer?.status === 'paused' ? 'Devam Et' : 'Zamanı Başlat'}
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    const { workspacesAPI } = await import('../lib/api');
+                    await workspacesAPI.stopTimer(activeWorkspaceId);
+                    fetchWorkspaceAndTasks();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[var(--accent-warning)] hover:bg-[var(--accent-warning-hover)] text-[var(--bg-app)] text-[11px] font-semibold transition-all duration-150"
+                >
+                  Zamanı Durdur
+                </button>
+              )}
+
+              <button
+                onClick={async () => {
+                  const { workspacesAPI } = await import('../lib/api');
+                  await workspacesAPI.resetTimer(activeWorkspaceId);
+                  fetchWorkspaceAndTasks();
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[var(--interactive-muted)] hover:bg-[var(--interactive-hover)] text-[var(--text-primary)] text-[11px] font-semibold border border-[var(--border-subtle)] transition-all duration-150"
+              >
+                Sıfırla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Timeline Bar ─── */}
       <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-default)] p-5 overflow-x-auto">
@@ -222,11 +498,28 @@ function Timeline() {
                 )}
               </div>
               <p className="text-[11px] text-[var(--text-tertiary)] mb-3 line-clamp-2">{ms.description}</p>
-              <p className="text-[11px] text-[var(--accent-primary)] font-medium">{formatDateTime(ms.target_time)}</p>
+              <div className="flex items-center justify-between mt-auto">
+                <p className="text-[11px] text-[var(--accent-primary)] font-medium">{formatDateTime(ms.target_time)}</p>
+                {ms.task_id && (
+                  <span className="text-[9px] px-2 py-0.5 rounded bg-[var(--interactive-muted)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] flex items-center gap-1 font-medium">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                    Görev #{ms.task_id}
+                  </span>
+                )}
+              </div>
             </motion.div>
           );
         })}
       </div>
+
+      {/* CreateMilestoneModal portal */}
+      <CreateMilestoneModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        tasks={tasks}
+        sprints={sprints}
+        onSave={handleCreateMilestone}
+      />
     </motion.div>
   );
 }

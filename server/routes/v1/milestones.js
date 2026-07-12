@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { orgId, workspaceId } = req.tenant;
-    const { title, description, target_time, sprint_id } = req.body;
+    const { title, description, target_time, sprint_id, task_id } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim() === '') {
       return res.status(400).json({ error: 'Title is required' });
@@ -56,8 +56,8 @@ router.post('/', async (req, res) => {
     const wsId = workspaceId || req.body.workspace_id;
 
     const result = await prepare(
-      'INSERT INTO milestones (title, description, target_time, org_id, workspace_id, sprint_id) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(title.trim(), description || '', target_time, orgId, wsId || null, sprint_id || null);
+      'INSERT INTO milestones (title, description, target_time, org_id, workspace_id, sprint_id, task_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(title.trim(), description || '', target_time, orgId, wsId || null, sprint_id || null, task_id || null);
 
     const milestone = await prepare('SELECT * FROM milestones WHERE id = ?').get(result.lastInsertRowid);
 
@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { orgId } = req.tenant;
-    const { title, description, target_time, is_completed, sprint_id } = req.body;
+    const { title, description, target_time, is_completed, sprint_id, task_id, notified_overdue } = req.body;
 
     const existing = await prepare(
       'SELECT * FROM milestones WHERE id = ? AND org_id = ?'
@@ -93,11 +93,13 @@ router.put('/:id', async (req, res) => {
         description = COALESCE(?, description),
         target_time = COALESCE(?, target_time),
         is_completed = COALESCE(?, is_completed),
-        sprint_id = COALESCE(?, sprint_id)
+        sprint_id = COALESCE(?, sprint_id),
+        task_id = COALESCE(?, task_id),
+        notified_overdue = COALESCE(?, notified_overdue)
       WHERE id = ? AND org_id = ?
     `).run(
       title ?? null, description ?? null, target_time ?? null,
-      is_completed ?? null, sprint_id ?? null,
+      is_completed ?? null, sprint_id ?? null, task_id ?? null, notified_overdue ?? null,
       req.params.id, orgId
     );
 

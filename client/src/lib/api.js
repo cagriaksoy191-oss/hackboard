@@ -210,4 +210,14 @@ export const backupAPI = {
   importData: (data) => api.post('/backup/import', data),
 };
 
+export const workspacesAPI = {
+  getAll: () => api.get('/v1/workspaces'),
+  getById: (id) => api.get(`/v1/workspaces/${id}`),
+  create: (data) => api.post('/v1/workspaces', data),
+  update: (id, data) => api.put(`/v1/workspaces/${id}`, data),
+  startTimer: (id, data) => api.post(`/v1/workspaces/${id}/timer/start`, data),
+  stopTimer: (id) => api.post(`/v1/workspaces/${id}/timer/stop`),
+  resetTimer: (id) => api.post(`/v1/workspaces/${id}/timer/reset`),
+};
+
 export default api;

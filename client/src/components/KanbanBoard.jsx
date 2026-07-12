@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { tasksAPI, usersAPI, workflowsAPI } from '../lib/api';
+import { tasksAPI, usersAPI, workflowsAPI, milestonesAPI } from '../lib/api';
 import { useUser } from '../context/UserContext';
 import socket from '../lib/socket';
 import TaskCard from './organisms/TaskCard';
@@ -50,6 +50,7 @@ function KanbanBoard() {
   const [filterUser, setFilterUser] = useState('all');
   const [kanbanUsers, setKanbanUsers] = useState([]);
   const [workflowStages, setWorkflowStages] = useState(null);
+  const [milestones, setMilestones] = useState([]);
 
   // Compute columns: use custom workflow stages if defined, otherwise default
   const columns = useMemo(() => {
@@ -77,6 +78,9 @@ function KanbanBoard() {
     const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);
     const handleWorkflowReorder = (stages) => setWorkflowStages(stages);
     const handleTasksRefresh = () => loadTasks();
+    const handleMilestonesUpdate = () => {
+      milestonesAPI.getAll().then((res) => setMilestones(res.data)).catch(() => {});
+    };
 
     socket.on('task:moved', handleTaskMoved);
     socket.on('task:deleted', handleTaskDeleted);
@@ -84,6 +88,9 @@ function KanbanBoard() {
     socket.on('task:created', handleTaskCreated);
     socket.on('workflow:reordered', handleWorkflowReorder);
     socket.on('tasks:refresh', handleTasksRefresh);
+    socket.on('milestone:created', handleMilestonesUpdate);
+    socket.on('milestone:updated', handleMilestonesUpdate);
+    socket.on('milestone:deleted', handleMilestonesUpdate);
 
     const handleReconnectRefetch = () => {
       console.info('[KanbanBoard] Socket reconnected. Triggering targeted refetch...');
@@ -99,12 +106,16 @@ function KanbanBoard() {
       socket.off('task:created', handleTaskCreated);
       socket.off('workflow:reordered', handleWorkflowReorder);
       socket.off('tasks:refresh', handleTasksRefresh);
+      socket.off('milestone:created', handleMilestonesUpdate);
+      socket.off('milestone:updated', handleMilestonesUpdate);
+      socket.off('milestone:deleted', handleMilestonesUpdate);
       window.removeEventListener('socket:reconnect-refetch', handleReconnectRefetch);
     };
   }, []);
 
   const loadTasks = () => {
     tasksAPI.getAll().then((res) => { setTasks(res.data); setLoading(false); });
+    milestonesAPI.getAll().then((res) => setMilestones(res.data)).catch(() => {});
   };
 
   /* ── Drag & Drop ── */
@@ -324,20 +335,28 @@ function KanbanBoard() {
                   className="h-full"
                 >
                   <AnimatePresence>
-                    {colTasks.map((task) => (
-                      <motion.div
-                        key={task.id}
-                        animate={pulseTaskId === task.id ? { scale: [1, 1.02, 1] } : {}}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <TaskCard
-                          task={task}
-                          onDragStart={handleDragStart}
-                          onDelete={handleDeleteTask}
-                          onEdit={loadTasks}
-                        />
-                      </motion.div>
-                    ))}
+                    {colTasks.map((task) => {
+                      const isTaskOverdue = milestones.some(ms => 
+                        ms.task_id === task.id && 
+                        ms.is_completed === 0 && 
+                        new Date(ms.target_time) < new Date()
+                      );
+                      return (
+                        <motion.div
+                          key={task.id}
+                          animate={pulseTaskId === task.id ? { scale: [1, 1.02, 1] } : {}}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <TaskCard
+                            task={task}
+                            onDragStart={handleDragStart}
+                            onDelete={handleDeleteTask}
+                            onEdit={loadTasks}
+                            isOverdue={isTaskOverdue}
+                          />
+                        </motion.div>
+                      );
+                    })}
                   </AnimatePresence>
                 </KanbanColumn>
               </div>

@@ -57,7 +57,7 @@ const ClockIcon = () => (
   </svg>
 );
 
-export default function TaskCard({ task, onDragStart, onDelete, onEdit, tags = [] }) {
+export default function TaskCard({ task, onDragStart, onDelete, onEdit, tags = [], isOverdue }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -103,6 +103,7 @@ export default function TaskCard({ task, onDragStart, onDelete, onEdit, tags = [
           hover:shadow-[var(--shadow-md)]
           transition-all duration-200 ease-[var(--ease-apple)]
           ${isDeleting ? 'overflow-hidden' : ''}
+          ${isOverdue ? 'animate-pulse-red' : ''}
         `.trim().replace(/\s+/g, ' ')}
       >
         {/* Header: Title + Priority + Delete */}
