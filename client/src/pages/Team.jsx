@@ -2,11 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usersAPI, tasksAPI } from '../lib/api';
-import {
-  BarChart,
-  Bar,
-  ResponsiveContainer,
-} from 'recharts';
 import Avatar from '../components/atoms/Avatar';
 import Badge from '../components/atoms/Badge';
 
@@ -21,15 +16,11 @@ const processUsersData = (users, userTasks) => {
   return users.map((user) => {
     const tasks = userTasks[user.id] || [];
     const completedCount = tasks.filter((t) => t.status === 'done').length;
-    const name = user.name;
-    const firstSpaceIndex = name.indexOf(' ');
-    const firstName = firstSpaceIndex === -1 ? name : name.slice(0, firstSpaceIndex);
 
     return {
       ...user,
       tasksCount: tasks.length,
       completedCount,
-      chartData: [{ name: firstName, completed: completedCount }],
     };
   });
 };
@@ -76,6 +67,8 @@ function Team() {
               w-full text-left rounded-xl p-4
               border transition-all duration-200 ease-[var(--ease-apple)]
               hover:shadow-[var(--shadow-md)]
+              focus:outline-none
+              focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-app)]
               ${selectedUser?.id === user.id
                 ? 'bg-[var(--accent-primary-subtle)] border-[var(--accent-primary)] shadow-[var(--shadow-accent)]'
                 : 'bg-[var(--bg-card)] border-[var(--border-default)] hover:border-[var(--border-strong)]'
@@ -107,13 +100,29 @@ function Team() {
               </div>
             </div>
 
-            <div className="h-12">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={user.chartData}>
-                  <Bar dataKey="completed" fill={user.avatar_color || '#6366f1'} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {/* Sleek Apple-style progress bar replacing Recharts */}
+            {(() => {
+              const percentage = user.tasksCount > 0 ? Math.round((user.completedCount / user.tasksCount) * 100) : 0;
+              const progressColor = user.avatar_color || '#6366f1';
+              return (
+                <div className="space-y-1.5 mt-2">
+                  <div className="flex items-center justify-between text-[10px] font-medium">
+                    <span className="text-[var(--text-tertiary)]">İlerleme</span>
+                    <span className="font-semibold" style={{ color: progressColor }}>%{percentage}</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-[var(--interactive-muted)] overflow-hidden relative">
+                    <div
+                      className="h-full rounded-full transition-all duration-500 ease-[var(--ease-apple)]"
+                      style={{
+                        width: `${percentage}%`,
+                        backgroundColor: progressColor,
+                        boxShadow: `0 0 8px ${progressColor}40`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </motion.button>
         ))}
       </div>
@@ -122,6 +131,7 @@ function Team() {
       <AnimatePresence>
         {selectedUser && (
           <motion.div
+            layout
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
