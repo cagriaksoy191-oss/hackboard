@@ -17,8 +17,10 @@ const calculateRange = (milestones) => {
   return { start, totalRange: end - start };
 };
 
-const calculatePosition = (dateStr, start, totalRange) =>
-  ((new Date(dateStr) - start) / totalRange) * 100;
+const calculatePosition = (dateStr, start, totalRange) => {
+  const pct = ((new Date(dateStr) - start) / totalRange) * 100;
+  return 6 + (Math.max(0, Math.min(100, pct)) * 0.88);
+};
 
 const HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
 
@@ -56,7 +58,7 @@ function Timeline() {
       <EmptyState
         icon={emptyIcon}
         title="Henüz kilometre taşı yok"
-        description="Projenize milestone ekleyin."
+        description="Projenize kilometre taşı ekleyin."
       />
     );
   }
@@ -126,7 +128,9 @@ function Timeline() {
               transition={{ duration: 1.5, repeat: Infinity }}
             >
               <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[var(--accent-danger)] rounded-full" />
-              <div className="absolute top-4 left-2 text-[10px] text-[var(--accent-danger)] font-semibold whitespace-nowrap">
+              <div className={`absolute top-4 text-[10px] text-[var(--accent-danger)] font-semibold whitespace-nowrap ${
+                nowPos > 50 ? 'right-2 text-right' : 'left-2 text-left'
+              }`}>
                 Şimdi
               </div>
             </motion.div>
@@ -166,10 +170,10 @@ function Timeline() {
             >
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-[13px] font-semibold text-[var(--text-primary)]">{ms.title}</h4>
-                {isCompleted && (
+                {isCompleted === 1 && (
                   <Badge variant="success" size="xs" dot>Tamamlandı</Badge>
                 )}
-                {!isCompleted && isPast && (
+                {isCompleted === 0 && isPast && (
                   <Badge variant="warning" size="xs" dot>Gecikmiş</Badge>
                 )}
               </div>

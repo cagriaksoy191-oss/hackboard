@@ -115,11 +115,11 @@ async function seed() {
 
   await execRaw(`
     INSERT INTO milestones (title, description, target_time, is_completed, org_id, workspace_id) VALUES
-    ('Planlama Tamamlandi', 'Proje planlamasi ve gorev dagilimi tamamlandi', '${m1}', 1, 1, 1),
-    ('API Tamamlandi', 'Tum backend API endpointleri hazir', '${m2}', 0, 1, 1),
-    ('MVP Hazir', 'Temel ozellikler calisir durumda', '${m3}', 0, 1, 1),
-    ('Frontend Tamamlandi', 'Tum UI componentleri ve sayfalar hazir', '${m4}', 0, 1, 1),
-    ('Final Demo', 'Sunum ve demo hazirliklari tamamlandi', '${m5}', 0, 1, 1)
+    ('Planlama Tamamlandı', 'Proje planlaması ve görev dağılımı tamamlandı', '${m1}', 1, 1, 1),
+    ('API Tamamlandı', 'Tüm backend API endpointleri hazır', '${m2}', 0, 1, 1),
+    ('MVP Hazır', 'Temel özellikler çalışır durumda', '${m3}', 0, 1, 1),
+    ('Frontend Tamamlandı', 'Tüm UI bileşenleri ve sayfaları hazır', '${m4}', 0, 1, 1),
+    ('Final Demo', 'Sunum ve demo hazırlıkları tamamlandı', '${m5}', 0, 1, 1)
   `);
 
   // ── Org Memberships ──
