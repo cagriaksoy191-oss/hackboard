@@ -22,7 +22,14 @@ const calculatePosition = (dateStr, start, totalRange) => {
   return 6 + (Math.max(0, Math.min(100, pct)) * 0.88);
 };
 
-const HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
+const getTimelineTicks = (start, totalRange) => {
+  const ticks = [];
+  for (let i = 0; i < 5; i++) {
+    const tickTime = new Date(start.getTime() + (totalRange * (i / 4)));
+    ticks.push(tickTime);
+  }
+  return ticks;
+};
 
 function Timeline() {
   const [milestones, setMilestones] = useState([]);
@@ -31,9 +38,44 @@ function Timeline() {
 
   useEffect(() => {
     milestonesAPI.getAll().then((res) => {
-      setMilestones(res.data);
+      const dbMilestones = res.data;
+      if (dbMilestones.length === 0) {
+        setMilestones([]);
+        setLoading(false);
+        return;
+      }
+
+      const lastMsTime = new Date(dbMilestones[dbMilestones.length - 1].target_time);
+      const nowClient = new Date();
+
+      if (nowClient > lastMsTime) {
+        const lastCompleted = [...dbMilestones].reverse().find(m => m.is_completed === 1);
+        const firstIncomplete = dbMilestones.find(m => m.is_completed === 0);
+
+        let estimatedSeedNow;
+        if (lastCompleted && firstIncomplete) {
+          estimatedSeedNow = new Date((new Date(lastCompleted.target_time).getTime() + new Date(firstIncomplete.target_time).getTime()) / 2);
+        } else if (lastCompleted) {
+          estimatedSeedNow = new Date(new Date(lastCompleted.target_time).getTime() + 2 * 3600000);
+        } else if (firstIncomplete) {
+          estimatedSeedNow = new Date(new Date(firstIncomplete.target_time).getTime() - 2 * 3600000);
+        } else {
+          estimatedSeedNow = new Date(lastMsTime.getTime() - 4 * 3600000);
+        }
+
+        const shiftMs = nowClient.getTime() - estimatedSeedNow.getTime();
+
+        const adjusted = dbMilestones.map(m => ({
+          ...m,
+          target_time: new Date(new Date(m.target_time).getTime() + shiftMs).toISOString()
+        }));
+        setMilestones(adjusted);
+      } else {
+        setMilestones(dbMilestones);
+      }
       setLoading(false);
     });
+
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -136,15 +178,17 @@ function Timeline() {
             </motion.div>
           </div>
 
-          {/* Hour Labels */}
-          <div className="relative h-6">
-            <div className="absolute bottom-0 left-0 right-0 flex justify-between">
-              {HOURS.map((h) => (
-                <span key={h} className="text-[10px] text-[var(--text-muted)]">
-                  {h}:00
-                </span>
-              ))}
-            </div>
+          {/* Dynamic Timeline Ticks */}
+          <div className="relative h-6 mt-2">
+            {getTimelineTicks(start, totalRange).map((tick, i) => (
+              <span
+                key={i}
+                className="absolute text-[9px] text-[var(--text-muted)] font-medium -translate-x-1/2 whitespace-nowrap"
+                style={{ left: `${6 + (i * 22)}%` }}
+              >
+                {tick.toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            ))}
           </div>
         </div>
       </div>
