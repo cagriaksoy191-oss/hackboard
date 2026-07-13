@@ -194,8 +194,9 @@ router.post('/', async (req, res) => {
     const taskId = result.lastInsertRowid;
 
     // Save assignees in task_assignees
-    for (const userId of finalAssignees) {
-      await prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id) VALUES (?, ?)').run(taskId, userId);
+    const uniqueAssignees = [...new Set(finalAssignees)];
+    for (const userId of uniqueAssignees) {
+      await prepare('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?)').run(taskId, userId);
     }
 
     // Auto-sync: Create corresponding milestone
@@ -310,11 +311,12 @@ router.put('/:id', async (req, res) => {
     if (assignee_ids !== undefined) {
       const finalAssignees = Array.isArray(assignee_ids) ? assignee_ids : [];
       await prepare('DELETE FROM task_assignees WHERE task_id = ?').run(req.params.id);
-      for (const userId of finalAssignees) {
-        await prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id) VALUES (?, ?)').run(req.params.id, userId);
+      const uniqueAssignees = [...new Set(finalAssignees)];
+      for (const userId of uniqueAssignees) {
+        await prepare('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?)').run(req.params.id, userId);
       }
       // Set assigned_to to first element
-      req.body.assigned_to = finalAssignees.length > 0 ? finalAssignees[0] : null;
+      req.body.assigned_to = uniqueAssignees.length > 0 ? uniqueAssignees[0] : null;
     }
 
     const fieldsToUpdate = [];

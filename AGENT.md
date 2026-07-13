@@ -1270,3 +1270,6 @@ Arayüzde bir Çalışma Alanı Seçici (Workspace Switcher) bulunmadığı içi
   - `server/server.js` dosyasındaki üretim ortamı rate limit üst sınırı 100'den **2000** değerine çıkartıldı.
   - CPU ve disk kilitleme yükünü hafifletmek için overdue milestones checker ve embedding worker daemonic loop aralıkları 30 saniyeden **120 saniyeye (120000ms)** yükseltildi.
 - **Test ve Derleme:** 76 sunucu ve 62 istemci birim testinin tümünün sıfır hata ile tamamlandığı ve istemci prodüksiyon derlemesinin (build) başarıyla tamamlandığı doğrulandı.
+- **PostgreSQL/SQLite Dialect Uyumluluk Hotfix'i:** 
+  - Göç dosyasındaki (`012_task_multiple_assignees.sql`) `INSERT OR IGNORE` ifadesi kaldırılarak SQLite için `-- @sqlite-only` ve PostgreSQL için `ON CONFLICT DO NOTHING` destekli `-- @pg-only` yönlendiricilerine ayrıştırıldı.
+  - `tasks.js` içindeki POST ve PUT rotalarında, `INSERT OR IGNORE` sorguları standart `INSERT INTO` biçimine dönüştürüldü. Çift kayıt oluşmasını önlemek amacıyla atamalar JavaScript seviyesinde `[...new Set(assignees)]` ile tekilleştirildi.
