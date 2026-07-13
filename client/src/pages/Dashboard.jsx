@@ -107,7 +107,9 @@ function Dashboard() {
   const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
-    tasksAPI.getAll().then((res) => setTasks(res.data));
+    tasksAPI.getAll()
+      .then((res) => setTasks(res.data))
+      .catch((err) => console.error('Dashboard tasks load failed:', err));
 
     // ⚡ Optimistic updates from socket
     const handleTaskCreated = (newTask) => setTasks((prev) => [newTask, ...prev]);

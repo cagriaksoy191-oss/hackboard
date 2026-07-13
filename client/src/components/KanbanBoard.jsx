@@ -51,6 +51,7 @@ function KanbanBoard() {
   const [kanbanUsers, setKanbanUsers] = useState([]);
   const [workflowStages, setWorkflowStages] = useState(null);
   const [milestones, setMilestones] = useState([]);
+  const [error, setError] = useState(null);
 
   // Compute columns: use custom workflow stages if defined, otherwise default
   const columns = useMemo(() => {
@@ -114,7 +115,18 @@ function KanbanBoard() {
   }, []);
 
   const loadTasks = () => {
-    tasksAPI.getAll().then((res) => { setTasks(res.data); setLoading(false); });
+    setLoading(true);
+    setError(null);
+    tasksAPI.getAll()
+      .then((res) => {
+        setTasks(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('KanbanBoard loadTasks failed:', err);
+        setError('Görevler yüklenirken bir bağlantı hatası oluştu.');
+        setLoading(false);
+      });
     milestonesAPI.getAll().then((res) => setMilestones(res.data)).catch(() => {});
   };
 
@@ -284,7 +296,29 @@ function KanbanBoard() {
       </div>
 
       {/* ─── Board ─── */}
-      {loading ? renderSkeleton() : filteredTasks.length === 0 ? (
+      {error ? (
+        <div className="flex flex-col items-center justify-center py-20 px-4">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-[var(--bg-card)]/80 backdrop-blur-xl border border-[var(--border-default)] shadow-[var(--shadow-xl)] text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[var(--accent-danger-muted)] flex items-center justify-center mx-auto text-[var(--accent-danger)]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <h3 className="text-[14px] font-bold text-[var(--text-primary)]">Görevler Yüklenemedi</h3>
+            <p className="text-[12px] text-[var(--text-tertiary)] leading-relaxed">
+              {error} Lütfen internet bağlantınızı veya sunucu durumunu kontrol edip tekrar deneyin.
+            </p>
+            <button
+              onClick={loadTasks}
+              className="w-full py-2 px-4 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-[12px] font-semibold transition-all duration-150 shadow-[var(--shadow-sm)]"
+            >
+              Yeniden Dene
+            </button>
+          </div>
+        </div>
+      ) : loading ? renderSkeleton() : filteredTasks.length === 0 ? (
         <EmptyState
           icon={emptyIcon}
           title={hasActiveFilters ? 'Filtre sonucu bulunamadı' : 'Henüz görev yok'}
