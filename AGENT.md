@@ -1246,3 +1246,23 @@ Arayüzde bir Çalışma Alanı Seçici (Workspace Switcher) bulunmadığı içi
 **Hotfix - Development Rate Limiter bypass and Login Screen Error Handling:**
 - Geliştirme (development) ortamında sık sık `429 Too Many Requests` kilitlenmesini engellemek için `server/server.js` dosyasındaki rate limiter `max` limiti dinamik hale getirildi. Üretim ortamında `100` istek limiti korunurken, yerel geliştirme modunda `10000` limitine çıkartıldı.
 - `client/src/components/LoginScreen.jsx` içinde kullanıcı profili getirme hatası yakalanarak sonsuz yükleme (infinite loading spinner) döngüsü giderildi. Hata durumunda (429 rate limit, db cold start vb.) kullanıcının görebileceği premium tasarımlı bir hata uyarı kartı ve **"Yeniden Dene" (Retry)** butonu entegre edildi.
+
+### 2026-07-13 — Multiple Task Assignees & Bidirectional Task-Timeline Sync
+
+**Problem:**
+1. Görevler sadece tek bir kişiye atanabiliyordu, bu durum "Final Demo" veya "MVP" gibi birden fazla kişinin ortaklaşa çalışması gereken görevlerde kısıtlamaya yol açıyordu.
+2. Kanban görevleri ile Zaman Çizelgesi (Timeline) milestone'ları bağımsız çalışıyordu; Kanban panosunda yapılan değişikliklerin (ör. due date, status) zaman çizelgesine anlık yansıması ve tersi yönde senkronizasyon eksikti.
+3. Seeding aşamasındaki 5 temel milestone ile görevler arasında ilişki bulunmuyordu ve ekiplere uygun şekilde dağıtılmamıştı.
+
+**Çözüm:**
+- **Veritabanı Göçü (`012_task_multiple_assignees.sql`)**: Çoklu görev atamasını desteklemek için `task_assignees` junction tablosu ve `tasks.due_date` kolonu eklenerek geriye dönük uyumlulukla devreye alındı.
+- **Milestone Görev Seeding**: Zaman çizelgesindeki 5 kritik milestone için uygun rollerdeki ekip üyelerine (Ahmet, Talha, Çağrı, Alaettin) tekli veya çoklu olacak şekilde görev atamaları yapıldı ve `task_id` üzerinden milestone'lar ile ilişkilendirildi.
+- **Çift Yönlü Anlık Senkronizasyon (2-Way Real-time Sync)**:
+  - Kanban panosunda görevlerin başlık, açıklama, bitiş tarihi, durum ve aşama değişiklikleri anlık olarak bağlı milestone'a yansıtıldı ve Socket.IO üzerinden tüm odalara yayınlandı.
+  - Zaman Çizelgesinde yapılan düzenleme veya tamamlanma durumları da aynı şekilde ilişkili Kanban görevine aktarılarak veritabanında güncellendi.
+  - Silme işlemlerinde de her iki taraftaki bağlı öğelerin kaskat (cascade) silinmesi sağlandı.
+- **Arayüz Geliştirmeleri (UI/UX)**:
+  - `TaskCard.jsx`: Tekil atama görseli yerine, Framer Motion ile tasarlanmış üst üste binen çoklu avatar yığını (avatar stack) ve tooltip'ler entegre edildi.
+  - `TaskForm.jsx`: Çoklu kullanıcı seçimi için şık bir checkbox grid yapısı ve bitiş tarihi için yerel tarih-saat seçici (`due_date`) eklendi.
+  - `KanbanBoard.jsx`: Kullanıcı filtreleme algoritması, seçilen kişinin o görevin atananlarından biri (`assignees`) olup olmadığını kontrol edecek şekilde güncellendi.
+- **Test ve Derleme:** 86 sunucu testinin tümünün sıfır hata ile tamamlandığı ve istemci prodüksiyon derlemesinin (build) başarıyla tamamlandığı doğrulandı.
