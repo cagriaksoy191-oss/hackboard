@@ -26,7 +26,7 @@ const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'text-embedding-004';
 const EMBEDDING_PROVIDER = process.env.EMBEDDING_PROVIDER || 'mock'; // 'gemini' | 'openai' | 'mock'
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const POLL_INTERVAL = parseInt(process.env.EMBEDDING_POLL_INTERVAL) || 30000; // 30s default
+const POLL_INTERVAL = parseInt(process.env.EMBEDDING_POLL_INTERVAL) || 120000; // 120s default
 const BATCH_SIZE = 10;
 
 let workerRunning = false;

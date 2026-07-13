@@ -51,7 +51,7 @@ app.use(express.json({ limit: '10mb' }));
 const isProd = process.env.NODE_ENV === 'production';
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isProd ? 100 : 10000,
+  max: isProd ? 2000 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
@@ -613,7 +613,7 @@ setInterval(async () => {
   } catch (err) {
     console.error('Overdue milestone checker error:', err);
   }
-}, 30000);
+}, 120000);
 
 server.listen(PORT, () => {
   console.info(`HackBoard server running on port ${PORT} [${DB_MODE}]`);
