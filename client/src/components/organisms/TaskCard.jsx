@@ -155,17 +155,40 @@ export default function TaskCard({ task, onDragStart, onDelete, onEdit, tags = [
         {/* Subtask Progress */}
         <SubtaskProgress completed={subtasksCompleted} total={subtasksTotal} />
 
-        {/* Footer: Assignee + Hours */}
+        {/* Footer: Assignees + Hours */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Avatar
-              name={task.assigned_name || 'Sahipsiz'}
-              color={task.assigned_name ? (task.avatar_color || '#6366f1') : '#ef4444'}
-              size="xs"
-            />
-            <span className={`text-[11px] ${!task.assigned_name ? 'text-[var(--accent-danger)] font-medium' : 'text-[var(--text-tertiary)]'}`}>
-              {task.assigned_name || 'Sahipsiz'}
-            </span>
+          <div className="flex items-center">
+            {task.assignees && task.assignees.length > 0 ? (
+              <div className="flex -space-x-1.5 overflow-hidden mr-2">
+                {task.assignees.map((assignee) => (
+                  <Tooltip key={assignee.id} content={`${assignee.name} (${assignee.role || ''})`} position="top">
+                    <div className="inline-block rounded-full ring-2 ring-[var(--bg-card)]">
+                      <Avatar
+                        name={assignee.name}
+                        color={assignee.avatar_color || '#6366f1'}
+                        size="xs"
+                      />
+                    </div>
+                  </Tooltip>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mr-2">
+                <Avatar
+                  name={task.assigned_name || 'Sahipsiz'}
+                  color={task.assigned_name ? (task.avatar_color || '#6366f1') : '#ef4444'}
+                  size="xs"
+                />
+                <span className={`text-[11px] ${!task.assigned_name ? 'text-[var(--accent-danger)] font-medium' : 'text-[var(--text-tertiary)]'}`}>
+                  {task.assigned_name || 'Sahipsiz'}
+                </span>
+              </div>
+            )}
+            {task.assignees && task.assignees.length > 0 && (
+              <span className="text-[10px] text-[var(--text-muted)]">
+                {task.assignees.length} kişi
+              </span>
+            )}
           </div>
           {task.estimated_hours > 0 && (
             <div className="flex items-center gap-1 text-[var(--text-muted)]">

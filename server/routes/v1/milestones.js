@@ -109,6 +109,65 @@ router.put('/:id', async (req, res) => {
     if (io) {
       const room = existing.workspace_id ? `workspace:${existing.workspace_id}` : `tenant:${orgId}`;
       io.to(room).emit('milestone:updated', milestone);
+      
+      const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(existing.workspace_id, orgId);
+      io.to(room).emit('milestone:updated', updatedMilestones); // Send full list
+    }
+
+    // Auto-sync back to task
+    if (milestone.task_id) {
+      const statusStr = milestone.is_completed === 1 ? 'done' : 'in-progress';
+      const wsSub = '(SELECT workspace_id FROM tasks WHERE id = ?)';
+      let stageMatch = await prepare(
+        `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND slug = ?`
+      ).get(milestone.task_id, statusStr);
+      
+      if (!stageMatch) {
+        if (statusStr === 'done') {
+          stageMatch = await prepare(
+            `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND is_done_state = 1 ORDER BY position LIMIT 1`
+          ).get(milestone.task_id);
+        } else {
+          stageMatch = await prepare(
+            `SELECT id FROM workflow_stages WHERE workspace_id = ${wsSub} AND (slug LIKE '%progress%' OR slug LIKE '%devam%' OR slug LIKE '%surec%' OR slug LIKE '%calisil%' OR slug LIKE '%active%') ORDER BY position LIMIT 1`
+          ).get(milestone.task_id);
+        }
+      }
+
+      const workflowStageSql = stageMatch ? `, workflow_stage_id = ${stageMatch.id}` : '';
+
+      await prepare(`
+        UPDATE tasks SET
+          title = ?,
+          description = ?,
+          due_date = ?,
+          status = ?,
+          updated_at = CURRENT_TIMESTAMP
+          ${workflowStageSql}
+        WHERE id = ? AND org_id = ?
+      `).run(
+        milestone.title,
+        milestone.description || '',
+        milestone.target_time,
+        statusStr,
+        milestone.task_id,
+        orgId
+      );
+
+      // Emit socket update for the task
+      const task = await prepare('SELECT * FROM tasks WHERE id = ?').get(milestone.task_id);
+      if (io && task) {
+        const assignees = await prepare(`
+          SELECT u.id, u.name, u.avatar_color, u.role
+          FROM task_assignees ta
+          JOIN users u ON ta.user_id = u.id
+          WHERE ta.task_id = ?
+        `).all(task.id);
+        task.assignees = assignees;
+
+        const room = task.workspace_id ? `workspace:${task.workspace_id}` : `tenant:${orgId}`;
+        io.to(room).emit('task:updated', task);
+      }
     }
 
     res.json(milestone);
@@ -135,6 +194,22 @@ router.delete('/:id', async (req, res) => {
     if (io) {
       const room = existing.workspace_id ? `workspace:${existing.workspace_id}` : `tenant:${orgId}`;
       io.to(room).emit('milestone:deleted', { id: req.params.id });
+      const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(existing.workspace_id, orgId);
+      io.to(room).emit('milestone:updated', updatedMilestones);
+    }
+
+    // Auto-sync: delete linked task
+    if (existing.task_id) {
+      await prepare('DELETE FROM subtasks WHERE task_id = ?').run(existing.task_id);
+      await prepare('DELETE FROM comments WHERE task_id = ?').run(existing.task_id);
+      await prepare('DELETE FROM task_tags WHERE task_id = ?').run(existing.task_id);
+      await prepare('DELETE FROM task_assignees WHERE task_id = ?').run(existing.task_id);
+      await prepare('DELETE FROM tasks WHERE id = ?').run(existing.task_id);
+
+      if (io) {
+        const room = existing.workspace_id ? `workspace:${existing.workspace_id}` : `tenant:${orgId}`;
+        io.to(room).emit('task:deleted', { id: existing.task_id });
+      }
     }
 
     res.json({ success: true });

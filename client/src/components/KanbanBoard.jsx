@@ -29,7 +29,9 @@ const filterTasks = (tasks, searchQuery, filterPriority, filterUser) => {
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesPriority = filterPriority === 'all' || t.priority === filterPriority;
-    const matchesUser = filterUser === 'all' || t.assigned_to === parseInt(filterUser);
+    const matchesUser = filterUser === 'all' ||
+      t.assigned_to === parseInt(filterUser) ||
+      (t.assignees && t.assignees.some((a) => a.id === parseInt(filterUser)));
     return matchesSearch && matchesPriority && matchesUser;
   });
 };

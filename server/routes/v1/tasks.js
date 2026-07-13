@@ -77,6 +77,31 @@ router.get('/', async (req, res) => {
     sql += ' ORDER BY t.updated_at DESC';
 
     const tasks = await prepare(sql).all(...params);
+    if (tasks.length > 0) {
+      const taskIds = tasks.map(t => t.id);
+      const placeholders = taskIds.map(() => '?').join(',');
+      const assignees = await prepare(`
+        SELECT ta.task_id, u.id, u.name, u.avatar_color, u.role
+        FROM task_assignees ta
+        JOIN users u ON ta.user_id = u.id
+        WHERE ta.task_id IN (${placeholders})
+      `).all(...taskIds);
+      
+      const assigneesMap = {};
+      assignees.forEach(a => {
+        if (!assigneesMap[a.task_id]) assigneesMap[a.task_id] = [];
+        assigneesMap[a.task_id].push({
+          id: a.id,
+          name: a.name,
+          avatar_color: a.avatar_color,
+          role: a.role
+        });
+      });
+      
+      tasks.forEach(t => {
+        t.assignees = assigneesMap[t.id] || [];
+      });
+    }
     res.json(tasks);
   } catch (err) {
     console.error('v1 Tasks fetch error:', err);
@@ -94,6 +119,15 @@ router.get('/:id', async (req, res) => {
     ).get(req.params.id, req.tenant.orgId);
 
     if (!task) return res.status(404).json({ error: 'Task not found' });
+    
+    const assignees = await prepare(`
+      SELECT u.id, u.name, u.avatar_color, u.role
+      FROM task_assignees ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.task_id = ?
+    `).all(task.id);
+    task.assignees = assignees;
+
     res.json(task);
   } catch (err) {
     console.error('v1 Task fetch error:', err);
@@ -108,8 +142,8 @@ router.post('/', async (req, res) => {
   try {
     const { orgId, workspaceId } = req.tenant;
     const {
-      title, description, status, priority, assigned_to,
-      estimated_hours, sprint_id, workflow_stage_id, content_type
+      title, description, status, priority, assigned_to, assignee_ids,
+      estimated_hours, sprint_id, workflow_stage_id, content_type, due_date
     } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -141,26 +175,60 @@ router.post('/', async (req, res) => {
     }
 
     const wsId = workspaceId || req.body.workspace_id;
+    const finalAssignees = Array.isArray(assignee_ids)
+      ? assignee_ids
+      : (assigned_to ? [parseInt(assigned_to)] : []);
+    const primaryAssignee = finalAssignees.length > 0 ? finalAssignees[0] : null;
 
     const result = await prepare(`
       INSERT INTO tasks (title, description, status, priority, assigned_to, estimated_hours,
-                         org_id, workspace_id, sprint_id, workflow_stage_id, content_type, version)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                         org_id, workspace_id, sprint_id, workflow_stage_id, content_type, version, due_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     `).run(
       title.trim(), description || '', status || 'todo', priority || 'medium',
-      assigned_to || null, estimated_hours || 0,
+      primaryAssignee, estimated_hours || 0,
       orgId, wsId || null, sprint_id || null, workflow_stage_id || null,
-      content_type || 'plain'
+      content_type || 'plain', due_date || null
+    );
+
+    const taskId = result.lastInsertRowid;
+
+    // Save assignees in task_assignees
+    for (const userId of finalAssignees) {
+      await prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id) VALUES (?, ?)').run(taskId, userId);
+    }
+
+    // Auto-sync: Create corresponding milestone
+    const milestoneTargetTime = due_date || new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    await prepare(`
+      INSERT INTO milestones (title, description, target_time, is_completed, org_id, workspace_id, task_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      title.trim(),
+      description || '',
+      milestoneTargetTime,
+      status === 'done' ? 1 : 0,
+      orgId,
+      wsId || 1,
+      taskId
     );
 
     // Log activity with entity metadata
     await prepare(
       'INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(req.user.id, 'created', `Task: ${title.trim()}`, orgId, wsId || null, 'task', result.lastInsertRowid);
+    ).run(req.user.id, 'created', `Task: ${title.trim()}`, orgId, wsId || null, 'task', taskId);
 
     const task = await prepare(
       `${TASK_SELECT} WHERE t.id = ?`
-    ).get(result.lastInsertRowid);
+    ).get(taskId);
+
+    const assignees = await prepare(`
+      SELECT u.id, u.name, u.avatar_color, u.role
+      FROM task_assignees ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.task_id = ?
+    `).all(taskId);
+    task.assignees = assignees;
 
     // Room-scoped broadcast
     const io = req.app.get('io');
@@ -168,14 +236,17 @@ router.post('/', async (req, res) => {
       const room = wsId ? `workspace:${wsId}` : `tenant:${orgId}`;
       io.to(room).emit('task:created', task);
 
-      if (assigned_to) {
+      const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(wsId || 1, orgId);
+      io.to(room).emit('milestone:created', updatedMilestones);
+
+      if (primaryAssignee) {
         io.to(room).emit('notification:new', {
           id: Date.now(),
           type: 'task_assigned',
           title: 'New Task Assigned',
           message: `New task assigned: ${title.trim()}`,
           taskId: task.id,
-          assignedTo: assigned_to,
+          assignedTo: primaryAssignee,
           senderId: req.user.id,
           read: false,
           created_at: new Date().toISOString(),
@@ -201,8 +272,8 @@ router.put('/:id', async (req, res) => {
   try {
     const { orgId } = req.tenant;
     const {
-      title, description, status, priority, assigned_to,
-      estimated_hours, sprint_id, workflow_stage_id, content_type, version, workspace_id
+      title, description, status, priority, assigned_to, assignee_ids,
+      estimated_hours, sprint_id, workflow_stage_id, content_type, version, workspace_id, due_date
     } = req.body;
 
     if (version === undefined || version === null || typeof version !== 'number') {
@@ -235,6 +306,17 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Save assignees in task_assignees if assignee_ids is specified
+    if (assignee_ids !== undefined) {
+      const finalAssignees = Array.isArray(assignee_ids) ? assignee_ids : [];
+      await prepare('DELETE FROM task_assignees WHERE task_id = ?').run(req.params.id);
+      for (const userId of finalAssignees) {
+        await prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id) VALUES (?, ?)').run(req.params.id, userId);
+      }
+      // Set assigned_to to first element
+      req.body.assigned_to = finalAssignees.length > 0 ? finalAssignees[0] : null;
+    }
+
     const fieldsToUpdate = [];
     const params = [];
 
@@ -248,7 +330,8 @@ router.put('/:id', async (req, res) => {
       'sprint_id',
       'workflow_stage_id',
       'content_type',
-      'workspace_id'
+      'workspace_id',
+      'due_date'
     ];
 
     for (const field of allowedFields) {
@@ -261,6 +344,8 @@ router.put('/:id', async (req, res) => {
           params.push(val === null || val === undefined ? 0 : Number(val));
         } else if (field === 'title') {
           params.push(val === null || val === undefined ? '' : String(val).trim());
+        } else if (field === 'due_date') {
+          params.push(val === null || val === undefined ? null : val);
         } else {
           params.push(val === null || val === undefined ? null : val);
         }
@@ -295,6 +380,15 @@ router.put('/:id', async (req, res) => {
     }
 
     const task = await prepare(`${TASK_SELECT} WHERE t.id = ?`).get(req.params.id);
+    
+    // Fetch assignees
+    const assignees = await prepare(`
+      SELECT u.id, u.name, u.avatar_color, u.role
+      FROM task_assignees ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.task_id = ?
+    `).all(task.id);
+    task.assignees = assignees;
 
     const io = req.app.get('io');
     if (io) {
@@ -302,7 +396,48 @@ router.put('/:id', async (req, res) => {
       io.to(room).emit('task:updated', task);
     }
 
-    // Sync Milestone status if linked
+    // Auto-sync: Update/Create corresponding milestone
+    const milestone = await prepare('SELECT id, workspace_id FROM milestones WHERE task_id = ? AND org_id = ?').get(task.id, orgId);
+    if (milestone) {
+      const milestoneTargetTime = task.due_date || new Date().toISOString();
+      await prepare(`
+        UPDATE milestones 
+        SET title = ?, description = ?, target_time = ?, is_completed = ?, notified_overdue = 0 
+        WHERE id = ?
+      `).run(
+        task.title,
+        task.description || '',
+        milestoneTargetTime,
+        task.status === 'done' ? 1 : 0,
+        milestone.id
+      );
+      if (io) {
+        const room = milestone.workspace_id ? `workspace:${milestone.workspace_id}` : `tenant:${orgId}`;
+        const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(milestone.workspace_id, orgId);
+        io.to(room).emit('milestone:updated', updatedMilestones);
+      }
+    } else {
+      const milestoneTargetTime = task.due_date || new Date().toISOString();
+      await prepare(`
+        INSERT INTO milestones (title, description, target_time, is_completed, org_id, workspace_id, task_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        task.title,
+        task.description || '',
+        milestoneTargetTime,
+        task.status === 'done' ? 1 : 0,
+        orgId,
+        task.workspace_id || 1,
+        task.id
+      );
+      if (io) {
+        const room = task.workspace_id ? `workspace:${task.workspace_id}` : `tenant:${orgId}`;
+        const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(task.workspace_id || 1, orgId);
+        io.to(room).emit('milestone:created', updatedMilestones);
+      }
+    }
+
+    // Sync Milestone status if linked (legacy check, redundant but safe)
     if (task.status) {
       await syncMilestoneStatus(task.id, task.status, orgId, io);
     }
@@ -424,13 +559,26 @@ router.delete('/:id', async (req, res) => {
     await prepare('DELETE FROM subtasks WHERE task_id = ?').run(req.params.id);
     await prepare('DELETE FROM comments WHERE task_id = ?').run(req.params.id);
     await prepare('DELETE FROM task_tags WHERE task_id = ?').run(req.params.id);
+    await prepare('DELETE FROM task_assignees WHERE task_id = ?').run(req.params.id);
     await prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
+
+    // Auto-sync: Delete linked milestone
+    const milestone = await prepare('SELECT id, workspace_id FROM milestones WHERE task_id = ? AND org_id = ?').get(req.params.id, orgId);
+    const io = req.app.get('io');
+    if (milestone) {
+      await prepare('DELETE FROM milestones WHERE id = ?').run(milestone.id);
+      if (io) {
+        const room = milestone.workspace_id ? `workspace:${milestone.workspace_id}` : `tenant:${orgId}`;
+        const updatedMilestones = await prepare('SELECT * FROM milestones WHERE workspace_id = ? AND org_id = ? ORDER BY target_time ASC').all(milestone.workspace_id, orgId);
+        io.to(room).emit('milestone:deleted', { id: milestone.id });
+        io.to(room).emit('milestone:updated', updatedMilestones);
+      }
+    }
 
     await prepare(
       'INSERT INTO activities (user_id, action, details, org_id, workspace_id, entity_type, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ).run(req.user.id, 'deleted', `Task "${task.title}" deleted`, orgId, task.workspace_id, 'task', task.id);
 
-    const io = req.app.get('io');
     if (io) {
       const room = task.workspace_id ? `workspace:${task.workspace_id}` : `tenant:${orgId}`;
       io.to(room).emit('task:deleted', { id: req.params.id });

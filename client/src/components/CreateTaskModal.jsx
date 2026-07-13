@@ -11,9 +11,10 @@ function CreateTaskModal({ onClose, onSuccess, isOpen }) {
     title: '',
     description: '',
     priority: 'medium',
-    assigned_to: '',
+    assignee_ids: [],
     estimated_hours: '',
     status: 'todo',
+    due_date: '',
   });
 
   useEffect(() => {
@@ -26,9 +27,10 @@ function CreateTaskModal({ onClose, onSuccess, isOpen }) {
         title: '',
         description: '',
         priority: 'medium',
-        assigned_to: '',
+        assignee_ids: [],
         estimated_hours: '',
         status: 'todo',
+        due_date: '',
       });
     }
   }, [isOpen]);
@@ -37,7 +39,6 @@ function CreateTaskModal({ onClose, onSuccess, isOpen }) {
     e.preventDefault();
     await tasksAPI.create({
       ...form,
-      assigned_to: form.assigned_to ? parseInt(form.assigned_to) : null,
       estimated_hours: parseFloat(form.estimated_hours) || 0,
       user_id: user?.id || 1,
     });

@@ -12,8 +12,9 @@ function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
     title: '',
     description: '',
     priority: 'medium',
-    assigned_to: '',
+    assignee_ids: [],
     estimated_hours: '',
+    due_date: '',
   });
 
   const [conflictData, setConflictData] = useState(null);
@@ -26,8 +27,9 @@ function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
         title: task.title || '',
         description: task.description || '',
         priority: task.priority || 'medium',
-        assigned_to: task.assigned_to || '',
+        assignee_ids: task.assignees ? task.assignees.map(a => a.id) : (task.assigned_to ? [task.assigned_to] : []),
         estimated_hours: task.estimated_hours || '',
+        due_date: task.due_date || '',
       });
     }
     setConflictData(null);
@@ -39,7 +41,6 @@ function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
     try {
       await tasksAPI.update(task.id, {
         ...form,
-        assigned_to: form.assigned_to ? parseInt(form.assigned_to) : null,
         estimated_hours: parseFloat(form.estimated_hours) || 0,
         version: task.version, // Pass version for optimistic locking
       });
@@ -59,7 +60,6 @@ function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
     try {
       await tasksAPI.update(task.id, {
         ...form,
-        assigned_to: form.assigned_to ? parseInt(form.assigned_to) : null,
         estimated_hours: parseFloat(form.estimated_hours) || 0,
         version: conflictData.version, // Overwrite with server version
       });
@@ -78,7 +78,6 @@ function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
     try {
       await tasksAPI.create({
         ...form,
-        assigned_to: form.assigned_to ? parseInt(form.assigned_to) : null,
         estimated_hours: parseFloat(form.estimated_hours) || 0,
       });
       onSuccess();
@@ -98,16 +97,12 @@ function EditTaskModal({ task, onClose, onSuccess, isOpen }) {
       { key: 'title', label: 'Başlık' },
       { key: 'description', label: 'Açıklama' },
       { key: 'priority', label: 'Öncelik' },
-      { key: 'assigned_to', label: 'Atanan Kişi' },
       { key: 'estimated_hours', label: 'Tahmini Süre' },
+      { key: 'due_date', label: 'Bitiş Tarihi' },
     ];
     fields.forEach((f) => {
       let formVal = form[f.key];
       let confVal = conflictData[f.key];
-      if (f.key === 'assigned_to') {
-        formVal = formVal ? parseInt(formVal) : null;
-        confVal = confVal ? parseInt(confVal) : null;
-      }
       if (f.key === 'estimated_hours') {
         formVal = parseFloat(formVal) || 0;
         confVal = parseFloat(confVal) || 0;
