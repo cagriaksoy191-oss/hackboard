@@ -1,6 +1,6 @@
 # HackBoard - Real-time Collaborative Team Management Panel
 
-![HackBoard](https://img.shields.io/badge/version-1.1.0-00d4ff?style=for-the-badge)
+![HackBoard](https://img.shields.io/badge/version-1.0.0-00d4ff?style=for-the-badge)
 ![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)
 ![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=node.js)
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-Realtime-010101?style=for-the-badge&logo=socket.io)
@@ -18,8 +18,10 @@ HackBoard is an enterprise-grade, real-time, multi-tenant team management platfo
 4. **Threaded Chat & Channels**: Workspace-scoped channels with nested Apple Messages-inspired sliding thread reply panels (`ThreadPanel`) leveraging Framer Motion physics.
 5. **RAG AI Search & Spotlight**: Cmd+K / Ctrl+K search utilizing Reciprocal Rank Fusion (RRF) to combine fuzzy text LIKE matches and vector cosine similarity embeddings (retrieved from an asynchronous recursive worker loop).
 6. **Optimistic Locking Conflict Resolver**: Prevents overlapping edits. When a `409 Conflict` occurs, it renders a side-by-side diff comparison UI allowing the user to select and merge conflict values fields.
-7. **Multiple Task Assignees & 2-Way Sync**: Assign tasks to multiple team members using a sleek checkbox grid. Real-time bidirectional synchronization between Kanban board tasks and Timeline milestones (updating or deleting one cascades instantly to the other).
-8. **Fail-safe Persistence & Restore**: Manual JSON backup exports, automatic local snapshots, and transactional imports with structural checks and client auto-reload.
+7. **Multiple Task Assignees**: Assign tasks to multiple users concurrently. Visualized via premium Framer Motion avatar stacks and user tooltip tags, query-filtered accurately at the board layer.
+8. **Bidirectional Task-Timeline Sync**: Direct 2-way real-time integration between Kanban tasks and timeline Milestones. Modifying task completion status, titles, descriptions, due dates, or deletion cascades and syncs instantly across both systems over Socket.IO.
+9. **Fail-safe Persistence & Restore**: Manual JSON backup exports, automatic local snapshots, and transactional imports with structural checks and client auto-reload.
+10. **Render.com Hosting Optimization**: Relaxes worker loop contention (120s loops) and increases production rate limiting (2000 req/15min) to prevent vCPU resource exhaustion and premature logout conditions.
 
 ---
 
@@ -137,12 +139,12 @@ Copy `.env.example` to `.env` and configure:
 
 ## Architecture & Database Schema
 
-The database consists of **15 tables** establishing tenant isolation:
+The database consists of **14 tables** establishing tenant isolation:
 - `users`: User accounts and hashed credentials.
 - `organizations` & `org_memberships`: Tenant context and RBAC definitions.
 - `workspaces`: Sub-tenant team environments.
 - `workflow_stages`: Customized Kanban states.
-- `tasks`, `task_assignees`, `subtasks` & `comments`: Scoped boards, multiple assignees junction map, and backlogs.
+- `tasks`, `subtasks` & `comments`: Scoped boards and backlogs.
 - `channels` & `messages`: Threaded conversation logs.
 - `embeddings`: RAG vectors registry.
 - `sprints` & `milestones`: Delivery tracking cycles.

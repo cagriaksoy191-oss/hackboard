@@ -1250,19 +1250,23 @@ Arayüzde bir Çalışma Alanı Seçici (Workspace Switcher) bulunmadığı içi
 ### 2026-07-13 — Multiple Task Assignees & Bidirectional Task-Timeline Sync
 
 **Problem:**
-1. Görevler sadece tek bir kişiye atanabiliyordu, bu durum "Final Demo" veya "MVP" gibi birden fazla kişinin ortaklaşa çalışması gereken görevlerde kısıtlamaya yol açıyordu.
+1. Görevler sadece tek bir kişiye atanabiliyordu, bu durum birden fazla kişinin ortaklaşa çalışması gereken görevlerde kısıtlamaya yol açıyordu.
 2. Kanban görevleri ile Zaman Çizelgesi (Timeline) milestone'ları bağımsız çalışıyordu; Kanban panosunda yapılan değişikliklerin (ör. due date, status) zaman çizelgesine anlık yansıması ve tersi yönde senkronizasyon eksikti.
-3. Seeding aşamasındaki 5 temel milestone ile görevler arasında ilişki bulunmuyordu ve ekiplere uygun şekilde dağıtılmamıştı.
+3. Seeding aşamasındaki 5 temel milestone ile görevler arasında ilişki bulunmuyordu.
+4. Render.com free tier ortamında düşük kaynak sınırları nedeniyle rate limit ve CPU darboğazları yaşanıyordu.
 
 **Çözüm:**
 - **Veritabanı Göçü (`012_task_multiple_assignees.sql`)**: Çoklu görev atamasını desteklemek için `task_assignees` junction tablosu ve `tasks.due_date` kolonu eklenerek geriye dönük uyumlulukla devreye alındı.
-- **Milestone Görev Seeding**: Zaman çizelgesindeki 5 kritik milestone için uygun rollerdeki ekip üyelerine (Ahmet, Talha, Çağrı, Alaettin) tekli veya çoklu olacak şekilde görev atamaları yapıldı ve `task_id` üzerinden milestone'lar ile ilişkilendirildi.
 - **Çift Yönlü Anlık Senkronizasyon (2-Way Real-time Sync)**:
   - Kanban panosunda görevlerin başlık, açıklama, bitiş tarihi, durum ve aşama değişiklikleri anlık olarak bağlı milestone'a yansıtıldı ve Socket.IO üzerinden tüm odalara yayınlandı.
   - Zaman Çizelgesinde yapılan düzenleme veya tamamlanma durumları da aynı şekilde ilişkili Kanban görevine aktarılarak veritabanında güncellendi.
   - Silme işlemlerinde de her iki taraftaki bağlı öğelerin kaskat (cascade) silinmesi sağlandı.
-- **Arayüz Geliştirmeleri (UI/UX)**:
-  - `TaskCard.jsx`: Tekil atama görseli yerine, Framer Motion ile tasarlanmış üst üste binen çoklu avatar yığını (avatar stack) ve tooltip'ler entegre edildi.
-  - `TaskForm.jsx`: Çoklu kullanıcı seçimi için şık bir checkbox grid yapısı ve bitiş tarihi için yerel tarih-saat seçici (`due_date`) eklendi.
-  - `KanbanBoard.jsx`: Kullanıcı filtreleme algoritması, seçilen kişinin o görevin atananlarından biri (`assignees`) olup olmadığını kontrol edecek şekilde güncellendi.
-- **Test ve Derleme:** 86 sunucu testinin tümünün sıfır hata ile tamamlandığı ve istemci prodüksiyon derlemesinin (build) başarıyla tamamlandığı doğrulandı.
+- **Gelişmiş Arayüz & Hata Yakalama (UI/UX & Diagnostics)**:
+  - `TaskCard.jsx`: Tekil atama görseli yerine, üst üste binen çoklu avatar yığını (avatar stack) ve tooltip'ler entegre edildi.
+  - `KanbanBoard.jsx`: Kullanıcı filtreleme algoritması, seçilen kişinin o görevin atananlarından biri (`assignees`) olup olmadığını kontrol edecek şekilde güncellendi. Yükleme hatalarında ise sonsuz skeleton kilitlenmesini çözen, cam kart (glassmorphic) tasarımlı bir "Yeniden Dene" (Retry) hata arayüzü entegre edildi.
+  - `Dashboard.jsx`: İstatistik veri yükleme fonksiyonlarına sessiz çökmeleri önleyici `.catch` blokları eklendi.
+  - `LoginScreen.jsx`: Bağlantı ve CORS hatalarını hızlı teşhis etmek için axios nesnesini parse eden detaylı konsol logları yazıldı.
+- **Render.com Performans Optimizasyonları**:
+  - `server/server.js` dosyasındaki üretim ortamı rate limit üst sınırı 100'den **2000** değerine çıkartıldı.
+  - CPU ve disk kilitleme yükünü hafifletmek için overdue milestones checker ve embedding worker daemonic loop aralıkları 30 saniyeden **120 saniyeye (120000ms)** yükseltildi.
+- **Test ve Derleme:** 76 sunucu ve 62 istemci birim testinin tümünün sıfır hata ile tamamlandığı ve istemci prodüksiyon derlemesinin (build) başarıyla tamamlandığı doğrulandı.
